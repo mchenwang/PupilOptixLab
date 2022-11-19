@@ -1,0 +1,7 @@
+#pragma once
+
+#include <string_view>
+
+constexpr std::string_view ROOT_DIR = "${PROJECT_SOURCE_DIR}";
+constexpr std::string_view DATA_DIR = "${PROJECT_SOURCE_DIR}/data";
+constexpr std::string_view CODE_DIR = "${PROJECT_SOURCE_DIR}/src";
