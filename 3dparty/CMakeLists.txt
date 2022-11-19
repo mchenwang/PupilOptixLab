@@ -1,0 +1,48 @@
+set(3dparty_target  third-party-targets)
+set(3dparty_folder  third-party)
+
+add_library(${3dparty_target} SHARED dummy.cpp)
+set_target_properties(${3dparty_target} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+#########################################################
+# common function
+function(set_ide_folder target_name folder_name)
+    if (TARGET ${target_name})
+        set_target_properties(${target_name} PROPERTIES FOLDER ${folder_name})
+    else()
+        message(STATUS "${target_name} does not exist.")
+    endif()
+endfunction()
+
+function(add_sub_target target_name folder_name include_dir)
+    if(NOT TARGET ${target_name})
+        message(STATUS "============start config ${target_name}============")
+        add_subdirectory(${target_name})
+        
+        target_link_libraries(${3dparty_target} PUBLIC ${target_name})
+        
+        if(NOT (include_dir EQUAL ""))
+            target_include_directories(${target_name} PUBLIC ${include_dir})
+        endif()
+        
+        set_ide_folder(${target_name} ${folder_name})
+    endif()
+endfunction()
+#########################################################
+
+set_ide_folder(${3dparty_target} ${3dparty_folder})
+
+add_custom_target(file-copy COMMENT "Copy necessary files for third-party libraries")
+set_ide_folder(file-copy ${3dparty_folder})
+
+set(ASSIMP_BUILD_OBJ_IMPORTER   ON  CACHE INTERNAL "" FORCE)
+set(ASSIMP_WARNINGS_AS_ERRORS   OFF CACHE INTERNAL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS   OFF CACHE INTERNAL "" FORCE)
+set(ASSIMP_BUILD_TESTS          OFF CACHE INTERNAL "" FORCE)
+set(ASSIMP_INSTALL              OFF CACHE INTERNAL "" FORCE)
+add_sub_target(assimp ${3dparty_folder}/assimp "")
+set_ide_folder(UpdateAssimpLibsDebugSymbolsAndDLLs ${3dparty_folder}/assimp)
+set_ide_folder(zlibstatic ${3dparty_folder}/assimp)
+
+add_sub_target(stb      ${3dparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+add_sub_target(imgui    ${3dparty_folder} "")
