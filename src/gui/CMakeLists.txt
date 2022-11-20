@@ -8,8 +8,8 @@ set(gui_source
 add_library(gui SHARED ${gui_source})
 target_include_directories(gui PRIVATE ../)
 
-add_dependencies(gui imgui)
 target_link_libraries(gui PRIVATE imgui)
+target_link_libraries(gui PRIVATE DirectXTK12)
 target_link_libraries(gui INTERFACE common)
 set_target_properties(gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 

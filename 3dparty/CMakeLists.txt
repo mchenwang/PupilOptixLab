@@ -46,3 +46,5 @@ set_ide_folder(zlibstatic ${3dparty_folder}/assimp)
 
 add_sub_target(stb      ${3dparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 add_sub_target(imgui    ${3dparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui)
+
+add_sub_target(DirectXTK12 ${3dparty_folder} "")

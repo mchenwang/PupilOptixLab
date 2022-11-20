@@ -7,3 +7,6 @@
 [submodule "3dparty/assimp"]
 	path = 3dparty/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "3dparty/DirectXTK12"]
+	path = 3dparty/DirectXTK12
+	url = https://github.com/microsoft/DirectXTK12.git
