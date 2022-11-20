@@ -6,6 +6,10 @@ find_package(OptiX REQUIRED)
 
 configure_file(static.h.in static.h)
 
+if (WIN32)
+    add_definitions(-DUNICODE -D_UNICODE)
+endif ()
+
 set(source_folder src)
 
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.h")
@@ -24,10 +28,6 @@ target_sources(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-        OptiX::OptiX
-        CUDA::cudart CUDA::cuda_driver
-        gui
-        common
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE OptiX::OptiX)
+target_link_libraries(${PROJECT_NAME} PRIVATE CUDA::cudart CUDA::cuda_driver)
+target_link_libraries(${PROJECT_NAME} PRIVATE gui common)

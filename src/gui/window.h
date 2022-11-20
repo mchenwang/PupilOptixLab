@@ -1,3 +1,11 @@
 #pragma once
+#include "common/util.h"
 
-void gui_run();
+namespace gui {
+class Window : public util::Singleton<Window> {
+public:
+    void Init();
+    void Show();
+    void Destroy();
+};
+}// namespace gui

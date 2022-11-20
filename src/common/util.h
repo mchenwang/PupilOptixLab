@@ -7,7 +7,7 @@ template<typename T>
 class Singleton {
 public:
     static T *instance() {
-        static const std::unique_ptr<T> instance = std::make_unique();
+        static const std::unique_ptr<T> instance = std::make_unique<T>();
         return instance.get();
     }
 
