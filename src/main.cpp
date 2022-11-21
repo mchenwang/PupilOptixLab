@@ -2,8 +2,6 @@
 
 #include "gui/window.h"
 
-#include <optix.h>
-
 #include <iostream>
 
 int main() {
