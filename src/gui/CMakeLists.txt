@@ -1,17 +1,15 @@
 set(gui_source
     window.h
     window.cpp
-    d3dx12.h
     dx12_backend.h
     dx12_backend.cpp
 )
 
-add_library(gui SHARED ${gui_source})
+add_library(gui STATIC ${gui_source})
 target_include_directories(gui PRIVATE ../)
 
 target_link_libraries(gui PRIVATE imgui)
-target_link_libraries(gui PRIVATE DirectXTK12)
-target_link_libraries(gui PRIVATE CUDA::cudart CUDA::cuda_driver)
+target_link_libraries(gui PRIVATE device_api)
 target_link_libraries(gui INTERFACE common)
 
 set_target_properties(gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

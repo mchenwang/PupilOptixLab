@@ -32,7 +32,7 @@ void OnDraw() noexcept;
 
 }// namespace
 
-void Window::Init() {
+void Window::Init() noexcept {
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -49,7 +49,8 @@ void Window::Init() {
     ::RegisterClassExW(&wc);
 
     m_instance = GetModuleHandleW(NULL);
-    g_window_handle = ::CreateWindowExW(NULL,
+    g_window_handle = ::CreateWindowExW(
+        NULL,
         WND_CLASS_NAME.data(),
         WND_NAME.data(),
         WS_OVERLAPPEDWINDOW,
@@ -65,19 +66,25 @@ void Window::Init() {
     ImguiInit();
 }
 
-void Window::Show() {
+bool Window::Show() noexcept {
     MSG msg = {};
-    while (msg.message != WM_QUIT) {
+    if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        ::TranslateMessage(&msg);
+        ::DispatchMessage(&msg);
+    }
+    OnDraw();
+    /*while (msg.message != WM_QUIT) {
         if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             ::TranslateMessage(&msg);
             ::DispatchMessage(&msg);
         } else {
             OnDraw();
         }
-    }
+    }*/
+    return msg.message != WM_QUIT;
 }
 
-void Window::Destroy() {
+void Window::Destroy() noexcept {
     m_backend->Flush();
 
     ImGui_ImplDX12_Shutdown();
@@ -87,6 +94,10 @@ void Window::Destroy() {
     m_backend->Destroy();
     ::DestroyWindow(g_window_handle);
     ::UnregisterClassW(WND_CLASS_NAME.data(), m_instance);
+}
+
+Backend *Window::GetBackend() const noexcept {
+    return m_backend;
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -101,8 +112,11 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (m_backend) {
                 uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
                 uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
-                if (w != g_window_w || h != g_window_h)
+                if (w != g_window_w || h != g_window_h) {
+                    g_window_w = w;
+                    g_window_h = h;
                     m_backend->Resize(w, h);
+                }
             }
             return 0;
         case WM_SYSCOMMAND:
@@ -125,12 +139,12 @@ inline void ImguiInit() noexcept {
     ImGui_ImplWin32_Init(g_window_handle);
 
     ImGui_ImplDX12_Init(
-        m_backend->device.Get(),
-        Backend::NUM_OF_FRAMES,
+        m_backend->GetDevice()->device.Get(),
+        m_backend->GetDevice()->NUM_OF_FRAMES,
         DXGI_FORMAT_R8G8B8A8_UNORM,
-        m_backend->srv_heap.Get(),
-        m_backend->srv_heap->GetCPUDescriptorHandleForHeapStart(),
-        m_backend->srv_heap->GetGPUDescriptorHandleForHeapStart());
+        m_backend->GetDevice()->srv_heap.Get(),
+        m_backend->GetDevice()->srv_heap->GetCPUDescriptorHandleForHeapStart(),
+        m_backend->GetDevice()->srv_heap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void OnDraw() noexcept {
