@@ -66,13 +66,13 @@ void Backend::RenderScreen(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept 
     cmd_list->SetPipelineState(m_pipeline_state.Get());
 
     auto frame = frames[m_backend->GetCurrentFrameIndex()];
-    ID3D12DescriptorHeap *heaps[] = {m_backend->srv_heap.Get()};
+    ID3D12DescriptorHeap *heaps[] = { m_backend->srv_heap.Get() };
     cmd_list->SetDescriptorHeaps(1, heaps);
     cmd_list->SetGraphicsRootDescriptorTable(0, frame.screen_gpu_srv_handle);// TODO
 
-    D3D12_VIEWPORT viewport{0.f, 0.f, (FLOAT)g_window_w, (FLOAT)g_window_h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH};
+    D3D12_VIEWPORT viewport{ 0.f, 0.f, (FLOAT)g_window_w, (FLOAT)g_window_h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
     cmd_list->RSSetViewports(1, &viewport);
-    D3D12_RECT rect{0, 0, (LONG)g_window_w, (LONG)g_window_h};
+    D3D12_RECT rect{ 0, 0, (LONG)g_window_w, (LONG)g_window_h };
     cmd_list->RSSetScissorRects(1, &rect);
 
     auto [back_buffer, back_buffer_rtv] = m_backend->GetCurrentFrame();
@@ -85,7 +85,7 @@ void Backend::RenderScreen(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept 
     cmd_list->ResourceBarrier(1, &barrier);
 
     cmd_list->OMSetRenderTargets(1, &back_buffer_rtv, TRUE, nullptr);
-    const FLOAT clear_color[4]{0.f, 0.f, 0.f, 1.f};
+    const FLOAT clear_color[4]{ 0.f, 0.f, 0.f, 1.f };
     cmd_list->ClearRenderTargetView(back_buffer_rtv, clear_color, 0, nullptr);
 
     cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -177,7 +177,7 @@ void CreatePipeline(device::DX12 *backend) noexcept {
         UINT compile_flags = 0;
 #endif
 
-        std::filesystem::path file_path = (std::filesystem::path{CODE_DIR} / "gui/shader.hlsl").make_preferred();
+        std::filesystem::path file_path = (std::filesystem::path{ CODE_DIR } / "gui/shader.hlsl").make_preferred();
         std::wstring w_file_path = file_path.wstring();
         LPCWSTR result = w_file_path.data();
         //StopIfFailed(D3DCompileFromFile(result, 0, 0, "VSMain", "vs_5_1", compile_flags, 0, &vs, 0));
@@ -193,13 +193,14 @@ void CreatePipeline(device::DX12 *backend) noexcept {
         StopIfFailed(hr);
 
         // Define the vertex input layout.
-        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
-            {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-             {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
 
         // Describe and create the graphics pipeline state object (PSO).
         D3D12_GRAPHICS_PIPELINE_STATE_DESC pso_desc = {};
-        pso_desc.InputLayout = {inputElementDescs, _countof(inputElementDescs)};
+        pso_desc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         pso_desc.pRootSignature = m_root_signature.Get();
         pso_desc.VS.BytecodeLength = vs->GetBufferSize();
         pso_desc.VS.pShaderBytecode = vs->GetBufferPointer();
@@ -228,10 +229,11 @@ void CreatePipeline(device::DX12 *backend) noexcept {
                 : x(x), y(y), z(z), u(u), v(v) {}
         };
         TriVertex quad[] = {
-            {-1.f, -1.f, 0.f, 0.f, 0.f},
-            {-1.f, 1.f, 0.f, 0.f, 1.f},
-            {1.f, -1.f, 0.f, 1.f, 0.f},
-            {1.f, 1.f, 0.f, 1.f, 1.f}};
+            { -1.f, -1.f, 0.f, 0.f, 0.f },
+            { -1.f, 1.f, 0.f, 0.f, 1.f },
+            { 1.f, -1.f, 0.f, 1.f, 0.f },
+            { 1.f, 1.f, 0.f, 1.f, 1.f }
+        };
 
         constexpr auto vb_size = sizeof(quad);
         D3D12_HEAP_PROPERTIES heap_properties{};

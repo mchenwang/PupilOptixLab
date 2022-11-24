@@ -151,3 +151,10 @@ void Optix::Run() noexcept {
     signal_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value + 1;
     cudaSignalExternalSemaphoresAsync(&cuda_semaphore, &signal_params, 1, cuda_stream);
 }
+
+void Optix::InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept {
+    pipeline = std::make_unique<optix_wrap::Pipeline>(this, desc);
+}
+
+void Optix::InitScene() noexcept {
+}

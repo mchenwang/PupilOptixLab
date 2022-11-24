@@ -3,6 +3,9 @@
 #include "dx12_device.h"
 #include <optix.h>
 
+#include "optix_wrap/module.h"
+#include "optix_wrap/pipeline.h"
+
 #include <cuda_runtime.h>
 #include <sstream>
 #include <memory>
@@ -35,8 +38,31 @@ inline void OptixCheck(OptixResult res, const char *call, const char *file, unsi
         assert(false);
     }
 }
+inline void OptixCheckLog(
+    OptixResult res,
+    const char *log,
+    size_t sizeof_log,
+    size_t sizeof_log_returned,
+    const char *call,
+    const char *file,
+    unsigned int line) {
+    if (res != OPTIX_SUCCESS) {
+        std::wstringstream ss;
+        ss << "Optix call '" << call << "' failed: " << file << ':' << line << ")\nLog:\n"
+           << log << (sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "") << '\n';
+        OutputDebugString(ss.str().c_str());
+        assert(false);
+    }
+}
 #define CUDA_CHECK(call) CudaCheck(call, #call, __FILE__, __LINE__)
 #define OPTIX_CHECK(call) OptixCheck(call, #call, __FILE__, __LINE__)
+#define OPTIX_CHECK_LOG(call)                                  \
+    do {                                                       \
+        char LOG[400];                                         \
+        size_t LOG_SIZE = sizeof(LOG);                         \
+        OptixCheckLog(call, LOG, sizeof(LOG), LOG_SIZE, #call, \
+                      __FILE__, __LINE__);                     \
+    } while (false)
 
 namespace device {
 struct CudaDx12SharedTexture {
@@ -67,11 +93,15 @@ public:
     [[nodiscard]] std::unique_ptr<SharedFrameResource>
     CreateSharedFrameResource() noexcept;
 
+    void InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept;
+    void InitScene() noexcept;
+
     void Run() noexcept;
 
 private:
     DX12 *m_dx12_backend = nullptr;
     SharedFrameResource *m_frame_resource = nullptr;
+    std::unique_ptr<optix_wrap::Pipeline> pipeline = nullptr;
 
     void InitCuda() noexcept;
 

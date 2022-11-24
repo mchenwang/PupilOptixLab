@@ -3,7 +3,8 @@ find_package(OptiX REQUIRED)
 configure_file(static.h.in ${CMAKE_CURRENT_LIST_DIR}/static.h)
 
 if (WIN32)
-    add_definitions(-DUNICODE -D_UNICODE)
+    add_definitions(-DUNICODE -D_UNICODE )
+    add_definitions(-DNOMINMAX)
 endif ()
 
 set(source_folder src)

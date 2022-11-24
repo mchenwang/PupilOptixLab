@@ -1,3 +1,5 @@
+file(GLOB_RECURSE optix_wrap_src CONFIGURE_DEPENDS "*.*")
+
 set(device_api_source
     d3dx12.h
     dx12_device.h
@@ -5,6 +7,7 @@ set(device_api_source
     optix_device.h
     optix_device.cpp
     wsa.h wsa.cpp
+    ${optix_wrap_src}
 )
 
 add_library(device_api STATIC ${device_api_source})
