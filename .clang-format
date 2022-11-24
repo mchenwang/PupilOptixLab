@@ -18,7 +18,7 @@ AllowShortEnumsOnASingleLine: true
 AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: MultiLine
 BreakBeforeBraces: Attach
-Cpp11BracedListStyle: true
+Cpp11BracedListStyle: false
 IndentWrappedFunctionNames: false
 BraceWrapping:
   AfterCaseLabel: false
