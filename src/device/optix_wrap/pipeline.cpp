@@ -43,30 +43,44 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
                     LOG, &LOG_SIZE, &p));
 
                 programs.push_back(p);
+                m_program_map[entry] = p;
             }
         };
 
         auto CreateHitGroup = [&](Module *module, decltype(ProgramDesc::hit_group) hit_group) {
             OptixProgramGroupDesc desc{};
             desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+            bool create_flag = false;
+
             if (hit_group.ah_entry) {
                 desc.hitgroup.entryFunctionNameAH = hit_group.ah_entry;
                 desc.hitgroup.moduleAH = module->module;
+                create_flag = true;
             }
             if (hit_group.ch_entry) {
                 desc.hitgroup.entryFunctionNameCH = hit_group.ch_entry;
                 desc.hitgroup.moduleCH = module->module;
+                create_flag = true;
+            } else {
+                assert("empty entry cannot be used as the program id" && false);
             }
             if (hit_group.is_entry) {
                 desc.hitgroup.entryFunctionNameIS = hit_group.is_entry;
+                create_flag = true;
+                if (hit_group.intersect_module)
+                    desc.hitgroup.moduleIS = hit_group.intersect_module->module;
+                else
+                    desc.hitgroup.moduleIS = module->module;
             }
-            desc.hitgroup.moduleIS = hit_group.intersect_module->module;
 
-            OptixProgramGroup p = nullptr;
-            OPTIX_CHECK_LOG(optixProgramGroupCreate(
-                device->context, &desc, 1, &program_group_options,
-                LOG, &LOG_SIZE, &p));
-            programs.push_back(p);
+            if (create_flag) {
+                OptixProgramGroup p = nullptr;
+                OPTIX_CHECK_LOG(optixProgramGroupCreate(
+                    device->context, &desc, 1, &program_group_options,
+                    LOG, &LOG_SIZE, &p));
+                programs.push_back(p);
+                m_program_map[hit_group.ch_entry] = p;
+            }
         };
 
         for (auto &program_desc : desc.programs) {
@@ -79,7 +93,7 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
             CreateHitGroup(program_desc.module, program_desc.shadow_grop);
         }
     }
-    
+
     OptixPipelineLinkOptions pipeline_link_options = {};
     pipeline_link_options.maxTraceDepth = 20;// TODO
     pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
@@ -89,7 +103,7 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
         &Pipeline::pipeline_compile_options,
         &pipeline_link_options,
         programs.data(),
-        programs.size(),
+        (uint32_t)programs.size(),
         LOG,
         &LOG_SIZE,
         &pipeline));
@@ -127,7 +141,14 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
 
 Pipeline::~Pipeline() noexcept {
     if (pipeline) OPTIX_CHECK(optixPipelineDestroy(pipeline));
-    for (auto& p : programs) {
+    for (auto &p : programs) {
         if (p) OPTIX_CHECK(optixProgramGroupDestroy(p));
     }
+}
+
+OptixProgramGroup optix_wrap::Pipeline::FindProgram(std::string name) noexcept {
+    if (m_program_map.find(name) == m_program_map.end())
+        return nullptr;
+    else
+        return m_program_map[name];
 }

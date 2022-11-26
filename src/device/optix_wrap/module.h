@@ -2,6 +2,7 @@
 
 #include <optix.h>
 #include <string>
+
 namespace device {
 class Optix;
 }

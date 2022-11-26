@@ -2,6 +2,7 @@
 
 #include <optix.h>
 #include <vector>
+#include <unordered_map>
 
 namespace device {
 class Optix;
@@ -27,6 +28,10 @@ struct PipelineDesc {
 };
 
 struct Pipeline {
+private:
+    std::unordered_map<std::string, OptixProgramGroup > m_program_map;
+
+public:
     static OptixPipelineCompileOptions pipeline_compile_options;
 
     OptixPipeline pipeline;
@@ -34,5 +39,7 @@ struct Pipeline {
 
     Pipeline(device::Optix *, const PipelineDesc &desc) noexcept;
     ~Pipeline() noexcept;
+
+    OptixProgramGroup FindProgram(std::string) noexcept;
 };
 }// namespace optix_wrap

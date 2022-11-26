@@ -27,10 +27,17 @@ optix_wrap::Module::Module(device::Optix *device, std::string_view file_name) no
     OptixModuleCompileOptions module_compile_options{
         .optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
         .debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL};
+
+    std::filesystem::path file_path = std::filesystem::path{ CODE_DIR } / file_name;
+    std::ifstream file(file_path.string(), std::ios::binary);
+    std::string ptx_source;
+    if (!file.good()) assert(false);
+
+    std::vector<unsigned char> buffer = std::vector<unsigned char>(std::istreambuf_iterator<char>(file), {});
+    ptx_source.assign(buffer.begin(), buffer.end());
     
-    std::filesystem::path file_path = std::filesystem::path{CODE_DIR} / file_name;
-    std::ifstream ptx_fin(file_path.string());
-    const std::string ptx_source((std::istreambuf_iterator<char>(ptx_fin)), std::istreambuf_iterator<char>());
+    //std::ifstream ptx_fin(file_path.string());
+    //const std::string ptx_source((std::istreambuf_iterator<char>(ptx_fin)), std::istreambuf_iterator<char>());
     OPTIX_CHECK_LOG(optixModuleCreateFromPTX(
         device->context,
         &module_compile_options,

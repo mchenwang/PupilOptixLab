@@ -2,6 +2,9 @@
 #include "optix_device.h"
 #include "wsa.h"
 #include "d3dx12.h"
+#include "optix_wrap/pipeline.h"
+#include "optix_wrap/module.h"
+#include "optix_wrap/sbt.h"
 
 #include "common/util.h"
 
@@ -82,12 +85,16 @@ void Optix::InitCuda() noexcept {
 [[nodiscard]] std::unique_ptr<CudaDx12SharedTexture> Optix::CreateSharedResourceWithDX12() noexcept {
     auto target = std::make_unique<CudaDx12SharedTexture>();
 
-    auto texture_desc = CD3DX12_RESOURCE_DESC::Tex2D(
-        DXGI_FORMAT_R32G32B32A32_FLOAT,
-        m_dx12_backend->m_frame_w,
-        m_dx12_backend->m_frame_h,
-        1, 0, 1, 0,
-        D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
+    auto buffer_size = m_dx12_backend->m_frame_h * m_dx12_backend->m_frame_w * sizeof(float4);
+    auto texture_desc = CD3DX12_RESOURCE_DESC::Buffer(
+        buffer_size,
+        D3D12_RESOURCE_FLAG_NONE);
+    //auto texture_desc = CD3DX12_RESOURCE_DESC::Tex2D(
+    //    DXGI_FORMAT_R32G32B32A32_FLOAT,
+    //    m_dx12_backend->m_frame_w,
+    //    m_dx12_backend->m_frame_h,
+    //    1, 0, 1, 0,
+    //    D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
     auto properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     StopIfFailed(m_dx12_backend->device->CreateCommittedResource(
         &properties, D3D12_HEAP_FLAG_SHARED, &texture_desc,
@@ -107,30 +114,36 @@ void Optix::InitCuda() noexcept {
     cuda_ext_handle_desc.size = texAllocInfo.SizeInBytes;
     cuda_ext_handle_desc.flags = cudaExternalMemoryDedicated;
     CUDA_CHECK(cudaImportExternalMemory(&target->cuda_ext_memory, &cuda_ext_handle_desc));
+    CloseHandle(shared_handle);
 
-    cudaExternalMemoryMipmappedArrayDesc cuda_ext_mip_desc{};
-    cuda_ext_mip_desc.extent = make_cudaExtent(texture_desc.Width, texture_desc.Height, 0);
-    cuda_ext_mip_desc.formatDesc = cudaCreateChannelDesc<float4>();
-    cuda_ext_mip_desc.numLevels = 1;
-    cuda_ext_mip_desc.flags = cudaArraySurfaceLoadStore;
+    cudaExternalMemoryBufferDesc cuda_ext_buffer_desc{};
+    cuda_ext_buffer_desc.offset = 0;
+    cuda_ext_buffer_desc.size = buffer_size;
+    CUDA_CHECK(cudaExternalMemoryGetMappedBuffer(&target->cuda_buffer_ptr, target->cuda_ext_memory, &cuda_ext_buffer_desc));
+    
+    //cudaExternalMemoryMipmappedArrayDesc cuda_ext_mip_desc{};
+    //cuda_ext_mip_desc.extent = make_cudaExtent(texture_desc.Width, texture_desc.Height, 0);
+    //cuda_ext_mip_desc.formatDesc = cudaCreateChannelDesc<float4>();
+    //cuda_ext_mip_desc.numLevels = 1;
+    //cuda_ext_mip_desc.flags = cudaArraySurfaceLoadStore;
 
-    cudaMipmappedArray_t cuda_mip_array{};
-    CUDA_CHECK(cudaExternalMemoryGetMappedMipmappedArray(&cuda_mip_array, target->cuda_ext_memory, &cuda_ext_mip_desc));
+    //cudaMipmappedArray_t cuda_mip_array{};
+    //CUDA_CHECK(cudaExternalMemoryGetMappedMipmappedArray(&cuda_mip_array, target->cuda_ext_memory, &cuda_ext_mip_desc));
 
-    cudaArray_t cuda_array{};
-    CUDA_CHECK(cudaGetMipmappedArrayLevel(&cuda_array, cuda_mip_array, 0));
+    //cudaArray_t cuda_array{};
+    //CUDA_CHECK(cudaGetMipmappedArrayLevel(&cuda_array, cuda_mip_array, 0));
 
-    cudaResourceDesc cuda_res_desc{};
-    cuda_res_desc.resType = cudaResourceTypeArray;
-    cuda_res_desc.res.array.array = cuda_array;
-    CUDA_CHECK(cudaCreateSurfaceObject(&target->cuda_surf_obj, &cuda_res_desc));
+    //cudaResourceDesc cuda_res_desc{};
+    //cuda_res_desc.resType = cudaResourceTypeArray;
+    //cuda_res_desc.res.array.array = cuda_array;
+    //CUDA_CHECK(cudaCreateSurfaceObject(&target->cuda_surf_obj, &cuda_res_desc));
 
     CUDA_CHECK(cudaStreamSynchronize(cuda_stream));
 
     return std::move(target);
 }
 
-std::unique_ptr<SharedFrameResource> device::Optix::CreateSharedFrameResource() noexcept {
+std::unique_ptr<SharedFrameResource> Optix::CreateSharedFrameResource() noexcept {
     auto target = std::make_unique<SharedFrameResource>();
     for (auto i = 0u; i < DX12::NUM_OF_FRAMES; i++) {
         target->frame[i] = CreateSharedResourceWithDX12();

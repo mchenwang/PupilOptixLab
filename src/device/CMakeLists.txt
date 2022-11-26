@@ -1,6 +1,7 @@
 file(GLOB_RECURSE optix_wrap_src CONFIGURE_DEPENDS "*.*")
 
 set(device_api_source
+    error_handle.h
     d3dx12.h
     dx12_device.h
     dx12_device.cpp
