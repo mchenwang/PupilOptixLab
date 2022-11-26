@@ -1,16 +1,27 @@
 #include "static.h"
 
-#include "gui/window.h"
+#include "path_tracer/type.h"
+
 #include "gui/dx12_backend.h"
+#include "gui/window.h"
+
 #include "device/optix_device.h"
 #include "device/dx12_device.h"
 #include "device/optix_wrap/module.h"
+#include "device/optix_wrap/pipeline.h"
 
 #include <memory>
 #include <iostream>
 
 std::unique_ptr<optix_wrap::Module> g_sphere_module;
 std::unique_ptr<optix_wrap::Module> g_ReSTIR_module;
+
+struct SBTTypes {
+    using RayGenDataType = RayGenData;
+    using MissDataType = MissData;
+    using HitGroupDataType = HitGroupData;
+};
+
 void ConfigOptix(device::Optix *device);
 
 int main() {
@@ -38,17 +49,17 @@ int main() {
     return 0;
 }
 
-void ConfigOptix(device::Optix* device) {
+void ConfigPipeline(device::Optix *device) {
     g_sphere_module = std::make_unique<optix_wrap::Module>(device, OPTIX_PRIMITIVE_TYPE_SPHERE);
-    g_ReSTIR_module = std::make_unique<optix_wrap::Module>(device, "path_tracer/main.cu");
+    g_ReSTIR_module = std::make_unique<optix_wrap::Module>(device, "path_tracer/main.ptx");
     optix_wrap::PipelineDesc pipeline_desc;
     {
         optix_wrap::ProgramDesc desc{
             .module = g_ReSTIR_module.get(),
             .ray_gen_entry = "__raygen__main",
-            .hit_miss = "__miss__ray",
+            .hit_miss = "__miss__default",
             .shadow_miss = "__miss__shadow",
-            .hit_group = { .ch_entry = "__closesthit__ray" },
+            .hit_group = { .ch_entry = "__closesthit__default" },
             .shadow_grop = { .ch_entry = "__closesthit__shadow" }
         };
         pipeline_desc.programs.push_back(desc);
@@ -57,10 +68,58 @@ void ConfigOptix(device::Optix* device) {
     {
         optix_wrap::ProgramDesc desc{
             .module = g_ReSTIR_module.get(),
-            .hit_group = { .ch_entry = "__closesthit__ray_sphere", .intersect_module = g_sphere_module.get() },
-            .shadow_grop = { .ch_entry = "__closesthit__shadow", .intersect_module = g_sphere_module.get() },
+            .hit_group = { .ch_entry = "__closesthit__default_sphere", .intersect_module = g_sphere_module.get() },
+            .shadow_grop = { .ch_entry = "__closesthit__shadow_sphere", .intersect_module = g_sphere_module.get() },
         };
         pipeline_desc.programs.push_back(desc);
     }
     device->InitPipeline(pipeline_desc);
+}
+
+void ConfigSBT(device::Optix* device) {
+    optix_wrap::SBTDesc<SBTTypes> desc{};
+    desc.ray_gen_data = {
+        .program_name = "__raygen__main",
+        .data = SBTTypes::RayGenDataType{}
+    };
+    {
+        decltype(desc)::Pair<SBTTypes::HitGroupDataType> hit_default_data = {
+            .program_name = "__closesthit__default",
+            .data = SBTTypes::HitGroupDataType{}
+        };
+        desc.hit_datas.push_back(hit_default_data);
+        decltype(desc)::Pair<SBTTypes::HitGroupDataType> hit_shadow_data = {
+            .program_name = "__closesthit__shadow",
+            .data = SBTTypes::HitGroupDataType{}
+        };
+        desc.hit_datas.push_back(hit_shadow_data);
+        decltype(desc)::Pair<SBTTypes::HitGroupDataType> hit_default_sphere_data = {
+            .program_name = "__closesthit__default_sphere",
+            .data = SBTTypes::HitGroupDataType{}
+        };
+        desc.hit_datas.push_back(hit_default_sphere_data);
+        decltype(desc)::Pair<SBTTypes::HitGroupDataType> hit_shadow_sphere_data = {
+            .program_name = "__closesthit__shadow_sphere",
+            .data = SBTTypes::HitGroupDataType{}
+        };
+        desc.hit_datas.push_back(hit_shadow_sphere_data);
+    }
+    {
+        decltype(desc)::Pair<SBTTypes::MissDataType> miss_data = {
+            .program_name = "__miss__default",
+            .data = SBTTypes::MissDataType{}
+        };
+        desc.miss_datas.push_back(miss_data);
+        decltype(desc)::Pair<SBTTypes::MissDataType> miss_shadow_data = {
+            .program_name = "__miss__shadow",
+            .data = SBTTypes::MissDataType{}
+        };
+        desc.miss_datas.push_back(miss_shadow_data);
+    }
+    device->InitSBT(desc);
+}
+
+void ConfigOptix(device::Optix *device) {
+    ConfigPipeline(device);
+    ConfigSBT(device);
 }

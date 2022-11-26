@@ -54,9 +54,14 @@ void Backend::SetScreenResource(device::SharedFrameResource *shared_frame_resour
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
         srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srv_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-        srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srv_desc.Texture2D.MipLevels = 1;
+        srv_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srv_desc.Format = DXGI_FORMAT_UNKNOWN;
+        srv_desc.Buffer.NumElements = g_window_h * g_window_w;
+        srv_desc.Buffer.StructureByteStride = sizeof(float) * 4;
+        srv_desc.Buffer.FirstElement = 0;
+        srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+        /*srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srv_desc.Texture2D.MipLevels = 1;*/
         m_backend->device->CreateShaderResourceView(frames[i].screen_texture.Get(), &srv_desc, frames[i].screen_cpu_srv_handle);
     }
 }
@@ -127,23 +132,24 @@ void CreatePipeline(device::DX12 *backend) noexcept {
         ranges[0].RegisterSpace = 0;
         ranges[0].OffsetInDescriptorsFromTableStart = 0;
 
-        CD3DX12_ROOT_PARAMETER1 root_params[1]{};
+        CD3DX12_ROOT_PARAMETER1 root_params[2]{};
         root_params[0].InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        root_params[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        D3D12_STATIC_SAMPLER_DESC sampler_desc{};
-        sampler_desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-        sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        sampler_desc.RegisterSpace = 0;
-        sampler_desc.ShaderRegister = 0;
-        sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-        sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-        sampler_desc.MaxAnisotropy = 16;
-        sampler_desc.MaxLOD = D3D12_FLOAT32_MAX;
-        sampler_desc.MinLOD = 0.f;
-        sampler_desc.MipLODBias = 0.f;
+        // D3D12_STATIC_SAMPLER_DESC sampler_desc{};
+        // sampler_desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        // sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        // sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        // sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        // sampler_desc.RegisterSpace = 0;
+        // sampler_desc.ShaderRegister = 0;
+        // sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        // sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+        // sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        // sampler_desc.MaxAnisotropy = 16;
+        // sampler_desc.MaxLOD = D3D12_FLOAT32_MAX;
+        // sampler_desc.MinLOD = 0.f;
+        // sampler_desc.MipLODBias = 0.f;
 
         D3D12_ROOT_SIGNATURE_FLAGS root_sign_flags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -154,10 +160,10 @@ void CreatePipeline(device::DX12 *backend) noexcept {
         D3D12_VERSIONED_ROOT_SIGNATURE_DESC root_sign_desc{};
         root_sign_desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
         root_sign_desc.Desc_1_1.Flags = root_sign_flags;
-        root_sign_desc.Desc_1_1.NumParameters = 1;
-        root_sign_desc.Desc_1_1.NumStaticSamplers = 1;
+        root_sign_desc.Desc_1_1.NumParameters = 2;
+        root_sign_desc.Desc_1_1.NumStaticSamplers = 0;
         root_sign_desc.Desc_1_1.pParameters = root_params;// TODO
-        root_sign_desc.Desc_1_1.pStaticSamplers = &sampler_desc;
+        // root_sign_desc.Desc_1_1.pStaticSamplers = &sampler_desc;
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
