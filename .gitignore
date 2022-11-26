@@ -2,3 +2,4 @@ build/
 test/
 target/
 .vscode/
+*.ptx
