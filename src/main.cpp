@@ -36,8 +36,7 @@ int main() {
 
         ConfigOptix(optix_device.get());
 
-        auto shared_frame_resource = optix_device->CreateSharedFrameResource();
-        backend->SetScreenResource(shared_frame_resource.get());
+        backend->SetScreenResource(optix_device->GetSharedFrameResource());
 
         do {
             optix_device->Run();

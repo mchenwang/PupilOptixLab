@@ -7,6 +7,7 @@
 #include <string>
 
 #include "../error_handle.h"
+#include "common/cuda_util/util.h"
 
 namespace optix_wrap {
 template<typename T>

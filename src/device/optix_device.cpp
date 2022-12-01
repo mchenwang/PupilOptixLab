@@ -1,12 +1,13 @@
 #include "optix_device.h"
-#include "optix_device.h"
 #include "wsa.h"
 #include "d3dx12.h"
 #include "optix_wrap/pipeline.h"
 #include "optix_wrap/module.h"
 #include "optix_wrap/sbt.h"
+#include "optix_wrap/mesh.h"
 
 #include "common/util.h"
+#include "common/cuda_util/util.h"
 
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
@@ -35,6 +36,20 @@ Optix::Optix(DX12 *dx12_backend) noexcept {
     options.logCallbackFunction = &ContextLogCB;
     options.logCallbackLevel = 4;
     OPTIX_CHECK(optixDeviceContextCreate(cu_ctx, &options, &context));
+}
+
+Optix::~Optix() noexcept {
+    CUDA_CHECK(cudaDestroyExternalSemaphore(cuda_semaphore));
+    if (m_frame_resource) {
+        for (auto i = 0u; i < DX12::NUM_OF_FRAMES; i++) {
+            if (m_frame_resource->frame[i]) {
+                CUDA_CHECK(cudaDestroyExternalMemory(m_frame_resource->frame[i]->cuda_ext_memory));
+                m_frame_resource->frame[i]->dx12_resource.Reset();
+            }
+        }
+    }
+    CUDA_FREE(ias_buffer);
+    pipeline.reset();
 }
 
 void Optix::InitCuda() noexcept {
@@ -120,7 +135,7 @@ void Optix::InitCuda() noexcept {
     cuda_ext_buffer_desc.offset = 0;
     cuda_ext_buffer_desc.size = buffer_size;
     CUDA_CHECK(cudaExternalMemoryGetMappedBuffer(&target->cuda_buffer_ptr, target->cuda_ext_memory, &cuda_ext_buffer_desc));
-    
+
     //cudaExternalMemoryMipmappedArrayDesc cuda_ext_mip_desc{};
     //cuda_ext_mip_desc.extent = make_cudaExtent(texture_desc.Width, texture_desc.Height, 0);
     //cuda_ext_mip_desc.formatDesc = cudaCreateChannelDesc<float4>();
@@ -143,13 +158,15 @@ void Optix::InitCuda() noexcept {
     return std::move(target);
 }
 
-std::unique_ptr<SharedFrameResource> Optix::CreateSharedFrameResource() noexcept {
-    auto target = std::make_unique<SharedFrameResource>();
-    for (auto i = 0u; i < DX12::NUM_OF_FRAMES; i++) {
-        target->frame[i] = CreateSharedResourceWithDX12();
+SharedFrameResource *Optix::GetSharedFrameResource() noexcept {
+    if (m_frame_resource == nullptr) {
+        m_frame_resource = std::make_unique<SharedFrameResource>();
+        for (auto i = 0u; i < DX12::NUM_OF_FRAMES; i++) {
+            m_frame_resource->frame[i] = CreateSharedResourceWithDX12();
+        }
     }
-    m_frame_resource = target.get();
-    return std::move(target);
+
+    return m_frame_resource.get();
 }
 
 void Optix::Run() noexcept {
@@ -170,4 +187,95 @@ void Optix::InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept {
 }
 
 void Optix::InitScene() noexcept {
+}
+
+void Optix::CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &ros) noexcept {
+    float transform[12] = {
+        1.f, 0.f, 0.f, 0.f,
+        0.f, 1.f, 0.f, 0.f,
+        0.f, 0.f, 1.f, 0.f
+    };
+
+    const auto num_instances = ros.size();
+    std::vector<OptixInstance> instances(num_instances);
+
+    for (auto i = 0u; i < num_instances; i++) {
+        memcpy(instances[i].transform, transform, sizeof(float) * 12);
+        instances[i].instanceId = i;
+        instances[i].sbtOffset = i * 2;
+        instances[i].visibilityMask = ros[i].visibility_mask;
+        instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
+        instances[i].traversableHandle = ros[i].gas_handle;
+    }
+
+    const auto instances_size_in_bytes = sizeof(OptixInstance) * num_instances;
+    CUdeviceptr d_instances = 0;
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_instances), instances_size_in_bytes));
+    CUDA_CHECK(cudaMemcpy(
+        reinterpret_cast<void **>(d_instances),
+        instances.data(),
+        instances_size_in_bytes,
+        cudaMemcpyHostToDevice));
+
+    OptixBuildInput instance_input{};
+    instance_input.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+    instance_input.instanceArray.instances = d_instances;
+    instance_input.instanceArray.numInstances = static_cast<unsigned int>(num_instances);
+
+    OptixAccelBuildOptions accel_options{};
+    accel_options.buildFlags = OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
+    accel_options.operation = OPTIX_BUILD_OPERATION_BUILD;
+
+    OptixAccelBufferSizes ias_buffer_sizes;
+    OPTIX_CHECK(optixAccelComputeMemoryUsage(
+        context,
+        &accel_options,
+        &instance_input,
+        1,// num build inputs
+        &ias_buffer_sizes));
+
+    CUdeviceptr d_temp_buffer;
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_temp_buffer), ias_buffer_sizes.tempSizeInBytes));
+
+    // non-compacted output
+    CUdeviceptr d_buffer_temp_output_ias_and_compacted_size;
+    size_t compactedSizeOffset = roundUp<size_t>(ias_buffer_sizes.outputSizeInBytes, 8ull);
+    CUDA_CHECK(cudaMalloc(
+        reinterpret_cast<void **>(&d_buffer_temp_output_ias_and_compacted_size),
+        compactedSizeOffset + 8));
+
+    OptixAccelEmitDesc emitProperty = {};
+    emitProperty.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
+    emitProperty.result = (CUdeviceptr)((char *)d_buffer_temp_output_ias_and_compacted_size + compactedSizeOffset);
+
+    OPTIX_CHECK(optixAccelBuild(
+        context,
+        0,
+        &accel_options,
+        &instance_input,
+        1,
+        d_temp_buffer,
+        ias_buffer_sizes.tempSizeInBytes,
+        d_buffer_temp_output_ias_and_compacted_size,
+        ias_buffer_sizes.outputSizeInBytes,
+        &ias_handle,
+        &emitProperty,
+        1));
+
+    CUDA_FREE(d_temp_buffer);
+    CUDA_FREE(d_instances);
+
+    size_t compacted_ias_size;
+    CUDA_CHECK(cudaMemcpy(&compacted_ias_size, (void *)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost));
+
+    if (compacted_ias_size < ias_buffer_sizes.outputSizeInBytes) {
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ias_buffer), compacted_ias_size));
+
+        // use handle as input and output
+        OPTIX_CHECK(optixAccelCompact(context, 0, ias_handle, ias_buffer, compacted_ias_size, &ias_handle));
+
+        CUDA_FREE(d_buffer_temp_output_ias_and_compacted_size);
+    } else {
+        ias_buffer = d_buffer_temp_output_ias_and_compacted_size;
+    }
 }

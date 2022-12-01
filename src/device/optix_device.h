@@ -11,6 +11,7 @@
 namespace optix_wrap {
 struct PipelineDesc;
 struct Pipeline;
+struct RenderObject;
 }// namespace optix_wrap
 
 namespace device {
@@ -36,12 +37,14 @@ public:
 
     OptixDeviceContext context = nullptr;
 
+    OptixTraversableHandle ias_handle = 0;
+    CUdeviceptr ias_buffer = 0;
+
     Optix() = delete;
     Optix(DX12 *dx12_backend) noexcept;
-    ~Optix() noexcept = default;
+    ~Optix() noexcept;
 
-    [[nodiscard]] std::unique_ptr<SharedFrameResource>
-    CreateSharedFrameResource() noexcept;
+    [[nodiscard]] SharedFrameResource *GetSharedFrameResource() noexcept;
 
     void InitPipeline(const optix_wrap::PipelineDesc &) noexcept;
 
@@ -53,11 +56,12 @@ public:
 
 private:
     DX12 *m_dx12_backend = nullptr;
-    SharedFrameResource *m_frame_resource = nullptr;
+    std::unique_ptr<SharedFrameResource> m_frame_resource = nullptr;
     std::unique_ptr<optix_wrap::Pipeline> pipeline = nullptr;
     std::any sbt{};
 
     void InitCuda() noexcept;
+    void CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &) noexcept;
 
     [[nodiscard]] std::unique_ptr<CudaDx12SharedTexture>
     CreateSharedResourceWithDX12() noexcept;

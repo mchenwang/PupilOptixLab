@@ -18,6 +18,7 @@ target_link_libraries(device_api PRIVATE DirectXTK12)
 target_link_libraries(device_api PUBLIC CUDA::cudart CUDA::cuda_driver)
 target_link_libraries(device_api PUBLIC OptiX)
 target_link_libraries(device_api INTERFACE common)
+target_link_libraries(device_api INTERFACE cuda_util)
 
 set_target_properties(device_api PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 

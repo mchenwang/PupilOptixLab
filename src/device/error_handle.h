@@ -1,30 +1,10 @@
 #pragma once
 
 #include <optix.h>
-#include <cuda_runtime.h>
 #include <sstream>
 #include <assert.h>
 #include <iostream>
 
-inline void CudaCheck(cudaError_t error, const char *call, const char *file, unsigned int line) {
-    if (error != cudaSuccess) {
-        std::wstringstream ss;
-        ss << "CUDA call (" << call << " ) failed with error: '"
-           << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
-        std::wcerr << ss.str().c_str();
-        assert(false);
-    }
-}
-inline void CudaCheck(CUresult error, const char *call, const char *file, unsigned int line) {
-    if (error != cudaSuccess) {
-        std::wstringstream ss;
-        ss << "CUDA call (" << call << " ) failed with error: '"
-           << error << "' (" << file << ":" << line << ")\n";
-
-        std::wcerr << ss.str().c_str();
-        assert(false);
-    }
-}
 inline void OptixCheck(OptixResult res, const char *call, const char *file, unsigned int line) {
     if (res != OPTIX_SUCCESS) {
         std::wstringstream ss;
@@ -49,7 +29,7 @@ inline void OptixCheckLog(
         assert(false);
     }
 }
-#define CUDA_CHECK(call) CudaCheck(call, #call, __FILE__, __LINE__)
+
 #define OPTIX_CHECK(call) OptixCheck(call, #call, __FILE__, __LINE__)
 #define OPTIX_CHECK_LOG(call)                                  \
     do {                                                       \
@@ -57,10 +37,4 @@ inline void OptixCheckLog(
         size_t LOG_SIZE = sizeof(LOG);                         \
         OptixCheckLog(call, LOG, sizeof(LOG), LOG_SIZE, #call, \
                       __FILE__, __LINE__);                     \
-    } while (false)
-
-#define CUDA_FREE(var)                                           \
-    do {                                                         \
-        if (var)                                                 \
-            CUDA_CHECK(cudaFree(reinterpret_cast<void *>(var))); \
     } while (false)
