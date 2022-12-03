@@ -12,6 +12,4 @@ target_link_libraries(gui PRIVATE imgui)
 target_link_libraries(gui PRIVATE device_api)
 target_link_libraries(gui INTERFACE common)
 
-set_target_properties(gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
 set_target_properties(gui PROPERTIES FOLDER ${source_folder})

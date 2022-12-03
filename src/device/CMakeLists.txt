@@ -20,6 +20,4 @@ target_link_libraries(device_api PUBLIC OptiX)
 target_link_libraries(device_api INTERFACE common)
 target_link_libraries(device_api INTERFACE cuda_util)
 
-set_target_properties(device_api PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
 set_target_properties(device_api PROPERTIES FOLDER ${source_folder})

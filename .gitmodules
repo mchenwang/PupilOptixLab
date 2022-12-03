@@ -10,3 +10,6 @@
 [submodule "3dparty/DirectXTK12"]
 	path = 3dparty/DirectXTK12
 	url = https://github.com/microsoft/DirectXTK12.git
+[submodule "3dparty/pugixml"]
+	path = 3dparty/pugixml
+	url = https://github.com/zeux/pugixml.git

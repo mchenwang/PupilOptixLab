@@ -48,3 +48,8 @@ add_sub_target(stb      ${3dparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 add_sub_target(imgui    ${3dparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui)
 
 add_sub_target(DirectXTK12 ${3dparty_folder} "")
+
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
+add_sub_target(pugixml          ${3dparty_folder} "")
+set_ide_folder(pugixml-static   ${3dparty_folder})
+set_ide_folder(pugixml-shared   ${3dparty_folder})
