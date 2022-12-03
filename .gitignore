@@ -3,3 +3,4 @@ test/
 target/
 .vscode/
 *.ptx
+data/*
