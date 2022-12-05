@@ -1,8 +1,9 @@
-set(scene_source
-    loader.cpp
-    loader.h
-)
+# set(scene_source
+#     loader.cpp
+#     loader.h
+# )
 
+file(GLOB_RECURSE scene_source CONFIGURE_DEPENDS "*.*")
 add_library(scene STATIC ${scene_source})
 target_include_directories(scene PRIVATE ../)
 
