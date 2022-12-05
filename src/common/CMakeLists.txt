@@ -1,4 +1,4 @@
-add_library(common INTERFACE util.h)
+add_library(common INTERFACE util.h macro_map.h)
 target_include_directories(common INTERFACE ../)
 set_target_properties(common PROPERTIES FOLDER ${source_folder})
 

@@ -19,6 +19,11 @@ add_subdirectory(gui)
 add_subdirectory(scene)
 
 add_executable(${PROJECT_NAME})
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options(${PROJECT_NAME} PRIVATE /Zc:preprocessor)
+endif ()
+
 target_sources(${PROJECT_NAME} PRIVATE static.h main.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
