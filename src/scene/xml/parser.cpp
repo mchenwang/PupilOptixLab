@@ -6,12 +6,10 @@
 #include <array>
 #include <filesystem>
 #include <functional>
-#include <assert.h>
 
 namespace scene::xml {
 
 std::unique_ptr<std::unordered_map<std::string, ETag>> s_tag_map = nullptr;
-// std::unique_ptr<std::unordered_map<std::string, VisitorFunc>> s_visitor = nullptr;
 
 void RegisterContext() {
     s_tag_map = std::make_unique<std::unordered_map<std::string, ETag>>();
@@ -19,10 +17,6 @@ void RegisterContext() {
         s_tag_map->emplace(std::string{ S_TAGS_NAME[i - 1] }, static_cast<ETag>(i));
     }
 }
-
-// void DeregisterContext() {
-//     s_tag_map.reset();
-// }
 
 void DfsParse(Parser *parser, pugi::xml_node node) {
     auto tag = s_tag_map->operator[](node.name());
@@ -32,9 +26,9 @@ void DfsParse(Parser *parser, pugi::xml_node node) {
         DfsParse(parser, ch);
 }
 
-// void Parser::DeregisterContext() noexcept {
-//     DeregisterContext();
-// }
+void Parser::DeregisterContext() noexcept {
+    s_tag_map.reset();
+}
 
 Parser::Parser() noexcept {
     if (s_tag_map == nullptr) {
@@ -50,7 +44,6 @@ void Parser::LoadFromFile(std::string_view path) noexcept {
 
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(file_path.c_str());
-    //assert(result == 0);
     DfsParse(this, doc.document_element());
 }
 

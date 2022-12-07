@@ -22,7 +22,7 @@ public:
     Parser() noexcept;
     ~Parser() noexcept;
 
-    // static void DeregisterContext() noexcept;
+    static void DeregisterContext() noexcept;
 
     void LoadFromFile(std::string_view path) noexcept;
     void AddGlobalParam(std::string, std::string) noexcept;
