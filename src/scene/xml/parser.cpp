@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "tag.h"
+#include "object.h"
 #include "visitor.h"
 
 #include <memory>
@@ -19,11 +20,20 @@ void RegisterContext() {
 }
 
 void DfsParse(Parser *parser, pugi::xml_node node) {
-    auto tag = s_tag_map->operator[](node.name());
-    bool flag = Visit(tag, parser, node);
+    ETag tag = ETag::UNKNOWN;
+    if (s_tag_map->find(node.name()) != s_tag_map->end())
+        tag = s_tag_map->operator[](node.name());
+
+    auto xml_g_mngr = parser->GetXMLGlobalManager();
+    auto obj_parent = xml_g_mngr->current_obj;
+
+    bool flag = Visit(tag, xml_g_mngr, node);
     if (!flag) return;
+
     for (pugi::xml_node &ch : node.children())
         DfsParse(parser, ch);
+
+    xml_g_mngr->current_obj = obj_parent;
 }
 
 void Parser::DeregisterContext() noexcept {
@@ -34,6 +44,7 @@ Parser::Parser() noexcept {
     if (s_tag_map == nullptr) {
         RegisterContext();
     }
+    m_global_manager = std::make_unique<GlobalManager>();
 }
 
 Parser::~Parser() noexcept {
@@ -45,26 +56,6 @@ void Parser::LoadFromFile(std::string_view path) noexcept {
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(file_path.c_str());
     DfsParse(this, doc.document_element());
-}
-
-void Parser::AddGlobalParam(std::string name, std::string value) noexcept {
-    m_global_params[name] = value;
-}
-
-void Parser::ReplaceDefaultValue(pugi::xml_node *node) noexcept {
-    for (auto attr : node->attributes()) {
-        std::string a_value = attr.value();
-        if (a_value.find('$') == std::string::npos)
-            continue;
-        for (auto &[p_name, p_value] : m_global_params) {
-            size_t pos = 0;
-            std::string temp_name = "$" + p_name;
-            while ((pos = a_value.find(temp_name, pos)) != std::string::npos) {
-                a_value.replace(pos, temp_name.length(), p_value);
-                pos += p_value.length();
-            }
-        }
-        attr.set_value(a_value.c_str());
-    }
+    
 }
 }// namespace scene::xml

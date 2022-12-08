@@ -8,21 +8,26 @@
 namespace scene {
 namespace xml {
 
-#define PUPIL_XML_TAGS \
-    scene,             \
-        default,       \
-        integrator,    \
-        sensor,        \
-        transform,     \
-        film,          \
-        bsdf,          \
-        float,         \
-        integer,       \
-        string,        \
-        texture,       \
-        rgb,           \
-        matrix,        \
-        boolean,       \
+#define PUPIL_XML_TAGS             \
+    scene,                         \
+        default,                   \
+        bsdf,                      \
+        emitter,                   \
+        film,                      \
+        integrator,                \
+        sensor,                    \
+        shape,                     \
+        texture,                   \
+        transform, /*xml objects*/ \
+        integer,                   \
+        string,                    \
+        float,                     \
+        rgb,                       \
+        matrix,                    \
+        scale,                     \
+        rotate,                    \
+        translate,                 \
+        boolean, /*properties*/    \
         ref
 
 #define TAG_ENUM_NAME(tag) _##tag

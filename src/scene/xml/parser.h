@@ -1,33 +1,27 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
 #include <memory>
-
-namespace pugi {
-class xml_node;
-}
 
 namespace scene {
 struct Scene;
 
 namespace xml {
+struct Object;
+struct GlobalManager;
+
 class Parser {
 private:
-    std::unordered_map<std::string, std::string> m_global_params;
+    std::unique_ptr<GlobalManager> m_global_manager;
 
 public:
-    std::unique_ptr<scene::Scene> scene = nullptr;
-
     Parser() noexcept;
     ~Parser() noexcept;
 
     static void DeregisterContext() noexcept;
 
     void LoadFromFile(std::string_view path) noexcept;
-    void AddGlobalParam(std::string, std::string) noexcept;
-
-    void ReplaceDefaultValue(pugi::xml_node *) noexcept;
+    GlobalManager *GetXMLGlobalManager() const noexcept { return m_global_manager.get(); }
 };
 }// namespace xml
 }// namespace scene
