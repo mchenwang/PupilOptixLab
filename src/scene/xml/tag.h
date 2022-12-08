@@ -18,6 +18,7 @@ namespace xml {
         sensor,                    \
         shape,                     \
         texture,                   \
+        lookat,                    \
         transform, /*xml objects*/ \
         integer,                   \
         string,                    \

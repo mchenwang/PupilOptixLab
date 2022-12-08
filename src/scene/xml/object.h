@@ -20,7 +20,7 @@ struct Property {
     Property(std::string_view name, std::string_view value) noexcept : name(name), value(value) {}
 };
 
-/// @brief support bsdf, emitter, film, integrator, sensor, shape, texture, and transform
+/// @brief support bsdf, emitter, film, integrator, sensor, shape, texture, transform, lookat(sub obj for transform)
 struct Object {
     std::string obj_name;
     std::string var_name;
@@ -32,7 +32,6 @@ struct Object {
 };
 
 struct GlobalManager {
-    std::unique_ptr<Object> obj_root = nullptr;
     Object *current_obj = nullptr;
     std::vector<std::unique_ptr<Object>> objects_pool;
     std::unordered_map<std::string, std::string> global_params;
