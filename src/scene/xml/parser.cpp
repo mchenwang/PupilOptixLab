@@ -50,12 +50,13 @@ Parser::Parser() noexcept {
 Parser::~Parser() noexcept {
 }
 
-void Parser::LoadFromFile(std::string_view path) noexcept {
+Object *Parser::LoadFromFile(std::string_view path) noexcept {
     std::filesystem::path file_path(path.data());
 
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(file_path.c_str());
     DfsParse(this, doc.document_element());
-    
+
+    return m_global_manager->objects_pool[0].get();
 }
 }// namespace scene::xml

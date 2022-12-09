@@ -22,4 +22,12 @@ void GlobalManager::ReplaceDefaultValue(pugi::xml_node *node) noexcept {
         attr.set_value(a_value.c_str());
     }
 }
+std::string Object::GetProperty(std::string_view property_name) noexcept {
+    for (auto &p : properties) {
+        if (p.name.compare(property_name) == 0) {
+            return p.value;
+        }
+    }
+    return "";
+}
 }// namespace scene::xml

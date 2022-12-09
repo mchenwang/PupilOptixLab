@@ -24,11 +24,14 @@ struct Property {
 struct Object {
     std::string obj_name;
     std::string var_name;
+    std::string id;
     std::string type;
     std::vector<Property> properties;
     std::vector<Object *> sub_object;
 
     Object(std::string_view obj_name, std::string_view type) noexcept : obj_name(obj_name), type(type) {}
+
+    std::string GetProperty(std::string_view) noexcept;
 };
 
 struct GlobalManager {

@@ -10,6 +10,8 @@
 #include "device/optix_wrap/module.h"
 #include "device/optix_wrap/pipeline.h"
 
+#include "scene/scene.h"
+
 #include <memory>
 #include <iostream>
 
@@ -25,26 +27,28 @@ struct SBTTypes {
 void ConfigOptix(device::Optix *device);
 
 int main() {
-    auto gui_window = util::Singleton<gui::Window>::instance();
-    gui_window->Init();
+    scene::Scene scene;
+    scene.LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/scene_v3.xml");
+    //auto gui_window = util::Singleton<gui::Window>::instance();
+    //gui_window->Init();
 
-    //
-    {
-        auto backend = gui_window->GetBackend();
-        std::unique_ptr<device::Optix> optix_device =
-            std::make_unique<device::Optix>(backend->GetDevice());
+    ////
+    //{
+    //    auto backend = gui_window->GetBackend();
+    //    std::unique_ptr<device::Optix> optix_device =
+    //        std::make_unique<device::Optix>(backend->GetDevice());
 
-        ConfigOptix(optix_device.get());
+    //    ConfigOptix(optix_device.get());
 
-        backend->SetScreenResource(optix_device->GetSharedFrameResource());
+    //    backend->SetScreenResource(optix_device->GetSharedFrameResource());
 
-        do {
-            optix_device->Run();
-        } while (gui_window->Show());
-    }
-    g_ReSTIR_module.reset();
-    g_sphere_module.reset();
-    gui_window->Destroy();
+    //    do {
+    //        optix_device->Run();
+    //    } while (gui_window->Show());
+    //}
+    //g_ReSTIR_module.reset();
+    //g_sphere_module.reset();
+    //gui_window->Destroy();
     return 0;
 }
 
@@ -75,7 +79,12 @@ void ConfigPipeline(device::Optix *device) {
     device->InitPipeline(pipeline_desc);
 }
 
-void ConfigSBT(device::Optix* device) {
+void ConfigScene() {
+    scene::Scene scene;
+    scene.LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/scene_v3.xml");
+}
+
+void ConfigSBT(device::Optix *device) {
     optix_wrap::SBTDesc<SBTTypes> desc{};
     desc.ray_gen_data = {
         .program_name = "__raygen__main",
@@ -120,5 +129,6 @@ void ConfigSBT(device::Optix* device) {
 
 void ConfigOptix(device::Optix *device) {
     ConfigPipeline(device);
+    ConfigScene();
     ConfigSBT(device);
 }

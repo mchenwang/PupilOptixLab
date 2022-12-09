@@ -1,28 +1,23 @@
-#include "loader.h"
-
+#include "scene.h"
 #include "xml/parser.h"
+#include "xml/object.h"
+#include "xml/tag.h"
 
+namespace {
 
-using namespace scene;
-
-// void PrintNode(pugi::xml_node node, std::string pre = "") {
-//     std::cout << std::format("{}{}: ", pre, node.name());
-//     for (pugi::xml_attribute &a : node.attributes()) {
-//         std::cout << std::format("[{}][{}]  ", a.name(), a.value());
-//     }
-//     std::cout << std::endl;
-//     for (pugi::xml_node &ch : node.children()) {
-//         PrintNode(ch, pre + "    ");
-//     }
-// }
-
-void scene::LoadFromXML(std::string_view path) {
-    // pugi::xml_document doc;
-    // pugi::xml_parse_result result = doc.load_file(path.data());
-    // if (!result)
-    //     return;
-
-    xml::Parser parser;
-    parser.LoadFromFile(path);
-    // PrintNode(doc.document_element());
 }
+
+namespace scene {
+void Scene::LoadFromXML(std::string_view path) noexcept {
+    xml::Parser parser;
+    auto scene_xml_root_obj = parser.LoadFromFile(path);
+    for (auto &xml_obj : scene_xml_root_obj->sub_object) {
+        if (xml_obj->obj_name.compare(TagToString(xml::ETag::_integrator)) == 0) {
+            std::string value = xml_obj->GetProperty("max_depth");
+            integrator.max_depth = std::stoi(value);
+        } else if (xml_obj->obj_name.compare(TagToString(xml::ETag::_sensor)) == 0) {
+        } else if (xml_obj->obj_name.compare(TagToString(xml::ETag::_shape)) == 0) {
+        }
+    }
+}
+}// namespace scene
