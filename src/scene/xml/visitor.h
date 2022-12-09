@@ -78,8 +78,8 @@ IMPL_VISITOR(ETag::_lookat,
 // clang-format on
 
 #define TAG_VISITOR(tag) Visitor<ETag::##_##tag>()
-#define TAG_VISITORS_DEFINE(...)                           \
-    std::array<VisitorFunc, 1 + TAG_ARGS_NUM(__VA_ARGS__)> \
+#define TAG_VISITORS_DEFINE(...)                                   \
+    std::array<VisitorFunc, 1 + PUPIL_MACRO_ARGS_NUM(__VA_ARGS__)> \
         S_TAG_VISITORS = { Visitor<ETag::UNKNOWN>(), MAP_LIST(TAG_VISITOR, __VA_ARGS__) };
 
 TAG_VISITORS_DEFINE(PUPIL_XML_TAGS);
@@ -99,7 +99,8 @@ bool ObjectVisitor(GlobalManager *global_manager, pugi::xml_node &node) {
     auto obj = std::make_unique<Object>(node.name(), node.attribute("type").value());
     auto id_attr = node.attribute("id");
     if (!id_attr.empty()) {
-        global_manager->ref_objects_map[id_attr.value()] = obj.get();
+        obj->id = id_attr.value();
+        global_manager->ref_objects_map[obj->id] = obj.get();
     }
     auto name_attr = node.attribute("name");
     if (!name_attr.empty()) {

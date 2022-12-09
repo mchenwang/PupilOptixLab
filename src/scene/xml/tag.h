@@ -3,7 +3,7 @@
 #include <string_view>
 #include <array>
 
-#include "common/macro_map.h"
+#include "common/enum.h"
 
 namespace scene {
 namespace xml {
@@ -31,20 +31,13 @@ namespace xml {
         boolean, /*properties*/    \
         ref
 
-#define TAG_ENUM_NAME(tag) _##tag
-#define TAG_STR_NAME(tag) #tag
+PUPIL_ENUM_DEFINE(ETag, PUPIL_XML_TAGS)
+PUPIL_ENUM_STRING_ARRAY(S_TAGS_NAME, PUPIL_XML_TAGS)
 
-#define TAG_ARGS_NUM(...) std::tuple_size<decltype(std::make_tuple(MAP_LIST(TAG_STR_NAME, PUPIL_XML_TAGS)))>::value
-
-#define TAGS_DEFINE(...)                               \
-    enum class ETag : unsigned int {                   \
-        UNKNOWN = 0,                                   \
-        MAP_LIST(TAG_ENUM_NAME, __VA_ARGS__),          \
-        COUNT                                          \
-    };                                                 \
-    std::array<std::string, TAG_ARGS_NUM(__VA_ARGS__)> \
-        S_TAGS_NAME = { MAP_LIST(TAG_STR_NAME, __VA_ARGS__) };
-
-TAGS_DEFINE(PUPIL_XML_TAGS)
+inline std::string TagToString(ETag tag) noexcept {
+    auto index = static_cast<unsigned int>(tag);
+    if (index < 1 || index >= (unsigned int)ETag::COUNT) return "unknown";
+    return S_TAGS_NAME[index - 1];
+}
 }
 }// namespace scene::xml
