@@ -33,11 +33,5 @@ namespace xml {
 
 PUPIL_ENUM_DEFINE(ETag, PUPIL_XML_TAGS)
 PUPIL_ENUM_STRING_ARRAY(S_TAGS_NAME, PUPIL_XML_TAGS)
-
-inline std::string TagToString(ETag tag) noexcept {
-    auto index = static_cast<unsigned int>(tag);
-    if (index < 1 || index >= (unsigned int)ETag::COUNT) return "unknown";
-    return S_TAGS_NAME[index - 1];
-}
 }
 }// namespace scene::xml

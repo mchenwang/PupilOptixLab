@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tag.h"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -22,14 +24,16 @@ struct Property {
 
 /// @brief support bsdf, emitter, film, integrator, sensor, shape, texture, transform, lookat(sub obj for transform)
 struct Object {
-    std::string obj_name;
+    const ETag tag;
+    std::string obj_name;// TODO: can it be removed
     std::string var_name;
     std::string id;
     std::string type;
     std::vector<Property> properties;
     std::vector<Object *> sub_object;
 
-    Object(std::string_view obj_name, std::string_view type) noexcept : obj_name(obj_name), type(type) {}
+    Object(std::string_view obj_name, std::string_view type, ETag obj_tag = ETag::UNKNOWN) noexcept
+        : obj_name(obj_name), type(type), tag(obj_tag) {}
 
     std::string GetProperty(std::string_view) noexcept;
 };
