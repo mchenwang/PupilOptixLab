@@ -35,7 +35,7 @@ struct Object {
     Object(std::string_view obj_name, std::string_view type, ETag obj_tag = ETag::UNKNOWN) noexcept
         : obj_name(obj_name), type(type), tag(obj_tag) {}
 
-    std::string GetProperty(std::string_view) noexcept;
+    std::string GetProperty(std::string_view) const noexcept;
 };
 
 struct GlobalManager {
