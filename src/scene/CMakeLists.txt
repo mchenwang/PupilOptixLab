@@ -1,5 +1,5 @@
 set(scene_source
-    loader.cpp
+    scene.cpp
     scene.h
     shape.h
 )
