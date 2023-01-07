@@ -4,7 +4,7 @@
 
 namespace scene {
 struct Transform {
-    float matrix[12]{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 };
+    float matrix[16]{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 };
 
 enum class EShapeType {

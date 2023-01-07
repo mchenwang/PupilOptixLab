@@ -10,7 +10,7 @@
 
 namespace scene {
 struct Integrator {
-    int max_depth = 0;
+    int max_depth = 1;
 };
 
 struct Film {
