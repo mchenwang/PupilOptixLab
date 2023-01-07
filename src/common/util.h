@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <string>
 
 namespace util {
 template<typename T>
@@ -17,4 +19,6 @@ public:
 protected:
     Singleton() {}
 };
+
+std::vector<std::string> Split(std::string_view str, std::string_view deli);
 }// namespace util

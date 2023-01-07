@@ -1,4 +1,6 @@
-add_library(common INTERFACE util.h macro_map.h enum.h)
+add_library(common INTERFACE util.h util.cpp macro_map.h enum.h)
+
+# TODO: use PUBLIC
 target_include_directories(common INTERFACE ../)
 set_target_properties(common PROPERTIES FOLDER ${source_folder})
 
