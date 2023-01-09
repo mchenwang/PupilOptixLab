@@ -42,7 +42,7 @@ void Transform::Rotate(float ux, float uy, float uz, float angle) noexcept {
     float u_len = std::sqrtf(ux * ux + uy * uy + uz * uz);
     ux /= u_len, uy /= u_len, uz /= u_len;
 
-    float theta = angle / 180.f * 3.14159265358979323846;
+    float theta = angle / 180.f * 3.14159265358979323846f;
 
     float a = cos(0.5f * theta);
     float b = sin(0.5f * theta) * ux;
@@ -56,7 +56,7 @@ void Transform::Rotate(float ux, float uy, float uz, float angle) noexcept {
         0.f, 0.f, 0.f, 1.f
     };
 
-    MatrixMultiply(matrix, rotate, matrix);
+    MatrixMultiply(rotate, matrix, matrix);
 }
 
 void Transform::Translate(float x, float y, float z) noexcept {
@@ -66,7 +66,7 @@ void Transform::Translate(float x, float y, float z) noexcept {
         0.f, 0.f, 1.f, z,
         0.f, 0.f, 0.f, 1.f
     };
-    MatrixMultiply(matrix, translate, matrix);
+    MatrixMultiply(translate, matrix, matrix);
 }
 
 void Transform::Scale(float x, float y, float z) noexcept {
@@ -76,7 +76,7 @@ void Transform::Scale(float x, float y, float z) noexcept {
         0.f, 0.f, z, 0.f,
         0.f, 0.f, 0.f, 1.f
     };
-    MatrixMultiply(matrix, scale, matrix);
+    MatrixMultiply(scale, matrix, matrix);
 }
 
 Shape::Shape(EShapeType type) noexcept : type(type) {
