@@ -14,7 +14,7 @@ class xml_node;
 namespace scene {
 namespace xml {
 /// @brief xml object's property
-/// support integer, string, float, boolean, rgb, (for transform matrix, scale, rotate, translate)
+/// support integer, string, float, boolean, rgb, (for transform matrix, scale, translate)
 struct Property {
     std::string name;
     std::string value;
@@ -22,10 +22,12 @@ struct Property {
     Property(std::string_view name, std::string_view value) noexcept : name(name), value(value) {}
 };
 
-/// @brief support bsdf, emitter, film, integrator, sensor, shape, texture, transform, lookat(sub obj for transform)
+// support bsdf, emitter, film, integrator, sensor, shape, texture, transform;
+// sub obj for transform: lookat, rotate
+// non-unique sub obj: bsdf, shape, texture
 struct Object {
     const ETag tag;
-    std::string obj_name;// TODO: can it be removed
+    std::string obj_name;
     std::string var_name;
     std::string id;
     std::string type;
@@ -36,6 +38,8 @@ struct Object {
         : obj_name(obj_name), type(type), tag(obj_tag) {}
 
     std::string GetProperty(std::string_view) const noexcept;
+    Object *GetUniqueSubObject(std::string_view) const noexcept;
+    std::vector<Object *> GetSubObjects(std::string_view) const noexcept;
 };
 
 struct GlobalManager {

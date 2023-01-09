@@ -30,4 +30,23 @@ std::string Object::GetProperty(std::string_view property_name) const noexcept {
     }
     return "";
 }
+
+Object *Object::GetUniqueSubObject(std::string_view sub_object_name) const noexcept {
+    for (auto so : sub_object) {
+        if (so->obj_name.compare(sub_object_name) == 0) {
+            return so;
+        }
+    }
+    return nullptr;
+}
+
+std::vector<Object *> Object::GetSubObjects(std::string_view sub_object_name) const noexcept {
+    std::vector<Object *> ret{};
+    for (auto so : sub_object) {
+        if (so->obj_name.compare(sub_object_name) == 0) {
+            ret.emplace_back(so);
+        }
+    }
+    return ret;
+}
 }// namespace scene::xml

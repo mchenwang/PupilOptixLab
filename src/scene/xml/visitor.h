@@ -115,6 +115,55 @@ IMPL_VISITOR(ETag::_lookat,
     return true;
 )
 
+// <rotate value="0.701, 0.701, 0.701" angle="180"/>
+// <rotate y="1" angle="45"/>
+IMPL_VISITOR(ETag::_rotate,
+    global_manager->ReplaceDefaultValue(&node);
+    auto rotate_obj = std::make_unique<Object>(node.name(), "", ETag::_rotate);
+    std::string axis{};
+    if (!node.attribute("value").empty()) {
+        axis = node.attribute("value").value();
+    } else if (!node.attribute("x").empty()) {
+        axis = "1, 0, 0";
+    } else if (!node.attribute("y").empty()) {
+        axis = "0, 1, 0";
+    } else if (!node.attribute("z").empty()) {
+        axis = "0, 0, 1";
+    }
+    rotate_obj->properties.emplace_back("axis", axis);
+
+    auto angle = node.attribute("angle");
+    rotate_obj->properties.emplace_back(angle.name(), angle.value());
+
+    if (global_manager->current_obj) {
+        global_manager->current_obj->sub_object.emplace_back(rotate_obj.get());
+    }
+    global_manager->objects_pool.emplace_back(std::move(rotate_obj));
+    return true;
+)
+
+// <scale value="5"/>
+// <scale value="2, 1, -1"/>
+// <scale x="4" y="2"/>
+IMPL_VISITOR(ETag::_scale,
+    global_manager->ReplaceDefaultValue(&node);
+    std::string value = node.attribute("value").value();
+    if (value.empty()) {
+        std::string x = node.attribute("x").value();
+        std::string y = node.attribute("y").value();
+        std::string z = node.attribute("z").value();
+
+        if (x.empty()) x = "1";
+        if (y.empty()) y = "1";
+        if (z.empty()) z = "1";
+        value = x + "," + y + "," + z;
+    }
+    if (global_manager->current_obj) {
+        global_manager->current_obj->properties.emplace_back(node.name(), value);
+    }
+    return true;
+)
+
 IMPL_VISITOR(ETag::_integer,    return PropertyVisitor(ETag::_integer, global_manager, node);)
 IMPL_VISITOR(ETag::_string,     return PropertyVisitor(ETag::_string, global_manager, node);)
 IMPL_VISITOR(ETag::_float,      return PropertyVisitor(ETag::_float, global_manager, node);)
@@ -122,8 +171,8 @@ IMPL_VISITOR(ETag::_rgb,        return PropertyVisitor(ETag::_rgb, global_manage
 IMPL_VISITOR(ETag::_boolean,    return PropertyVisitor(ETag::_boolean, global_manager, node);)
 
 IMPL_VISITOR(ETag::_matrix,     return TransformVisitor(ETag::_matrix, global_manager, node);)
-IMPL_VISITOR(ETag::_scale,      return TransformVisitor(ETag::_scale, global_manager, node);)
-IMPL_VISITOR(ETag::_rotate,     return TransformVisitor(ETag::_rotate, global_manager, node);)
+// IMPL_VISITOR(ETag::_scale,      return TransformVisitor(ETag::_scale, global_manager, node);)
+// IMPL_VISITOR(ETag::_rotate,     return TransformVisitor(ETag::_rotate, global_manager, node);)
 IMPL_VISITOR(ETag::_translate,  return TransformVisitor(ETag::_translate, global_manager, node);)
 
 IMPL_VISITOR(ETag::_bsdf,       return ObjectVisitor(ETag::_bsdf, global_manager, node);)
