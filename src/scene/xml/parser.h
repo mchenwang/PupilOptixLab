@@ -4,7 +4,7 @@
 #include <memory>
 
 namespace scene {
-struct Scene;
+class Scene;
 
 namespace xml {
 struct Object;

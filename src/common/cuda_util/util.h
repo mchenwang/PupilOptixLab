@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vec_math.h"
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <sstream>
 #include <assert.h>
