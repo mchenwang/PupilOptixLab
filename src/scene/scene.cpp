@@ -146,10 +146,10 @@ Scene::Scene() noexcept {
             if (!value.empty()) sensor->fov = std::stof(value);
 
             auto film_obj = obj->GetUniqueSubObject("film");
-            InvokeXmlObjLoadCallBack(xml::ETag::_film, film_obj, &sensor->film);
+            InvokeXmlObjLoadCallBack(film_obj, &sensor->film);
 
             auto transform_obj = obj->GetUniqueSubObject("transform");
-            InvokeXmlObjLoadCallBack(xml::ETag::_transform, transform_obj, &sensor->transform);
+            InvokeXmlObjLoadCallBack(transform_obj, &sensor->transform);
         });
 }
 
@@ -157,15 +157,17 @@ void Scene::LoadFromXML(std::string_view path) noexcept {
     xml::Parser parser;
     auto scene_xml_root_obj = parser.LoadFromFile(path);
     for (auto &xml_obj : scene_xml_root_obj->sub_object) {
-        if (xml_obj->tag == xml::ETag::_integrator) {
+        switch (xml_obj->tag) {
+            case xml::ETag::_integrator:
+                InvokeXmlObjLoadCallBack(xml_obj, &integrator);
+                break;
+            case xml::ETag::_sensor:
+                InvokeXmlObjLoadCallBack(xml_obj, &sensor);
+                break;
+            case xml::ETag::_shape:
+                // TODO
+                break;
         }
-        // if (xml_obj->obj_name.compare(TagToString(xml::ETag::_integrator)) == 0) {
-        //     // LoadXmlObj(xml_obj, integrator);
-        //     integrator_cb(xml_obj);
-        // } else if (xml_obj->obj_name.compare(TagToString(xml::ETag::_sensor)) == 0) {
-        //     LoadXmlObj(xml_obj, sensor);
-        // } else if (xml_obj->obj_name.compare(TagToString(xml::ETag::_shape)) == 0) {
-        // }
     }
 }
 }// namespace scene

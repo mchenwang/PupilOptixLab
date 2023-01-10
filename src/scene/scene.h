@@ -41,10 +41,6 @@ public:
 
     std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::COUNT> xml_obj_load_cbs{};
 
-    std::function<void(xml::Object *)> integrator_cb;
-    // std::function<void(xml::Object *)> sensor_cb;
-    // std::function<void(xml::Object *)> shape_cb;
-
     Scene() noexcept;
 
     void LoadFromXML(std::string_view) noexcept;
@@ -55,8 +51,8 @@ public:
         xml_obj_load_cbs[static_cast<unsigned int>(tag)] = std::forward<Func>(func);
     }
 
-    void InvokeXmlObjLoadCallBack(xml::ETag tag, const xml::Object *obj, void *dst) noexcept {
-        xml_obj_load_cbs[static_cast<unsigned int>(tag)](obj, dst);
+    void InvokeXmlObjLoadCallBack(const xml::Object *obj, void *dst) noexcept {
+        xml_obj_load_cbs[static_cast<unsigned int>(obj->tag)](obj, dst);
     }
 };
 }// namespace scene
