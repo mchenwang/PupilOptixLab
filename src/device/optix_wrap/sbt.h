@@ -7,7 +7,7 @@
 #include <string>
 
 #include "../error_handle.h"
-#include "common/cuda_util/util.h"
+#include "cuda_util/util.h"
 
 namespace optix_wrap {
 template<typename T>
@@ -33,10 +33,10 @@ concept RecordType = requires { RecordTraits<T>::Type; };
 
 template<typename T>
 concept SBTTypes = requires {
-    typename T::RayGenDataType;
-    typename T::MissDataType;
-    typename T::HitGroupDataType;
-};
+                       typename T::RayGenDataType;
+                       typename T::MissDataType;
+                       typename T::HitGroupDataType;
+                   };
 
 template<SBTTypes T>
 struct SBTDesc {

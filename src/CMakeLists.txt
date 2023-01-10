@@ -14,6 +14,7 @@ file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES})
 
 add_subdirectory(common)
+add_subdirectory(cuda_util)
 add_subdirectory(device)
 add_subdirectory(gui)
 add_subdirectory(scene)

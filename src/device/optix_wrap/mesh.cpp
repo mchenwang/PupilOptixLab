@@ -2,7 +2,7 @@
 #include "../optix_device.h"
 #include "../error_handle.h"
 
-#include "common/cuda_util/util.h"
+#include "cuda_util/util.h"
 
 using namespace optix_wrap;
 

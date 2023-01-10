@@ -7,7 +7,7 @@
 #include "optix_wrap/mesh.h"
 
 #include "common/util.h"
-#include "common/cuda_util/util.h"
+#include "cuda_util/util.h"
 
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
