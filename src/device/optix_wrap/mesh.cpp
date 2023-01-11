@@ -10,14 +10,14 @@ namespace {
 // the mesh just has one material, so the sbt_index_offset must be 0
 void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
     const auto vertex_size = sizeof(Vertex) * mesh->vertices.size();
-    CUdeviceptr d_vertex = util::CudaMemcpy(mesh->vertices.data(), vertex_size);
+    CUdeviceptr d_vertex = cuda::CudaMemcpy(mesh->vertices.data(), vertex_size);
 
     const auto index_size = sizeof(TriIndex) * mesh->indices.size();
-    CUdeviceptr d_index = util::CudaMemcpy(mesh->indices.data(), index_size);
+    CUdeviceptr d_index = cuda::CudaMemcpy(mesh->indices.data(), index_size);
 
     unsigned int sbt_index = 0;
-    CUdeviceptr d_sbt_index = util::CudaMemcpy(&sbt_index, sizeof(sbt_index));
-    CUdeviceptr d_transform = util::CudaMemcpy(mesh->transform, sizeof(float) * 12);
+    CUdeviceptr d_sbt_index = cuda::CudaMemcpy(&sbt_index, sizeof(sbt_index));
+    CUdeviceptr d_transform = cuda::CudaMemcpy(mesh->transform, sizeof(float) * 12);
 
     unsigned int input_flag = OPTIX_GEOMETRY_FLAG_NONE;
     OptixBuildInput input{};
@@ -97,11 +97,11 @@ void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
     }
 }
 void CreateAccel(device::Optix *device, Sphere *sphere, RenderObject *ro) {
-    CUdeviceptr d_center = util::CudaMemcpy(&sphere->center, sizeof(sphere->center));
-    CUdeviceptr d_radius = util::CudaMemcpy(&sphere->radius, sizeof(sphere->radius));
+    CUdeviceptr d_center = cuda::CudaMemcpy(&sphere->center, sizeof(sphere->center));
+    CUdeviceptr d_radius = cuda::CudaMemcpy(&sphere->radius, sizeof(sphere->radius));
     unsigned int sbt_index = 0;
-    CUdeviceptr d_sbt_index = util::CudaMemcpy(&sbt_index, sizeof(sbt_index));
-    CUdeviceptr d_transform = util::CudaMemcpy(sphere->transform, sizeof(float) * 12);
+    CUdeviceptr d_sbt_index = cuda::CudaMemcpy(&sbt_index, sizeof(sbt_index));
+    CUdeviceptr d_transform = cuda::CudaMemcpy(sphere->transform, sizeof(float) * 12);
 
     unsigned int input_flag = OPTIX_GEOMETRY_FLAG_NONE;
     OptixBuildInput input{};

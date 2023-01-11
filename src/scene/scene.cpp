@@ -9,7 +9,7 @@
 
 namespace {
 void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
-    if (obj == nullptr) return;
+    if (obj == nullptr || dst == nullptr) return;
     scene::Integrator *integrator = static_cast<scene::Integrator *>(dst);
     std::string value = obj->GetProperty("max_depth");
     if (!value.empty()) {
@@ -18,7 +18,7 @@ void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
 }
 
 void LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
-    if (obj == nullptr) return;
+    if (obj == nullptr || dst == nullptr) return;
     scene::Transform *transform = static_cast<scene::Transform *>(dst);
     if (obj->var_name.compare("to_world") == 0) {
         std::string value = obj->GetProperty("matrix");
@@ -110,7 +110,7 @@ void LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
 }
 
 void LoadFilm(const scene::xml::Object *obj, void *dst) noexcept {
-    if (obj == nullptr) return;
+    if (obj == nullptr || dst == nullptr) return;
     scene::Film *film = static_cast<scene::Film *>(dst);
     if (obj->type.compare("hdrfilm")) {
         std::cerr << "warring: film only support hdrfilm.\n";
@@ -135,7 +135,7 @@ Scene::Scene() noexcept {
     SetXmlObjLoadCallBack(
         xml::ETag::_sensor,
         [this](const scene::xml::Object *obj, void *dst) noexcept {
-            if (obj == nullptr) return;
+            if (obj == nullptr || dst == nullptr) return;
             scene::Sensor *sensor = static_cast<scene::Sensor *>(dst);
             if (obj->type.compare("perspective")) {
                 std::cerr << "warring: sensor only support perspective.\n";
@@ -150,6 +150,12 @@ Scene::Scene() noexcept {
 
             auto transform_obj = obj->GetUniqueSubObject("transform");
             InvokeXmlObjLoadCallBack(transform_obj, &sensor->transform);
+        });
+
+    SetXmlObjLoadCallBack(
+        xml::ETag::_texture,
+        [this](const scene::xml::Object *obj, void *dst) noexcept {
+            if (obj == nullptr || dst == nullptr) return;
         });
 }
 

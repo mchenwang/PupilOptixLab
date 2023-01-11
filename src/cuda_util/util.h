@@ -1,8 +1,11 @@
 #pragma once
 
-#include "vec_math.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+
+#include "vec_math.h"
+#include "texture.h"
+
 #include <sstream>
 #include <assert.h>
 #include <iostream>
@@ -34,7 +37,7 @@ inline void CudaCheck(CUresult error, const char *call, const char *file, unsign
             CUDA_CHECK(cudaFree(reinterpret_cast<void *>(var))); \
     } while (false)
 
-namespace util {
+namespace cuda {
 inline CUdeviceptr CudaMemcpy(void *src, size_t size) {
     CUdeviceptr device_memory = 0;
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&device_memory), size));

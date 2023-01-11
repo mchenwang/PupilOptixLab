@@ -20,5 +20,19 @@ protected:
     Singleton() {}
 };
 
+// struct is from "https://www.cppstories.com/2021/heterogeneous-access-cpp20/"
+struct StringHash {
+    using is_transparent = void;
+    [[nodiscard]] size_t operator()(const char *txt) const {
+        return std::hash<std::string_view>{}(txt);
+    }
+    [[nodiscard]] size_t operator()(std::string_view txt) const {
+        return std::hash<std::string_view>{}(txt);
+    }
+    [[nodiscard]] size_t operator()(const std::string &txt) const {
+        return std::hash<std::string>{}(txt);
+    }
+};
+
 std::vector<std::string> Split(std::string_view str, std::string_view deli);
 }// namespace util
