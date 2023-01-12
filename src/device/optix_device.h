@@ -45,7 +45,7 @@ public:
     ~Optix() noexcept;
 
     [[nodiscard]] SharedFrameResource *GetSharedFrameResource() noexcept;
-
+    
     void InitPipeline(const optix_wrap::PipelineDesc &) noexcept;
 
     template<optix_wrap::SBTTypes T>

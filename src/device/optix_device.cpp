@@ -9,6 +9,8 @@
 #include "common/util.h"
 #include "cuda_util/util.h"
 
+#include "scene/texture.h"
+
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
 

@@ -4,7 +4,6 @@
 #include <cuda_runtime.h>
 
 #include "vec_math.h"
-#include "texture.h"
 
 #include <sstream>
 #include <assert.h>

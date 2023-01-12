@@ -8,6 +8,8 @@ set(device_api_source
     optix_device.h
     optix_device.cpp
     wsa.h wsa.cpp
+    cuda_texture.h
+    cuda_texture.cpp
     ${optix_wrap_src}
 )
 
@@ -19,5 +21,6 @@ target_link_libraries(device_api PUBLIC CUDA::cudart CUDA::cuda_driver)
 target_link_libraries(device_api PUBLIC OptiX)
 target_link_libraries(device_api PRIVATE common)
 target_link_libraries(device_api PRIVATE cuda_util)
+target_link_libraries(device_api PRIVATE scene)
 
 set_target_properties(device_api PROPERTIES FOLDER ${source_folder})

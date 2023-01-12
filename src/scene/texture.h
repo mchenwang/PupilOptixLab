@@ -9,31 +9,12 @@
 
 #include <cuda_runtime.h>
 
+namespace util {
+struct Texture;
+struct TextureDesc;
+}
+
 namespace scene {
-enum class ETextureAddressMode : unsigned int {
-    Wrap = 0,
-    Clamp = 1,
-    Mirror = 2,
-    Border = 3
-};
-
-enum ETextureFilterMode : unsigned int {
-    Point = 0,
-    Linear = 1
-};
-
-struct TextureDesc {
-    ETextureAddressMode address_mode = ETextureAddressMode::Wrap;
-    ETextureFilterMode filter_mode = ETextureFilterMode::Linear;
-};
-
-struct Texture {
-    uint32_t w = 0;
-    uint32_t h = 0;
-    float *data = nullptr;
-    cudaTextureObject_t cuda_obj = 0;
-};
-
 class TextureManager : public util::Singleton<TextureManager> {
 private:
     struct ImageData {
@@ -42,22 +23,20 @@ private:
         std::unique_ptr<float[]> data;
 
         ImageData(size_t w, size_t h) noexcept : w(w), h(h) {
-            size_t data_size = w * h * 3;
+            size_t data_size = w * h * 4;
             data = std::make_unique<float[]>(data_size);
         }
     };
 
-    using MapDataType = std::pair<std::unique_ptr<ImageData>, cudaTextureObject_t>;
-    std::unordered_map<std::string, MapDataType, util::StringHash, std::equal_to<>> m_image_datas;
-
-    std::vector<cudaArray_t> m_cuda_memory_array;
+    std::unordered_map<std::string, std::unique_ptr<ImageData>, util::StringHash, std::equal_to<>> m_image_datas;
 
     TextureManager() noexcept = default;
 
 public:
     void LoadTextureFromFile(std::string_view) noexcept;
-    [[nodiscard]] Texture GetColorTexture(float r, float g, float b) noexcept;
-    [[nodiscard]] Texture GetTexture(std::string_view, TextureDesc desc = {}) noexcept;
+    [[nodiscard]] util::Texture GetColorTexture(float r, float g, float b) noexcept;
+    [[nodiscard]] util::Texture GetCheckerboardTexture(float patch1[3], float patch2[3]) noexcept;
+    [[nodiscard]] util::Texture GetTexture(std::string_view) noexcept;
 
     void Clear() noexcept;
 };
