@@ -14,13 +14,13 @@ std::unique_ptr<std::unordered_map<std::string, ETag>> s_tag_map = nullptr;
 
 void RegisterContext() {
     s_tag_map = std::make_unique<std::unordered_map<std::string, ETag>>();
-    for (unsigned int i = 1u; i < (unsigned int)ETag::COUNT; i++) {
+    for (unsigned int i = 1u; i < (unsigned int)ETag::_count; i++) {
         s_tag_map->emplace(std::string{ S_TAGS_NAME[i - 1] }, static_cast<ETag>(i));
     }
 }
 
 void DfsParse(Parser *parser, pugi::xml_node node) {
-    ETag tag = ETag::UNKNOWN;
+    ETag tag = ETag::_unknown;
     if (s_tag_map->find(node.name()) != s_tag_map->end())
         tag = s_tag_map->operator[](node.name());
 

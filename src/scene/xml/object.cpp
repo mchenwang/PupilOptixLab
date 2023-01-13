@@ -22,6 +22,7 @@ void GlobalManager::ReplaceDefaultValue(pugi::xml_node *node) noexcept {
         attr.set_value(a_value.c_str());
     }
 }
+
 std::string Object::GetProperty(std::string_view property_name) const noexcept {
     for (auto &p : properties) {
         if (p.name.compare(property_name) == 0) {
@@ -48,5 +49,15 @@ std::vector<Object *> Object::GetSubObjects(std::string_view sub_object_name) co
         }
     }
     return ret;
+}
+
+std::pair<Object *, std::string> Object::GetParameter(std::string_view target_name) const noexcept {
+    for (auto so : sub_object) {
+        if (so->var_name.compare(target_name) == 0) {
+            return { so, "" };
+        }
+    }
+
+    return { nullptr, GetProperty(target_name) };
 }
 }// namespace scene::xml

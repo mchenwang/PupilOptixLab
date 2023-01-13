@@ -42,7 +42,7 @@ public:
     std::vector<Shape> shapes;
 
     using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
-    std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::COUNT> xml_obj_load_cbs{};
+    std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::_count> xml_obj_load_cbs{};
 
     Scene() noexcept;
 

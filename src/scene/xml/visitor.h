@@ -189,7 +189,7 @@ IMPL_VISITOR(ETag::_transform,  return ObjectVisitor(ETag::_transform, global_ma
 #define TAG_VISITOR(tag) Visitor<ETag::##_##tag>()
 #define TAG_VISITORS_DEFINE(...)                                   \
     std::array<VisitorFunc, 1 + PUPIL_MACRO_ARGS_NUM(__VA_ARGS__)> \
-        S_TAG_VISITORS = { Visitor<ETag::UNKNOWN>(), MAP_LIST(TAG_VISITOR, __VA_ARGS__) };
+        S_TAG_VISITORS = { Visitor<ETag::_unknown>(), MAP_LIST(TAG_VISITOR, __VA_ARGS__) };
 
 TAG_VISITORS_DEFINE(PUPIL_XML_TAGS);
 
