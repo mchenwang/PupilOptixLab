@@ -3,9 +3,13 @@
 #include "xml/object.h"
 #include "xml/tag.h"
 
+#include "texture.h"
+
 #include "common/util.h"
+#include "common/texture.h"
 
 #include <iostream>
+#include <filesystem>
 
 namespace {
 void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
@@ -19,7 +23,7 @@ void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
 
 void LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
     if (obj == nullptr || dst == nullptr) return;
-    scene::Transform *transform = static_cast<scene::Transform *>(dst);
+    util::Transform *transform = static_cast<util::Transform *>(dst);
     if (obj->var_name.compare("to_world") == 0) {
         std::string value = obj->GetProperty("matrix");
         if (!value.empty()) {
@@ -156,11 +160,61 @@ Scene::Scene() noexcept {
         xml::ETag::_texture,
         [this](const scene::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
+            util::Texture *texture = static_cast<util::Texture *>(dst);
+
+            auto transform_obj = obj->GetUniqueSubObject("transform");
+            InvokeXmlObjLoadCallBack(transform_obj, &texture->transform);
+
+            if (obj->type.compare("bitmap") == 0) {
+                auto value = obj->GetProperty("filename");
+                auto path = (scene_root_path / value).make_preferred();
+                util::Singleton<scene::TextureManager>::instance()->LoadTextureFromFile(path.string());
+                *texture = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
+            } else if (obj->type.compare("checkerboard") == 0) {
+                texture->desc.type = util::ETextureType::Checkerboard;
+
+                auto set_patch = [](decltype(texture->checkerboard.patch1) &p, std::string value) {
+                    if (!value.empty()) {
+                        auto patch1 = util::Split(value, ",");
+                        if (patch1.size() == 3) {
+                            p.r = std::stof(patch1[0]);
+                            p.g = std::stof(patch1[1]);
+                            p.b = std::stof(patch1[2]);
+                        } else if (patch1.size() == 1) {
+                            p.r = std::stof(patch1[0]);
+                            p.g = std::stof(patch1[0]);
+                            p.b = std::stof(patch1[0]);
+                        } else {
+                            std::cerr << "warring: checkerboard color size is " << patch1.size() << "(must be 1 or 3).\n";
+                        }
+                    }
+                };
+
+                auto value = obj->GetProperty("color0");
+                set_patch(texture->checkerboard.patch1, value);
+                value = obj->GetProperty("color1");
+                set_patch(texture->checkerboard.patch2, value);
+            } else {
+                std::cerr << "warring: unknown texture type [" << obj->type << "].\n";
+                texture->desc.type = util::ETextureType::RGB;
+                texture->rgb.color.r = 0.f;
+                texture->rgb.color.g = 0.f;
+                texture->rgb.color.b = 0.f;
+            }
+        });
+
+    SetXmlObjLoadCallBack(
+        xml::ETag::_bsdf,
+        [this](const scene::xml::Object *obj, void *dst) noexcept {
+            if (obj == nullptr || dst == nullptr) return;
         });
 }
 
 void Scene::LoadFromXML(std::string_view path) noexcept {
     xml::Parser parser;
+    std::filesystem::path file(path);
+    scene_root_path = file.parent_path().make_preferred();
+
     auto scene_xml_root_obj = parser.LoadFromFile(path);
     for (auto &xml_obj : scene_xml_root_obj->sub_object) {
         switch (xml_obj->tag) {

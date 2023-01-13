@@ -20,7 +20,7 @@ void MatrixMultiply(float l[16], float r[16], float *ans) noexcept {
 // clang-format on
 }// namespace
 
-namespace scene {
+namespace util {
 void Transform::Rotate(float ux, float uy, float uz, float angle) noexcept {
     /*
         Target vector v
@@ -78,4 +78,4 @@ void Transform::Scale(float x, float y, float z) noexcept {
     };
     MatrixMultiply(scale, matrix, matrix);
 }
-}// namespace scene
+}// namespace util

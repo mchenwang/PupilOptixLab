@@ -1,6 +1,6 @@
 #pragma once
 
-namespace scene {
+namespace util {
 struct Transform {
     float matrix[16]{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
@@ -9,4 +9,4 @@ struct Transform {
     void Rotate(float ux, float uy, float uz, float angle) noexcept;
     void Scale(float x, float y, float z) noexcept;
 };
-}// namespace scene
+}// namespace util

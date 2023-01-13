@@ -1,6 +1,6 @@
 #pragma once
 
-#include "transform.h"
+#include "common/transform.h"
 
 #include <string>
 
@@ -20,7 +20,7 @@ struct Shape {
     bool flip_tex_coords = false;
     bool flip_normals = false;
 
-    Transform transform{};
+    util::Transform transform{};
 
     // for sphere
     float center[3]{ 0.f };

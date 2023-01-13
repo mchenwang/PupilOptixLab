@@ -1,7 +1,8 @@
 #pragma once
 
-namespace util {
+#include "transform.h"
 
+namespace util {
 enum class ETextureAddressMode : unsigned int {
     Wrap = 0,
     Clamp = 1,
@@ -56,5 +57,6 @@ struct Texture {
         BitmapTexture bitmap;
         CheckerboardTexture checkerboard;
     };
+    Transform transform;
 };
 }// namespace util

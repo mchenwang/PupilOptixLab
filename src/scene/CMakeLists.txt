@@ -3,8 +3,6 @@ set(scene_source
     scene.h
     shape.h
     shape.cpp
-    transform.h
-    transform.cpp
     texture.h
     texture.cpp
 )

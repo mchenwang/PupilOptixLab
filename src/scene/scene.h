@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <array>
+#include <filesystem>
 
 namespace scene {
 
@@ -24,7 +25,7 @@ struct Film {
 /// @brief perspective and right-handed camera
 struct Sensor {
     float fov = 90.f;
-    Transform transform{};
+    util::Transform transform{};
     Film film{};
 };
 
@@ -33,12 +34,14 @@ struct Sensor {
 /// film: rgb and hdr
 class Scene {
 public:
-    using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
+    // scene resource file root path
+    std::filesystem::path scene_root_path;
 
     Integrator integrator;
     Sensor sensor;
     std::vector<Shape> shapes;
 
+    using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
     std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::COUNT> xml_obj_load_cbs{};
 
     Scene() noexcept;
