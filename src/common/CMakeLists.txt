@@ -4,6 +4,8 @@ set(common_src
     macro_map.h
     enum.h
     texture.h
+    transform.h
+    transform.cpp
 )
 add_library(common STATIC ${common_src})
 

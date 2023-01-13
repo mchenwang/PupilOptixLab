@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common/util.h"
-#include "transform.h"
 
 #include <unordered_map>
 #include <string>
@@ -30,9 +29,9 @@ private:
 
     std::unordered_map<std::string, std::unique_ptr<ImageData>, util::StringHash, std::equal_to<>> m_image_datas;
 
+public:
     TextureManager() noexcept = default;
 
-public:
     void LoadTextureFromFile(std::string_view) noexcept;
     [[nodiscard]] util::Texture GetColorTexture(float r, float g, float b) noexcept;
     [[nodiscard]] util::Texture GetCheckerboardTexture(float patch1[3], float patch2[3]) noexcept;
