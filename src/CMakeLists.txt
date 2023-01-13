@@ -18,6 +18,7 @@ add_subdirectory(cuda_util)
 add_subdirectory(device)
 add_subdirectory(gui)
 add_subdirectory(scene)
+add_subdirectory(material)
 
 add_executable(${PROJECT_NAME})
 

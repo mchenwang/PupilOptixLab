@@ -8,6 +8,8 @@
 #include "common/util.h"
 #include "common/texture.h"
 
+#include "material/material.h"
+
 #include <iostream>
 #include <filesystem>
 
@@ -207,6 +209,8 @@ Scene::Scene() noexcept {
         xml::ETag::_bsdf,
         [this](const scene::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
+            material::Material *m = static_cast<material::Material *>(dst);
+            *m = material::LoadMaterialFromXml(obj, this);
         });
 }
 
