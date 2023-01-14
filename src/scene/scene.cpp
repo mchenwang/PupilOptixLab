@@ -168,6 +168,8 @@ Scene::Scene() noexcept {
             InvokeXmlObjLoadCallBack(transform_obj, &texture->transform);
 
             if (obj->type.compare("bitmap") == 0) {
+                texture->type = util::ETextureType::Bitmap;
+
                 auto value = obj->GetProperty("filename");
                 auto path = (scene_root_path / value).make_preferred();
                 util::Singleton<scene::TextureManager>::instance()->LoadTextureFromFile(path.string());
@@ -175,22 +177,22 @@ Scene::Scene() noexcept {
 
                 value = obj->GetProperty("filter_type");
                 if (value.compare("bilinear") == 0)
-                    texture->desc.filter_mode = util::ETextureFilterMode::Linear;
+                    texture->bitmap.filter_mode = util::ETextureFilterMode::Linear;
                 else
-                    texture->desc.filter_mode = util::ETextureFilterMode::Point;
+                    texture->bitmap.filter_mode = util::ETextureFilterMode::Point;
 
                 value = obj->GetProperty("wrap_mode");
                 if (value.compare("repeat") == 0)
-                    texture->desc.address_mode = util::ETextureAddressMode::Wrap;
+                    texture->bitmap.address_mode = util::ETextureAddressMode::Wrap;
                 else if (value.compare("mirror") == 0)
-                    texture->desc.address_mode = util::ETextureAddressMode::Mirror;
+                    texture->bitmap.address_mode = util::ETextureAddressMode::Mirror;
                 else if (value.compare("clamp") == 0)
-                    texture->desc.address_mode = util::ETextureAddressMode::Clamp;
+                    texture->bitmap.address_mode = util::ETextureAddressMode::Clamp;
                 else
-                    texture->desc.address_mode = util::ETextureAddressMode::Border;
+                    texture->bitmap.address_mode = util::ETextureAddressMode::Border;
 
             } else if (obj->type.compare("checkerboard") == 0) {
-                texture->desc.type = util::ETextureType::Checkerboard;
+                texture->type = util::ETextureType::Checkerboard;
 
                 auto set_patch = [](decltype(texture->checkerboard.patch1) &p, std::string value) {
                     if (!value.empty()) {
@@ -215,7 +217,7 @@ Scene::Scene() noexcept {
                 set_patch(texture->checkerboard.patch2, value);
             } else {
                 std::cerr << "warring: unknown texture type [" << obj->type << "].\n";
-                texture->desc.type = util::ETextureType::RGB;
+                texture->type = util::ETextureType::RGB;
                 texture->rgb.color.r = 0.f;
                 texture->rgb.color.g = 0.f;
                 texture->rgb.color.b = 0.f;

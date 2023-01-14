@@ -9,8 +9,8 @@ struct CudaTextureHash {
     [[nodiscard]] size_t operator()(const util::Texture &texture) const {
         // http://stackoverflow.com/a/1646913/126995
         size_t res = 17;
-        res = res * 31 + std::hash<int>()((int)texture.desc.type);
-        switch (texture.desc.type) {
+        res = res * 31 + std::hash<int>()((int)texture.type);
+        switch (texture.type) {
             case util::ETextureType::RGB:
                 res = res * 31 + std::hash<float>()(texture.rgb.color.r);
                 res = res * 31 + std::hash<float>()(texture.rgb.color.g);
@@ -28,6 +28,8 @@ struct CudaTextureHash {
                 res = res * 31 + std::hash<float *>()(texture.bitmap.data);
                 res = res * 31 + std::hash<size_t>()(texture.bitmap.w);
                 res = res * 31 + std::hash<size_t>()(texture.bitmap.h);
+                res = res * 31 + std::hash<int>()((int)texture.bitmap.address_mode);
+                res = res * 31 + std::hash<int>()((int)texture.bitmap.filter_mode);
                 break;
         }
         return res;
@@ -36,8 +38,8 @@ struct CudaTextureHash {
 
 struct TextureCmp {
     [[nodiscard]] constexpr bool operator()(const util::Texture &a, const util::Texture &b) const {
-        if (a.desc.type != b.desc.type) return false;
-        switch (a.desc.type) {
+        if (a.type != b.type) return false;
+        switch (a.type) {
             case util::ETextureType::RGB:
                 return a.rgb.color.r == b.rgb.color.r && a.rgb.color.g == b.rgb.color.g && a.rgb.color.b == b.rgb.color.b;
             case util::ETextureType::Checkerboard:
@@ -55,53 +57,62 @@ std::unordered_map<util::Texture, cudaTextureObject_t, CudaTextureHash, TextureC
 
 namespace device {
 cudaTextureObject_t CudaTextureManager::GetCudaTexture(util::Texture texture) noexcept {
+    if (texture.type != util::ETextureType::Bitmap) return 0;
+    
     auto it = m_cuda_texture_map.find(texture);
     if (it != m_cuda_texture_map.end()) return it->second;
 
     size_t w = 1;
     size_t h = 1;
 
-    if (texture.desc.type == util::ETextureType::Bitmap) {
-        w = texture.bitmap.w;
-        h = texture.bitmap.h;
-    } else if (texture.desc.type == util::ETextureType::Checkerboard) {
-        w = 2;
-        h = 2;
-    }
+    w = texture.bitmap.w;
+    h = texture.bitmap.h;
+
+    //if (texture.type == util::ETextureType::Bitmap) {
+    //    w = texture.bitmap.w;
+    //    h = texture.bitmap.h;
+    //} else if (texture.type == util::ETextureType::Checkerboard) {
+    //    w = 2;
+    //    h = 2;
+    //}
 
     cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
     cudaArray_t cuda_array;
     cudaMallocArray(&cuda_array, &channel_desc, w, h);
 
-    if (texture.desc.type == util::ETextureType::Bitmap) {
-        size_t size = w * h * 4 * sizeof(float);
-        size_t pitch = w * 4 * sizeof(float);
-        CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, texture.bitmap.data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    } else if (texture.desc.type == util::ETextureType::RGB) {
-        float data[4]{ texture.rgb.color.r, texture.rgb.color.g, texture.rgb.color.b, 255.f };
-        size_t size = w * h * 4 * sizeof(float);
-        size_t pitch = w * 4 * sizeof(float);
-        CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    } else {
-        auto [r1, g1, b1] = texture.checkerboard.patch1;
-        auto [r2, g2, b2] = texture.checkerboard.patch2;
-        float data[]{
-            r1, g1, b1, 255.f, r2, g2, b2, 255.f,
-            r2, g2, b2, 255.f, r1, g1, b1, 255.f
-        };
-        size_t size = w * h * 4 * sizeof(float);
-        size_t pitch = w * 4 * sizeof(float);
-        CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    }
+    size_t size = w * h * 4 * sizeof(float);
+    size_t pitch = w * 4 * sizeof(float);
+    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, texture.bitmap.data, pitch, pitch, h, cudaMemcpyHostToDevice));
+
+    //if (texture.type == util::ETextureType::Bitmap) {
+    //    size_t size = w * h * 4 * sizeof(float);
+    //    size_t pitch = w * 4 * sizeof(float);
+    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, texture.bitmap.data, pitch, pitch, h, cudaMemcpyHostToDevice));
+    //} else if (texture.type == util::ETextureType::RGB) {
+    //    float data[4]{ texture.rgb.color.r, texture.rgb.color.g, texture.rgb.color.b, 255.f };
+    //    size_t size = w * h * 4 * sizeof(float);
+    //    size_t pitch = w * 4 * sizeof(float);
+    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
+    //} else {
+    //    auto [r1, g1, b1] = texture.checkerboard.patch1;
+    //    auto [r2, g2, b2] = texture.checkerboard.patch2;
+    //    float data[]{
+    //        r1, g1, b1, 255.f, r2, g2, b2, 255.f,
+    //        r2, g2, b2, 255.f, r1, g1, b1, 255.f
+    //    };
+    //    size_t size = w * h * 4 * sizeof(float);
+    //    size_t pitch = w * 4 * sizeof(float);
+    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
+    //}
 
     cudaResourceDesc res_desc{};
     res_desc.resType = cudaResourceTypeArray;
     res_desc.res.array.array = cuda_array;
 
     cudaTextureDesc cuda_texture_desc{};
-    cuda_texture_desc.addressMode[0] = (cudaTextureAddressMode)texture.desc.address_mode;
-    cuda_texture_desc.addressMode[1] = (cudaTextureAddressMode)texture.desc.address_mode;
-    cuda_texture_desc.filterMode = (cudaTextureFilterMode)texture.desc.filter_mode;
+    cuda_texture_desc.addressMode[0] = (cudaTextureAddressMode)texture.bitmap.address_mode;
+    cuda_texture_desc.addressMode[1] = (cudaTextureAddressMode)texture.bitmap.address_mode;
+    cuda_texture_desc.filterMode = (cudaTextureFilterMode)texture.bitmap.filter_mode;
     cuda_texture_desc.readMode = cudaReadModeNormalizedFloat;
     cuda_texture_desc.normalizedCoords = 1;
     cuda_texture_desc.maxAnisotropy = 1;
@@ -117,6 +128,8 @@ cudaTextureObject_t CudaTextureManager::GetCudaTexture(util::Texture texture) no
     it->second = cuda_tex;
 
     m_cuda_memory_array.push_back(cuda_array);
+
+    return cuda_tex;
 }
 
 void CudaTextureManager::Clear() noexcept {

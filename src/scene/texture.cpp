@@ -52,7 +52,7 @@ void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
 
 util::Texture TextureManager::GetColorTexture(float r, float g, float b) noexcept {
     util::Texture texture{};
-    texture.desc.type = util::ETextureType::RGB;
+    texture.type = util::ETextureType::RGB;
     texture.rgb.color.r = r;
     texture.rgb.color.g = g;
     texture.rgb.color.b = b;
@@ -62,7 +62,7 @@ util::Texture TextureManager::GetColorTexture(float r, float g, float b) noexcep
 
 util::Texture TextureManager::GetCheckerboardTexture(float patch1[3], float patch2[3]) noexcept {
     util::Texture texture{};
-    texture.desc.type = util::ETextureType::Checkerboard;
+    texture.type = util::ETextureType::Checkerboard;
     texture.checkerboard.patch1.r = patch1[0];
     texture.checkerboard.patch1.g = patch1[1];
     texture.checkerboard.patch1.b = patch1[2];
@@ -80,7 +80,7 @@ util::Texture TextureManager::GetTexture(std::string_view id) noexcept {
     }
 
     util::Texture texture{};
-    texture.desc.type = util::ETextureType::Bitmap;
+    texture.type = util::ETextureType::Bitmap;
     texture.bitmap.data = it->second->data.get();
     texture.bitmap.w = it->second->w;
     texture.bitmap.h = it->second->h;

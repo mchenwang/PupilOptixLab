@@ -41,17 +41,13 @@ struct BitmapTexture {
     size_t w = 0;
     size_t h = 0;
     float *data = nullptr;
-};
-
-struct TextureDesc {
-    ETextureType type = ETextureType::RGB;
 
     ETextureAddressMode address_mode = ETextureAddressMode::Wrap;
     ETextureFilterMode filter_mode = ETextureFilterMode::Linear;
 };
 
 struct Texture {
-    TextureDesc desc;
+    ETextureType type = ETextureType::RGB;
     union {
         RGBTexture rgb;
         BitmapTexture bitmap;

@@ -10,7 +10,6 @@
 
 namespace util {
 struct Texture;
-struct TextureDesc;
 }
 
 namespace scene {
