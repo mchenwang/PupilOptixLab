@@ -1,6 +1,7 @@
 #pragma once
 
 #include "transform.h"
+#include "type.h"
 
 namespace util {
 enum class ETextureAddressMode : unsigned int {
@@ -22,19 +23,12 @@ enum class ETextureType : unsigned int {
 };
 
 struct RGBTexture {
-    struct {
-        float r;
-        float g;
-        float b;
-    } color{ 0.f, 0.f, 0.f };
+    float3 color{ 0.f, 0.f, 0.f };
 };
 
 struct CheckerboardTexture {
-    struct {
-        float r;
-        float g;
-        float b;
-    } patch1{ 0.4f, 0.4f, 0.4f }, patch2{ 0.f, 0.2f, 0.2f };
+    float3 patch1{ 0.4f, 0.4f, 0.4f };
+    float3 patch2{ 0.2f, 0.2f, 0.2f };
 };
 
 struct BitmapTexture {
