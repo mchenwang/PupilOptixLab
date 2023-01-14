@@ -172,6 +172,23 @@ Scene::Scene() noexcept {
                 auto path = (scene_root_path / value).make_preferred();
                 util::Singleton<scene::TextureManager>::instance()->LoadTextureFromFile(path.string());
                 *texture = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
+
+                value = obj->GetProperty("filter_type");
+                if (value.compare("bilinear") == 0)
+                    texture->desc.filter_mode = util::ETextureFilterMode::Linear;
+                else
+                    texture->desc.filter_mode = util::ETextureFilterMode::Point;
+
+                value = obj->GetProperty("wrap_mode");
+                if (value.compare("repeat") == 0)
+                    texture->desc.address_mode = util::ETextureAddressMode::Wrap;
+                else if (value.compare("mirror") == 0)
+                    texture->desc.address_mode = util::ETextureAddressMode::Mirror;
+                else if (value.compare("clamp") == 0)
+                    texture->desc.address_mode = util::ETextureAddressMode::Clamp;
+                else
+                    texture->desc.address_mode = util::ETextureAddressMode::Border;
+
             } else if (obj->type.compare("checkerboard") == 0) {
                 texture->desc.type = util::ETextureType::Checkerboard;
 
