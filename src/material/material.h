@@ -26,13 +26,23 @@ struct Dielectric {
 };
 
 struct Conductor {
+    util::Texture eta;
+    util::Texture k;
+    util::Texture specular_reflectance;
 };
 
-struct PrincipledBSDF {
+struct RoughConductor {
+    float alpha;
+    util::Texture eta;
+    util::Texture k;
+    util::Texture specular_reflectance;
 };
+
+// struct PrincipledBSDF {
+// };
 
 #define PUPIL_RENDER_MATERIAL \
-    diffuse, dielectric, conductor, principled
+    diffuse, dielectric, conductor, roughconductor
 
 PUPIL_ENUM_DEFINE(EMatType, PUPIL_RENDER_MATERIAL)
 PUPIL_ENUM_STRING_ARRAY(S_MAT_TYPE_NAME, PUPIL_RENDER_MATERIAL)
@@ -44,7 +54,8 @@ struct Material {
         Diffuse diffuse;
         Dielectric dielectric;
         Conductor conductor;
-        PrincipledBSDF principled;
+        RoughConductor rough_conductor;
+        // PrincipledBSDF principled;
     };
 };
 

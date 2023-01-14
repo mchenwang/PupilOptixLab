@@ -1,4 +1,5 @@
 #include "material.h"
+#include "ior.h"
 #include "scene/scene.h"
 #include "scene/texture.h"
 #include "scene/xml/object.h"
@@ -21,29 +22,51 @@ struct MaterialLoader {
     }
 };
 
+inline void LoadTextureOrRGB(const scene::xml::Object *obj, scene::Scene *scene, std::string_view param_name,
+                             util::Texture &param, util::float3 default_value = { 0.f, 0.f, 0.f }) {
+    auto [texture, rgb] = obj->GetParameter(param_name);
+
+    if (texture == nullptr && rgb.empty()) {
+        param = util::Singleton<scene::TextureManager>::instance()->GetColorTexture(default_value.r, default_value.g, default_value.b);
+        return;
+    }
+
+    if (texture == nullptr) {
+        auto value = util::Split(rgb, ",");
+        float r, g, b;
+        if (value.size() == 3) {
+            r = std::stof(value[0]);
+            g = std::stof(value[1]);
+            b = std::stof(value[2]);
+        } else if (value.size() == 1) {
+            r = g = b = std::stof(value[0]);
+        } else {
+            std::cerr << "warring: rgb size is " << value.size() << "(must be 3 or 1)\n";
+        }
+
+        param = util::Singleton<scene::TextureManager>::instance()->GetColorTexture(r, g, b);
+    } else {
+        scene->InvokeXmlObjLoadCallBack(texture, &param);
+    }
+}
+
+inline void LoadFloat(const scene::xml::Object *obj, scene::Scene *scene, std::string_view param_name,
+                      float &param, float default_value = 0.f) {
+    auto value = obj->GetProperty(param_name);
+    if (value.empty()) {
+        param = default_value;
+        return;
+    }
+
+    param = std::stof(value);
+}
+
 template<>
 struct MaterialLoader<EMatType::_diffuse> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
         mat.type = EMatType::_diffuse;
-        auto [texture, rgb] = obj->GetParameter("reflectance");
-        if (texture == nullptr) {
-            auto value = util::Split(rgb, ",");
-            float r, g, b;
-            if (value.size() == 3) {
-                r = std::stof(value[0]);
-                g = std::stof(value[1]);
-                b = std::stof(value[2]);
-            } else if (value.size() == 1) {
-                r = g = b = std::stof(value[0]);
-            } else {
-                std::cerr << "warring: rgb size is " << value.size() << "(must be 3 or 1)\n";
-            }
-
-            mat.diffuse.reflectance = util::Singleton<scene::TextureManager>::instance()->GetColorTexture(r, g, b);
-        } else {
-            scene->InvokeXmlObjLoadCallBack(texture, &mat.diffuse.reflectance);
-        }
+        LoadTextureOrRGB(obj, scene, "reflectance", mat.diffuse.reflectance, { 0.5f });
         return mat;
     }
 };
@@ -53,7 +76,35 @@ struct MaterialLoader<EMatType::_dielectric> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
         mat.type = EMatType::_dielectric;
+        mat.dielectric.int_ior = material::LoadIor("int_ior");
+        mat.dielectric.ext_ior = material::LoadIor("ext_ior");
+        LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.dielectric.specular_reflectance, { 1.f });
+        LoadTextureOrRGB(obj, scene, "specular_transmittance", mat.dielectric.specular_transmittance, { 1.f });
+        return mat;
+    }
+};
 
+template<>
+struct MaterialLoader<EMatType::_conductor> {
+    Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+        Material mat{};
+        mat.type = EMatType::_conductor;
+        LoadTextureOrRGB(obj, scene, "eta", mat.conductor.eta, { 1.f });
+        LoadTextureOrRGB(obj, scene, "k", mat.conductor.k, { 1.f });
+        LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.conductor.specular_reflectance, { 1.f });
+        return mat;
+    }
+};
+
+template<>
+struct MaterialLoader<EMatType::_roughconductor> {
+    Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+        Material mat{};
+        mat.type = EMatType::_roughconductor;
+        LoadFloat(obj, scene, "alpha", mat.rough_conductor.alpha, 0.1f);
+        LoadTextureOrRGB(obj, scene, "eta", mat.rough_conductor.eta, { 1.f });
+        LoadTextureOrRGB(obj, scene, "k", mat.rough_conductor.k, { 1.f });
+        LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.rough_conductor.specular_reflectance, { 1.f });
         return mat;
     }
 };

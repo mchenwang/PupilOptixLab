@@ -43,10 +43,10 @@ struct BitmapTexture {
 struct Texture {
     ETextureType type = ETextureType::RGB;
     union {
-        RGBTexture rgb;
+        RGBTexture rgb{};
         BitmapTexture bitmap;
         CheckerboardTexture checkerboard;
     };
-    Transform transform;
+    Transform transform{};
 };
 }// namespace util

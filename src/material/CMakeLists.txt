@@ -1,6 +1,7 @@
 set(material_source
     material.h
     material.cpp
+    ior.h
 )
 
 add_library(material STATIC ${material_source})
