@@ -57,6 +57,8 @@ struct Material {
         RoughConductor rough_conductor;
         // PrincipledBSDF principled;
     };
+
+    Material() noexcept {}
 };
 
 Material LoadMaterialFromXml(const scene::xml::Object *, scene::Scene *) noexcept;

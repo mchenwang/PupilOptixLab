@@ -6,8 +6,6 @@
 #include <string>
 #include <memory>
 
-#include <cuda_runtime.h>
-
 namespace util {
 struct Texture;
 }
