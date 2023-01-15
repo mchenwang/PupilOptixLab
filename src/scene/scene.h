@@ -55,6 +55,7 @@ public:
     }
 
     void InvokeXmlObjLoadCallBack(const xml::Object *obj, void *dst) noexcept {
+        if (obj == nullptr) return;
         xml_obj_load_cbs[static_cast<unsigned int>(obj->tag)](obj, dst);
     }
 };
