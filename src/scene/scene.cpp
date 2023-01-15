@@ -164,9 +164,6 @@ Scene::Scene() noexcept {
             if (obj == nullptr || dst == nullptr) return;
             util::Texture *texture = static_cast<util::Texture *>(dst);
 
-            auto transform_obj = obj->GetUniqueSubObject("transform");
-            InvokeXmlObjLoadCallBack(transform_obj, &texture->transform);
-
             if (obj->type.compare("bitmap") == 0) {
                 texture->type = util::ETextureType::Bitmap;
 
@@ -222,6 +219,9 @@ Scene::Scene() noexcept {
                 texture->rgb.color.g = 0.f;
                 texture->rgb.color.b = 0.f;
             }
+
+            auto transform_obj = obj->GetUniqueSubObject("transform");
+            InvokeXmlObjLoadCallBack(transform_obj, &texture->transform);
         });
 
     SetXmlObjLoadCallBack(
@@ -230,6 +230,16 @@ Scene::Scene() noexcept {
             if (obj == nullptr || dst == nullptr) return;
             material::Material *m = static_cast<material::Material *>(dst);
             *m = material::LoadMaterialFromXml(obj, this);
+        });
+
+    SetXmlObjLoadCallBack(
+        xml::ETag::_shape,
+        [this](const scene::xml::Object *obj, void *dst) noexcept {
+            if (obj == nullptr || dst == nullptr) return;
+            Shape *shape = static_cast<Shape *>(dst);
+
+            auto transform_obj = obj->GetUniqueSubObject("transform");
+            InvokeXmlObjLoadCallBack(transform_obj, &shape->transform);
         });
 }
 
@@ -248,7 +258,9 @@ void Scene::LoadFromXML(std::string_view path) noexcept {
                 InvokeXmlObjLoadCallBack(xml_obj, &sensor);
                 break;
             case xml::ETag::_shape:
-                // TODO
+                Shape shape;
+                shapes.emplace_back(shape);
+                InvokeXmlObjLoadCallBack(xml_obj, &shapes.back());
                 break;
         }
     }

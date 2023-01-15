@@ -1,31 +1,107 @@
 #pragma once
 
 #include "common/transform.h"
+#include "common/enum.h"
+#include "common/util.h"
+#include "common/type.h"
+
+#include "material/material.h"
 
 #include <string>
+#include <memory>
+#include <vector>
+#include <unordered_map>
 
 namespace scene {
-enum class EShapeType {
-    OBJ,
-    PLY,
-    SPHERE,
-    RECTANGLE,
-    CUBE
+
+class Scene;
+
+namespace xml {
+struct Object;
+}
+
+#define PUPIL_SCENE_SHAPE \
+    obj, sphere, cube, rectangle
+
+PUPIL_ENUM_DEFINE(EShapeType, PUPIL_SCENE_SHAPE)
+PUPIL_ENUM_STRING_ARRAY(S_SHAPE_TYPE_NAME, PUPIL_SCENE_SHAPE)
+
+// struct Vertex {
+//     util::float3 position;
+//     util::float3 normal;
+//     util::float3 texcoord;
+// };
+
+// struct FaceIndex {
+//     uint32_t v0, v1, v2;
+// };
+
+struct ObjShape {
+    bool face_normals;
+    bool flip_tex_coords;
+    bool flip_normals;
+
+    float *positions;
+    float *normals;
+    float *texcoords;
+    uint32_t *faces;
+};
+
+struct Sphere {
+    bool flip_normals;
+    float radius;
+    util::float3 center{};
+};
+
+struct Cube {
+    bool flip_normals;
+};
+
+struct Rectangle {
+    bool flip_normals;
 };
 
 struct Shape {
-    const EShapeType type;
-    std::string filename{};
-    bool face_normals = false;
-    bool flip_tex_coords = false;
-    bool flip_normals = false;
+    EShapeType type = EShapeType::_sphere;
 
-    util::Transform transform{};
+    material::Material mat;
+    union {
+        ObjShape obj;
+        Sphere sphere;
+        Cube cube;
+        Rectangle rect;
+    };
 
-    // for sphere
-    float center[3]{ 0.f };
-    float radius = 1.f;
+    bool is_emitter = false;
+    util::float3 emitter_radiance;
 
-    Shape(EShapeType) noexcept;
+    util::Transform transform;
+
+    Shape() noexcept {}
+};
+
+Shape LoadShapeFromXml(const scene::xml::Object *, scene::Scene *) noexcept;
+
+class ShapeDataManager : public util::Singleton<ShapeDataManager> {
+private:
+    struct ShapeData {
+        std::vector<float> positions;
+        std::vector<float> normals;
+        std::vector<float> texcoords;
+        std::vector<uint32_t> faces;
+    };
+
+    std::unordered_map<std::string, std::unique_ptr<ShapeData>, util::StringHash, std::equal_to<>> m_shape_datas;
+
+public:
+    ShapeDataManager() noexcept = default;
+
+    void LoadShapeFromFile(std::string_view) noexcept;
+    [[nodiscard]] Shape GetShape(std::string_view) noexcept;
+    [[nodiscard]] Shape GetSphere(float, util::float3, bool flip_normals = false) noexcept;
+    [[nodiscard]] Shape GetCube(bool flip_normals = false) noexcept;
+    [[nodiscard]] Shape GetRectangle(bool flip_normals = false) noexcept;
+
+    void Clear() noexcept;
 };
 }// namespace scene

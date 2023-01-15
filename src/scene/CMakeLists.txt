@@ -17,5 +17,6 @@ target_link_libraries(scene PRIVATE cuda_util)
 target_link_libraries(scene PRIVATE stb)
 target_link_libraries(scene PRIVATE pugixml)
 target_link_libraries(scene PRIVATE material)
+target_link_libraries(scene PRIVATE assimp)
 
 set_target_properties(scene PROPERTIES FOLDER ${source_folder})
