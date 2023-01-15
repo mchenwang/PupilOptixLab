@@ -13,4 +13,18 @@ std::vector<std::string> Split(std::string_view str, std::string_view deli) {
     ret.emplace_back(str.substr(pos_start));
     return ret;
 }
+
+float3 StrToFloat3(std::string_view str) {
+    if (str.empty()) return float3{ 0.f };
+
+    auto values = Split(str, ",");
+
+    if (values.size() == 1) {
+        return float3{ std::stof(values[0]) };
+    } else if (values.size() == 3) {
+        return float3{ std::stof(values[0]), std::stof(values[1]), std::stof(values[2]) };
+    }
+
+    return float3{ 0.f };
+}
 }// namespace util
