@@ -17,6 +17,7 @@ namespace {
 inline bool PropertyVisitor(ETag tag, GlobalManager *global_manager, pugi::xml_node &node) {
     global_manager->ReplaceDefaultValue(&node);
     std::string name = node.attribute("name").value();
+    if (name.empty()) name = node.name();
     std::string value = node.attribute("value").value();
     if (global_manager->current_obj) {
         global_manager->current_obj->properties.emplace_back(name, value);
@@ -45,11 +46,33 @@ inline bool ObjectVisitor(ETag tag, GlobalManager *global_manager, pugi::xml_nod
     return true;
 }
 
-inline bool TransformVisitor(ETag tag, GlobalManager *global_manager, pugi::xml_node &node) {
+// inline bool TransformVisitor(ETag tag, GlobalManager *global_manager, pugi::xml_node &node) {
+//     global_manager->ReplaceDefaultValue(&node);
+//     std::string value = node.attribute("value").value();
+//     if (global_manager->current_obj) {
+//         global_manager->current_obj->properties.emplace_back(node.name(), value);
+//     }
+//     return true;
+// }
+
+inline bool XYZValuePropertyVisitor(ETag tag, GlobalManager *global_manager, pugi::xml_node &node,
+                                    std::string_view default_x, std::string_view default_y, std::string_view default_z) {
     global_manager->ReplaceDefaultValue(&node);
+    std::string name = node.attribute("name").value();
+    if (name.empty()) name = node.name();
     std::string value = node.attribute("value").value();
+    if (value.empty()) {
+        std::string x = node.attribute("x").value();
+        std::string y = node.attribute("y").value();
+        std::string z = node.attribute("z").value();
+
+        if (x.empty()) x = default_x;
+        if (y.empty()) y = default_y;
+        if (z.empty()) z = default_z;
+        value = x + "," + y + "," + z;
+    }
     if (global_manager->current_obj) {
-        global_manager->current_obj->properties.emplace_back(node.name(), value);
+        global_manager->current_obj->properties.emplace_back(name, value);
     }
     return true;
 }
@@ -145,24 +168,14 @@ IMPL_VISITOR(ETag::_rotate,
 // <scale value="5"/>
 // <scale value="2, 1, -1"/>
 // <scale x="4" y="2"/>
-IMPL_VISITOR(ETag::_scale,
-    global_manager->ReplaceDefaultValue(&node);
-    std::string value = node.attribute("value").value();
-    if (value.empty()) {
-        std::string x = node.attribute("x").value();
-        std::string y = node.attribute("y").value();
-        std::string z = node.attribute("z").value();
+IMPL_VISITOR(ETag::_scale,      return XYZValuePropertyVisitor(ETag::_scale, global_manager, node, "1", "1", "1");)
 
-        if (x.empty()) x = "1";
-        if (y.empty()) y = "1";
-        if (z.empty()) z = "1";
-        value = x + "," + y + "," + z;
-    }
-    if (global_manager->current_obj) {
-        global_manager->current_obj->properties.emplace_back(node.name(), value);
-    }
-    return true;
-)
+// <point name="center" value="1,1,1"/>
+// <point name="center" x="1" y="0" z="0"/>
+IMPL_VISITOR(ETag::_point,      return XYZValuePropertyVisitor(ETag::_point, global_manager, node, "0", "0", "0");)
+
+// <translate x="1" y="0" z="0"/>
+IMPL_VISITOR(ETag::_translate,  return XYZValuePropertyVisitor(ETag::_translate, global_manager, node, "0", "0", "0");)
 
 IMPL_VISITOR(ETag::_integer,    return PropertyVisitor(ETag::_integer, global_manager, node);)
 IMPL_VISITOR(ETag::_string,     return PropertyVisitor(ETag::_string, global_manager, node);)
@@ -170,10 +183,10 @@ IMPL_VISITOR(ETag::_float,      return PropertyVisitor(ETag::_float, global_mana
 IMPL_VISITOR(ETag::_rgb,        return PropertyVisitor(ETag::_rgb, global_manager, node);)
 IMPL_VISITOR(ETag::_boolean,    return PropertyVisitor(ETag::_boolean, global_manager, node);)
 
-IMPL_VISITOR(ETag::_matrix,     return TransformVisitor(ETag::_matrix, global_manager, node);)
+IMPL_VISITOR(ETag::_matrix,     return PropertyVisitor(ETag::_matrix, global_manager, node);)
 // IMPL_VISITOR(ETag::_scale,      return TransformVisitor(ETag::_scale, global_manager, node);)
 // IMPL_VISITOR(ETag::_rotate,     return TransformVisitor(ETag::_rotate, global_manager, node);)
-IMPL_VISITOR(ETag::_translate,  return TransformVisitor(ETag::_translate, global_manager, node);)
+// IMPL_VISITOR(ETag::_translate,  return TransformVisitor(ETag::_translate, global_manager, node);)
 
 IMPL_VISITOR(ETag::_bsdf,       return ObjectVisitor(ETag::_bsdf, global_manager, node);)
 IMPL_VISITOR(ETag::_emitter,    return ObjectVisitor(ETag::_emitter, global_manager, node);)

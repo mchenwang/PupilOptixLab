@@ -24,6 +24,7 @@ namespace xml {
         string,                    \
         float,                     \
         rgb,                       \
+        point,                     \
         matrix,                    \
         scale,                     \
         rotate,                    \
