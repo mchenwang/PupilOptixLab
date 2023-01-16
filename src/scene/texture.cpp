@@ -44,9 +44,9 @@ void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
         }
     }
 
-    if (image_data == nullptr) 
+    if (image_data == nullptr)
         std::cerr << "warring: fail to load image " << file_path << std::endl;
-    else 
+    else
         m_image_datas.emplace(file_path, std::move(image_data));
 }
 
@@ -60,15 +60,15 @@ util::Texture TextureManager::GetColorTexture(float r, float g, float b) noexcep
     return texture;
 }
 
-util::Texture TextureManager::GetCheckerboardTexture(float patch1[3], float patch2[3]) noexcept {
+util::Texture TextureManager::GetCheckerboardTexture(util::float3 patch1, util::float3 patch2) noexcept {
     util::Texture texture{};
     texture.type = util::ETextureType::Checkerboard;
-    texture.checkerboard.patch1.r = patch1[0];
-    texture.checkerboard.patch1.g = patch1[1];
-    texture.checkerboard.patch1.b = patch1[2];
-    texture.checkerboard.patch2.r = patch2[0];
-    texture.checkerboard.patch2.g = patch2[1];
-    texture.checkerboard.patch2.b = patch2[2];
+    texture.checkerboard.patch1.r = patch1.r;
+    texture.checkerboard.patch1.g = patch1.g;
+    texture.checkerboard.patch1.b = patch1.b;
+    texture.checkerboard.patch2.r = patch2.r;
+    texture.checkerboard.patch2.g = patch2.g;
+    texture.checkerboard.patch2.b = patch2.b;
 
     return texture;
 }
