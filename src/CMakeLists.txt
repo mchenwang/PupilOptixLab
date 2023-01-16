@@ -3,7 +3,7 @@ find_package(OptiX REQUIRED)
 configure_file(static.h.in ${CMAKE_CURRENT_LIST_DIR}/static.h)
 
 if (WIN32)
-    add_definitions(-DUNICODE -D_UNICODE )
+    add_definitions(-DUNICODE -D_UNICODE)
     add_definitions(-DNOMINMAX)
 endif ()
 
@@ -20,19 +20,5 @@ add_subdirectory(gui)
 add_subdirectory(scene)
 add_subdirectory(material)
 
-add_executable(${PROJECT_NAME})
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    target_compile_options(${PROJECT_NAME} PRIVATE /Zc:preprocessor)
-endif ()
-
-target_sources(${PROJECT_NAME} PRIVATE static.h main.cpp)
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(${PROJECT_NAME} PRIVATE common)
-target_link_libraries(${PROJECT_NAME} PRIVATE gui)
-target_link_libraries(${PROJECT_NAME} PRIVATE device_api)
-target_link_libraries(${PROJECT_NAME} PRIVATE scene)
-
+# executable target
 add_subdirectory(path_tracer)
