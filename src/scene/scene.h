@@ -1,6 +1,7 @@
 #pragma once
 
 #include "shape.h"
+#include "emitter.h"
 #include "xml/object.h"
 
 #include <vector>
@@ -40,6 +41,7 @@ public:
     Integrator integrator;
     Sensor sensor;
     std::vector<Shape> shapes;
+    std::vector<Emitter> emitters;
 
     using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
     std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::_count> xml_obj_load_cbs{};

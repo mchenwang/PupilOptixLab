@@ -191,7 +191,7 @@ Scene::Scene() noexcept {
             } else if (obj->type.compare("checkerboard") == 0) {
                 texture->type = util::ETextureType::Checkerboard;
 
-                auto set_patch = [](decltype(texture->checkerboard.patch1) &p, std::string value) {
+                auto set_patch = [](util::float3 &p, std::string value) {
                     if (!value.empty()) {
                         auto patch1 = util::Split(value, ",");
                         if (patch1.size() == 3) {
@@ -208,16 +208,15 @@ Scene::Scene() noexcept {
                     }
                 };
 
+                util::float3 p1{ 0.4f }, p2{ 0.2f };
                 auto value = obj->GetProperty("color0");
-                set_patch(texture->checkerboard.patch1, value);
+                set_patch(p1, value);
                 value = obj->GetProperty("color1");
-                set_patch(texture->checkerboard.patch2, value);
+                set_patch(p2, value);
+                *texture = util::Singleton<TextureManager>::instance()->GetCheckerboardTexture(p1, p2);
             } else {
                 std::cerr << "warring: unknown texture type [" << obj->type << "].\n";
-                texture->type = util::ETextureType::RGB;
-                texture->rgb.color.r = 0.f;
-                texture->rgb.color.g = 0.f;
-                texture->rgb.color.b = 0.f;
+                *texture = util::Singleton<TextureManager>::instance()->GetColorTexture(0.f, 0.f, 0.f);
             }
 
             auto transform_obj = obj->GetUniqueSubObject("transform");
@@ -238,8 +237,36 @@ Scene::Scene() noexcept {
             if (obj == nullptr || dst == nullptr) return;
             Shape *shape = static_cast<Shape *>(dst);
 
-            auto transform_obj = obj->GetUniqueSubObject("transform");
-            InvokeXmlObjLoadCallBack(transform_obj, &shape->transform);
+            *shape = scene::LoadShapeFromXml(obj, this);
+        });
+
+    SetXmlObjLoadCallBack(
+        xml::ETag::_emitter,
+        [this](const scene::xml::Object *obj, void *dst) noexcept {
+            if (obj == nullptr || dst == nullptr) return;
+            Emitter *emitter = static_cast<Emitter *>(dst);
+
+            if (obj->type.compare("area") == 0) {
+                emitter->type = EEmitterType::Area;
+                auto value = obj->GetProperty("radiance");
+                float r = 0.f, g = 0.f, b = 0.f;
+                if (!value.empty()) {
+                    auto radiance_values = util::Split(value, ",");
+                    if (radiance_values.size() == 3) {
+                        r = std::stof(radiance_values[0]);
+                        g = std::stof(radiance_values[1]);
+                        b = std::stof(radiance_values[2]);
+
+                    } else if (radiance_values.size() == 1) {
+                        r = g = b = std::stof(radiance_values[0]);
+                    } else {
+                        std::cerr << "warring: radiance value size is " << radiance_values.size() << "(must be 1 or 3).\n";
+                    }
+                }
+                emitter->area.radiance = util::Singleton<TextureManager>::instance()->GetColorTexture(r, g, b);
+            } else {
+                std::cerr << "warring: unknown emitter type [" << obj->type << "].\n";
+            }
         });
 }
 
@@ -258,9 +285,16 @@ void Scene::LoadFromXML(std::string_view path) noexcept {
                 InvokeXmlObjLoadCallBack(xml_obj, &sensor);
                 break;
             case xml::ETag::_shape:
-                Shape shape;
-                shapes.emplace_back(shape);
+                //Shape shape;
+                shapes.push_back({});
                 InvokeXmlObjLoadCallBack(xml_obj, &shapes.back());
+                break;
+            case xml::ETag::_emitter:
+                //Emitter emitter;
+                emitters.push_back({});
+                InvokeXmlObjLoadCallBack(xml_obj, &emitters.back());
+                if (emitters.back().type == EEmitterType::Area)
+                    emitters.pop_back();
                 break;
         }
     }
