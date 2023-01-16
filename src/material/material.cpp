@@ -76,8 +76,10 @@ struct MaterialLoader<EMatType::_dielectric> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
         mat.type = EMatType::_dielectric;
-        mat.dielectric.int_ior = material::LoadIor("int_ior");
-        mat.dielectric.ext_ior = material::LoadIor("ext_ior");
+        std::string value = obj->GetProperty("int_ior");
+        mat.dielectric.int_ior = material::LoadIor(value);
+        value = obj->GetProperty("ext_ior");
+        mat.dielectric.ext_ior = material::LoadIor(value);
         LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.dielectric.specular_reflectance, { 1.f });
         LoadTextureOrRGB(obj, scene, "specular_transmittance", mat.dielectric.specular_transmittance, { 1.f });
         return mat;

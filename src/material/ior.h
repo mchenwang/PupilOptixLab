@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <algorithm>
+#include <charconv>
 
 namespace material {
 struct IOREntry {
@@ -48,15 +48,16 @@ const static IOREntry S_IOR_DATA[] = {
 };
 // clang-format on
 
-static float LoadIor(std::string_view value) noexcept {
-    if (value.empty()) return 0.f;
+static float LoadIor(std::string_view str) noexcept {
+    if (str.empty()) return 0.f;
 
-    if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-        return static_cast<float>(std::atof(value.data()));
-    }
+    float value;
+    auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
+    if (ec == std::errc() && p == str.data() + str.size())
+        return value;
 
     for (auto &[name, ior] : S_IOR_DATA) {
-        if (name != nullptr && value.compare(name) == 0) {
+        if (name != nullptr && str.compare(name) == 0) {
             return ior;
         }
     }
