@@ -23,79 +23,124 @@ void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
     }
 }
 
-void LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
-    if (obj == nullptr || dst == nullptr) return;
-    util::Transform *transform = static_cast<util::Transform *>(dst);
-    if (obj->var_name.compare("to_world") == 0) {
-        std::string value = obj->GetProperty("matrix");
-        if (!value.empty()) {
-            auto matrix_elems = util::Split(value, " ");
-            if (matrix_elems.size() == 16) {
-                for (int i = 0; auto &&e : matrix_elems) {
-                    transform->matrix[i++] = std::stof(e);
-                }
-            } else if (matrix_elems.size() == 9) {
-                for (int i = 0, j = 0; auto &&e : matrix_elems) {
-                    transform->matrix[i] = std::stof(e);
-                    ++i, ++j;
-                    if (j % 3 == 0) ++i;
-                }
-            } else {
-                std::cerr << "warring: transform matrix size is " << matrix_elems.size() << "(must be 9 or 16).\n";
-                for (size_t i = 0; i < matrix_elems.size() && i < 16; i++) {
-                    transform->matrix[i] = std::stof(matrix_elems[i]);
-                }
+void LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) noexcept {
+    std::string value = obj->GetProperty("matrix");
+    if (!value.empty()) {
+        auto matrix_elems = util::Split(value, " ");
+        if (matrix_elems.size() == 16) {
+            for (int i = 0; auto &&e : matrix_elems) {
+                transform->matrix[i++] = std::stof(e);
+            }
+        } else if (matrix_elems.size() == 9) {
+            for (int i = 0, j = 0; auto &&e : matrix_elems) {
+                transform->matrix[i] = std::stof(e);
+                ++i, ++j;
+                if (j % 3 == 0) ++i;
             }
         } else {
-            value = obj->GetProperty("scale");
+            std::cerr << "warring: transform matrix size is " << matrix_elems.size() << "(must be 9 or 16).\n";
+            for (size_t i = 0; i < matrix_elems.size() && i < 16; i++) {
+                transform->matrix[i] = std::stof(matrix_elems[i]);
+            }
+        }
+    } else {
+        auto look_at = obj->GetUniqueSubObject("look_at");
+        if (look_at) {
+            util::float3 origin{ 1.f, 0.f, 0.f };
+            util::float3 target{ 0.f, 0.f, 0.f };
+            util::float3 up{ 0.f, 1.f, 0.f };
+            value = look_at->GetProperty("origin");
             if (!value.empty()) {
-                auto scale_value = util::Split(value, ",");
-                if (scale_value.size() == 3) {
-                    transform->Scale(std::stof(scale_value[0]),
-                                     std::stof(scale_value[1]),
-                                     std::stof(scale_value[2]));
-                } else if (scale_value.size() == 1) {
-                    float t = std::stof(scale_value[0]);
-                    transform->Scale(t, t, t);
+                auto origin_value = util::Split(value, ",");
+                if (origin_value.size() == 3) {
+                    origin = { std::stof(origin_value[0]), std::stof(origin_value[1]), std::stof(origin_value[2]) };
                 } else {
-                    std::cerr << "warring: transform scale value size is " << scale_value.size() << "(must be 1 or 3).\n";
+                    std::cerr << "warring: transform look_at origin value size is " << origin_value.size() << "(must be 3).\n";
                 }
             }
+            value = look_at->GetProperty("target");
+            if (!value.empty()) {
+                auto target_value = util::Split(value, ",");
+                if (target_value.size() == 3) {
+                    target = { std::stof(target_value[0]), std::stof(target_value[1]), std::stof(target_value[2]) };
+                } else {
+                    std::cerr << "warring: transform look_at target value size is " << target_value.size() << "(must be 3).\n";
+                }
+            }
+            value = look_at->GetProperty("up");
+            if (!value.empty()) {
+                auto up_value = util::Split(value, ",");
+                if (up_value.size() == 3) {
+                    up = { std::stof(up_value[0]), std::stof(up_value[1]), std::stof(up_value[2]) };
+                } else {
+                    std::cerr << "warring: transform look_at up value size is " << up_value.size() << "(must be 3).\n";
+                }
+            }
+            transform->LookAt(origin, target, up);
 
-            // value = obj->GetProperty("rotate");
-            auto scale_obj = obj->GetUniqueSubObject("scale");
-            if (scale_obj) {
-                auto axis = scale_obj->GetProperty("axis");
-                if (!axis.empty()) {
-                    auto axis_value = util::Split(axis, ",");
-                    if (axis_value.size() == 3) {
-                        auto angle = scale_obj->GetProperty("angle");
-                        if (!angle.empty()) {
-                            transform->Rotate(
-                                std::stof(axis_value[0]),
-                                std::stof(axis_value[1]),
-                                std::stof(axis_value[2]),
-                                std::stof(angle));
-                        }
-                    } else {
-                        std::cerr << "warring: transform rotation axis is " << axis << "(must be a 3d vector).\n";
+            if (!obj->GetProperty("scale").empty() || obj->GetUniqueSubObject("rotate") || !obj->GetProperty("translate").empty()) {
+                std::cerr << "warring: transform scale/rotate/translate is ignored as look_at exists.\n";
+            }
+            return;
+        }
+
+        value = obj->GetProperty("scale");
+        if (!value.empty()) {
+            auto scale_value = util::Split(value, ",");
+            if (scale_value.size() == 3) {
+                transform->Scale(std::stof(scale_value[0]),
+                                 std::stof(scale_value[1]),
+                                 std::stof(scale_value[2]));
+            } else if (scale_value.size() == 1) {
+                float t = std::stof(scale_value[0]);
+                transform->Scale(t, t, t);
+            } else {
+                std::cerr << "warring: transform scale value size is " << scale_value.size() << "(must be 1 or 3).\n";
+            }
+        }
+
+        // value = obj->GetProperty("rotate");
+        auto rotate_obj = obj->GetUniqueSubObject("rotate");
+        if (rotate_obj) {
+            auto axis = rotate_obj->GetProperty("axis");
+            if (!axis.empty()) {
+                auto axis_value = util::Split(axis, ",");
+                if (axis_value.size() == 3) {
+                    auto angle = rotate_obj->GetProperty("angle");
+                    if (!angle.empty()) {
+                        transform->Rotate(
+                            std::stof(axis_value[0]),
+                            std::stof(axis_value[1]),
+                            std::stof(axis_value[2]),
+                            std::stof(angle));
                     }
-                }
-            }
-
-            value = obj->GetProperty("translate");
-            if (!value.empty()) {
-                auto translate_value = util::Split(value, ",");
-                if (translate_value.size() == 3) {
-                    transform->Translate(std::stof(translate_value[0]),
-                                         std::stof(translate_value[1]),
-                                         std::stof(translate_value[2]));
                 } else {
-                    std::cerr << "warring: transform translate value size is " << translate_value.size() << "(must be 3).\n";
+                    std::cerr << "warring: transform rotation axis is " << axis << "(must be a 3d vector).\n";
                 }
             }
         }
+
+        value = obj->GetProperty("translate");
+        if (!value.empty()) {
+            auto translate_value = util::Split(value, ",");
+            if (translate_value.size() == 3) {
+                transform->Translate(std::stof(translate_value[0]),
+                                     std::stof(translate_value[1]),
+                                     std::stof(translate_value[2]));
+            } else {
+                std::cerr << "warring: transform translate value size is " << translate_value.size() << "(must be 3).\n";
+            }
+        }
+    }
+}
+
+void LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
+    if (obj == nullptr || dst == nullptr) return;
+    if (obj->var_name.compare("to_world") == 0) {
+        util::Transform *transform = static_cast<util::Transform *>(dst);
+        LoadTransform3D(obj, transform);
     } else if (obj->var_name.compare("to_uv") == 0) {
+        util::Transform *transform = static_cast<util::Transform *>(dst);
         std::string value = obj->GetProperty("scale");
         if (!value.empty()) {
             auto scale_value = util::Split(value, ",");

@@ -1,6 +1,7 @@
 #include "transform.h"
 
 #include <cmath>
+#include <DirectXMath.h>
 
 namespace {
 // clang-format off
@@ -77,5 +78,22 @@ void Transform::Scale(float x, float y, float z) noexcept {
         0.f, 0.f, 0.f, 1.f
     };
     MatrixMultiply(scale, matrix, matrix);
+}
+
+void Transform::LookAt(const float3 &origin, const float3 &target, const float3 &up) noexcept {
+    DirectX::XMFLOAT3 t_eye_position{ origin.x, origin.y, origin.z };
+    DirectX::XMVECTOR eye_position = DirectX::XMLoadFloat3(&t_eye_position);
+    DirectX::XMFLOAT3 t_focus_position{ target.x, target.y, target.z };
+    DirectX::XMVECTOR focus_position = DirectX::XMLoadFloat3(&t_focus_position);
+    DirectX::XMFLOAT3 t_up_direction{ up.x, up.y, up.z };
+    DirectX::XMVECTOR up_direction = DirectX::XMLoadFloat3(&t_up_direction);
+
+    auto world_to_camera = DirectX::XMMatrixLookAtRH(eye_position, focus_position, up_direction);
+    auto camera_to_world = DirectX::XMMatrixInverse(nullptr, world_to_camera);
+    DirectX::XMFLOAT4X4 t_m;
+    DirectX::XMStoreFloat4x4(&t_m, camera_to_world);
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            this->matrix[i * 4 + j] = t_m.m[i][j];
 }
 }// namespace util
