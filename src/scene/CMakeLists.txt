@@ -5,6 +5,7 @@ set(scene_source
     shape.cpp
     texture.h
     texture.cpp
+    emitter.h
 )
 
 file(GLOB_RECURSE scene_xml_source CONFIGURE_DEPENDS "xml/*.*")

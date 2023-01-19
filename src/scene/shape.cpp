@@ -112,7 +112,20 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
             scene->InvokeXmlObjLoadCallBack(bsdf, &shape.mat);
             auto transform = obj->GetUniqueSubObject("transform");
             scene->InvokeXmlObjLoadCallBack(transform, &shape.transform);
-            // TODO: emitter;
+
+            auto emitter_xml_obj = obj->GetUniqueSubObject("emitter");
+            if (emitter_xml_obj) {
+                Emitter emitter;
+                scene->InvokeXmlObjLoadCallBack(emitter_xml_obj, &emitter);
+                shape.is_emitter = true;
+                if (emitter.type == EEmitterType::Area && emitter.area.radiance.type == util::ETextureType::RGB) {
+                    shape.emitter_radiance = emitter.area.radiance.rgb.color;
+                } else {
+                    std::cerr << "warring: shape emitter not support\n";
+                    shape.emitter_radiance = util::float3(1.f);
+                }
+            } else
+                shape.is_emitter = false;
             return shape;
         }
         ++i;
@@ -163,9 +176,9 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
         }
 
         for (auto j = 0u; j < mesh->mNumFaces; j++) {
-            shape->faces.emplace_back(mesh->mFaces[j].mIndices[0] + vertex_index_offset);
-            shape->faces.emplace_back(mesh->mFaces[j].mIndices[1] + vertex_index_offset);
-            shape->faces.emplace_back(mesh->mFaces[j].mIndices[2] + vertex_index_offset);
+            shape->indices.emplace_back(mesh->mFaces[j].mIndices[0] + vertex_index_offset);
+            shape->indices.emplace_back(mesh->mFaces[j].mIndices[1] + vertex_index_offset);
+            shape->indices.emplace_back(mesh->mFaces[j].mIndices[2] + vertex_index_offset);
         }
 
         vertex_index_offset += mesh->mNumVertices;
@@ -186,10 +199,12 @@ Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     shape.obj.face_normals = false;
     shape.obj.flip_tex_coords = true;
     shape.obj.flip_normals = false;
+    shape.obj.vertex_num = static_cast<uint32_t>(it->second->positions.size() / 3);
+    shape.obj.face_num = static_cast<uint32_t>(it->second->indices.size() / 3);
     shape.obj.positions = it->second->positions.data();
     shape.obj.normals = it->second->normals.size() > 0 ? it->second->normals.data() : nullptr;
     shape.obj.texcoords = it->second->texcoords.size() > 0 ? it->second->texcoords.data() : nullptr;
-    shape.obj.faces = it->second->faces.data();
+    shape.obj.indices = it->second->indices.data();
 
     return shape;
 }

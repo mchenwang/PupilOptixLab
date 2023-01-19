@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <array>
 
 namespace scene {
 
@@ -26,25 +27,18 @@ struct Object;
 PUPIL_ENUM_DEFINE(EShapeType, PUPIL_SCENE_SHAPE)
 PUPIL_ENUM_STRING_ARRAY(S_SHAPE_TYPE_NAME, PUPIL_SCENE_SHAPE)
 
-// struct Vertex {
-//     util::float3 position;
-//     util::float3 normal;
-//     util::float3 texcoord;
-// };
-
-// struct FaceIndex {
-//     uint32_t v0, v1, v2;
-// };
-
 struct ObjShape {
     bool face_normals;
     bool flip_tex_coords;
     bool flip_normals;
 
+    uint32_t vertex_num;
+    uint32_t face_num;
+
     float *positions;
     float *normals;
     float *texcoords;
-    uint32_t *faces;
+    uint32_t *indices;
 };
 
 struct Sphere {
@@ -67,7 +61,7 @@ struct Shape {
     material::Material mat;
     union {
         ObjShape obj;
-        Sphere sphere;
+        Sphere sphere{};
         Cube cube;
         Rectangle rect;
     };
@@ -88,7 +82,7 @@ private:
         std::vector<float> positions;
         std::vector<float> normals;
         std::vector<float> texcoords;
-        std::vector<uint32_t> faces;
+        std::vector<uint32_t> indices;
     };
 
     std::unordered_map<std::string, std::unique_ptr<ShapeData>, util::StringHash, std::equal_to<>> m_shape_datas;
