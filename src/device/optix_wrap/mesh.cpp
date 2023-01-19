@@ -9,11 +9,11 @@ using namespace optix_wrap;
 namespace {
 // the mesh just has one material, so the sbt_index_offset must be 0
 void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
-    const auto vertex_size = sizeof(Vertex) * mesh->vertices.size();
-    CUdeviceptr d_vertex = cuda::CudaMemcpy(mesh->vertices.data(), vertex_size);
+    const auto vertex_size = sizeof(float) * 3 * mesh->vertex_num;
+    CUdeviceptr d_vertex = cuda::CudaMemcpy(mesh->vertices, vertex_size);
 
-    const auto index_size = sizeof(TriIndex) * mesh->indices.size();
-    CUdeviceptr d_index = cuda::CudaMemcpy(mesh->indices.data(), index_size);
+    const auto index_size = sizeof(unsigned int) * 3 * mesh->index_triplets_num;
+    CUdeviceptr d_index = cuda::CudaMemcpy(mesh->indices, index_size);
 
     unsigned int sbt_index = 0;
     CUdeviceptr d_sbt_index = cuda::CudaMemcpy(&sbt_index, sizeof(sbt_index));
@@ -24,13 +24,13 @@ void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
     input.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
     input.triangleArray = {
         .vertexBuffers = &d_vertex,
-        .numVertices = static_cast<unsigned int>(mesh->vertices.size()),
+        .numVertices = mesh->vertex_num,
         .vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3,
-        .vertexStrideInBytes = sizeof(mesh->vertices[0]),
+        .vertexStrideInBytes = sizeof(float) * 3,
         .indexBuffer = d_index,
-        .numIndexTriplets = static_cast<unsigned int>(mesh->indices.size()),
+        .numIndexTriplets = mesh->index_triplets_num,
         .indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3,
-        .indexStrideInBytes = sizeof(mesh->indices[0]),
+        .indexStrideInBytes = sizeof(unsigned int) * 3,
         .preTransform = d_transform,
         .flags = &input_flag,
         .numSbtRecords = 1,// num == 1, gas_sbt_index_offset will be always equal to 0
@@ -179,7 +179,7 @@ void CreateAccel(device::Optix *device, Sphere *sphere, RenderObject *ro) {
 }// namespace
 
 RenderObject::RenderObject(device::Optix *device, EMeshType type, void *mesh, unsigned int v_mask) noexcept
-    : gas_handle(0), gas_buffer(0), visibility_mask(v_mask) {
+    : gas_handle(0), gas_buffer(0), visibility_mask(v_mask), transform() {
     switch (type) {
         case optix_wrap::EMeshType::Custom:
             CreateAccel(device, (Mesh *)mesh, this);

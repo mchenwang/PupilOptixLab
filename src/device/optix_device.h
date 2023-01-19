@@ -14,6 +14,10 @@ struct Pipeline;
 struct RenderObject;
 }// namespace optix_wrap
 
+namespace scene{
+class Scene;
+}
+
 namespace device {
 struct CudaDx12SharedTexture {
     Microsoft::WRL::ComPtr<ID3D12Resource> dx12_resource;
@@ -50,7 +54,7 @@ public:
 
     template<optix_wrap::SBTTypes T>
     void InitSBT(const optix_wrap::SBTDesc<T> &) noexcept;
-    void InitScene() noexcept;
+    void InitScene(scene::Scene* scene) noexcept;
 
     void Run() noexcept;
 

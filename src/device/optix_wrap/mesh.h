@@ -14,20 +14,12 @@ enum class EMeshType {
     BuiltinSphere
 };
 
-struct Vertex {
-    float3 position;
-    float3 normal;
-};
-
-struct TriIndex {
-    unsigned int v1, v2, v3;
-};
-
 // one to one correspondence between mesh and material
 struct Mesh {
-    std::vector<Vertex> vertices;
-    std::vector<TriIndex> indices;
-    //unsigned int sbt_index;
+    unsigned int vertex_num;
+    float *vertices; // position
+    unsigned int index_triplets_num;
+    unsigned int *indices;
     float transform[12];
 };
 
@@ -41,6 +33,7 @@ struct RenderObject {
     OptixTraversableHandle gas_handle = 0;
     CUdeviceptr gas_buffer = 0;
     unsigned int visibility_mask;
+    float transform[12]{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 };
 
     RenderObject(device::Optix *, EMeshType, void *, unsigned int v_mask = 1) noexcept;
     ~RenderObject() noexcept;

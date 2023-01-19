@@ -9,7 +9,7 @@
 #include "common/util.h"
 #include "cuda_util/util.h"
 
-#include "scene/texture.h"
+#include "scene/scene.h"
 
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
@@ -177,7 +177,7 @@ void Optix::Run() noexcept {
     wait_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value;
     cudaWaitExternalSemaphoresAsync(&cuda_semaphore, &wait_params, 1, cuda_stream);
 
-    // do ray tracing
+    // TODO: do ray tracing
 
     cudaExternalSemaphoreSignalParams signal_params{};
     signal_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value + 1;
@@ -188,7 +188,77 @@ void Optix::InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept {
     pipeline = std::make_unique<optix_wrap::Pipeline>(this, desc);
 }
 
-void Optix::InitScene() noexcept {
+void Optix::InitScene(scene::Scene *scene) noexcept {
+    std::vector<optix_wrap::RenderObject> ros;
+    ros.reserve(scene->shapes.size());
+
+    optix_wrap::Mesh temp_mesh{};
+    optix_wrap::Sphere temp_sphere{};
+
+    float rect_position[] = {
+        1.f, 0.f, 1.f,  // v0
+        1.f, 0.f, -1.f, // v1
+        -1.f, 0.f, -1.f,// v2
+        -1.f, 0.f, 1.f  // v3
+    };
+    uint32_t rect_indices[] = { 0, 1, 2, 0, 2, 3 };
+
+    float cube_position[] = {
+        0.f, 0.f, 0.f,
+        0.f, 0.f, 1.f,
+        0.f, 1.f, 0.f,
+        0.f, 1.f, 1.f,
+        1.f, 0.f, 0.f,
+        1.f, 0.f, 1.f,
+        1.f, 1.f, 0.f,
+        1.f, 1.f, 1.f
+    };
+    uint32_t cube_indices[] = {
+        0, 1, 2, 1, 3, 2,
+        4, 6, 7, 4, 7, 5,
+        0, 2, 6, 0, 6, 4,
+        1, 5, 7, 1, 7, 3,
+        2, 3, 7, 2, 7, 6,
+        0, 4, 5, 0, 5, 1
+    };
+
+    for (int i = 0; auto &&shape : scene->shapes) {
+        switch (shape.type) {
+            case scene::EShapeType::_obj:
+                temp_mesh.vertex_num = shape.obj.vertex_num;
+                temp_mesh.vertices = shape.obj.positions;
+                temp_mesh.index_triplets_num = shape.obj.face_num;
+                temp_mesh.indices = shape.obj.indices;
+                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                break;
+            case scene::EShapeType::_rectangle:
+                temp_mesh.vertex_num = 4;
+                temp_mesh.vertices = rect_position;
+                temp_mesh.index_triplets_num = 2;
+                temp_mesh.indices = rect_indices;
+                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                break;
+            case scene::EShapeType::_cube:
+                temp_mesh.vertex_num = 8;
+                temp_mesh.vertices = cube_position;
+                temp_mesh.index_triplets_num = 12;
+                temp_mesh.indices = cube_indices;
+                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                break;
+            case scene::EShapeType::_sphere:
+                temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+                temp_sphere.radius = shape.sphere.radius;
+                std::memcpy(temp_sphere.transform, shape.transform.matrix, sizeof(float) * 12);
+                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::BuiltinSphere, &temp_sphere });
+            default:
+                break;
+        }
+    }
+
+    CreateTopLevelAccel(ros);
 }
 
 void Optix::CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &ros) noexcept {
