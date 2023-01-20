@@ -56,9 +56,9 @@ std::unordered_map<util::Texture, cudaTextureObject_t, CudaTextureHash, TextureC
 }// namespace
 
 namespace device {
-cudaTextureObject_t CudaTextureManager::GetCudaTexture(util::Texture texture) noexcept {
+cudaTextureObject_t CudaTextureManager::GetCudaTextureObject(util::Texture texture) noexcept {
     if (texture.type != util::ETextureType::Bitmap) return 0;
-    
+
     auto it = m_cuda_texture_map.find(texture);
     if (it != m_cuda_texture_map.end()) return it->second;
 

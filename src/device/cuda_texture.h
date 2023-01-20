@@ -14,7 +14,7 @@ private:
     std::vector<cudaArray_t> m_cuda_memory_array;
 
 public:
-    [[nodiscard]] cudaTextureObject_t GetCudaTexture(util::Texture) noexcept;
+    [[nodiscard]] cudaTextureObject_t GetCudaTextureObject(util::Texture) noexcept;
 
     void Clear() noexcept;
 };
