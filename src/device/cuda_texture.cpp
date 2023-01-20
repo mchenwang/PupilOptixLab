@@ -113,7 +113,7 @@ cudaTextureObject_t CudaTextureManager::GetCudaTextureObject(util::Texture textu
     cuda_texture_desc.addressMode[0] = (cudaTextureAddressMode)texture.bitmap.address_mode;
     cuda_texture_desc.addressMode[1] = (cudaTextureAddressMode)texture.bitmap.address_mode;
     cuda_texture_desc.filterMode = (cudaTextureFilterMode)texture.bitmap.filter_mode;
-    cuda_texture_desc.readMode = cudaReadModeNormalizedFloat;
+    cuda_texture_desc.readMode = cudaReadModeElementType;
     cuda_texture_desc.normalizedCoords = 1;
     cuda_texture_desc.maxAnisotropy = 1;
     cuda_texture_desc.maxMipmapLevelClamp = 99;
@@ -125,7 +125,7 @@ cudaTextureObject_t CudaTextureManager::GetCudaTextureObject(util::Texture textu
     // Create texture object
     cudaTextureObject_t cuda_tex = 0;
     CUDA_CHECK(cudaCreateTextureObject(&cuda_tex, &res_desc, &cuda_texture_desc, nullptr));
-    it->second = cuda_tex;
+    m_cuda_texture_map[texture] = cuda_tex;
 
     m_cuda_memory_array.push_back(cuda_array);
 
