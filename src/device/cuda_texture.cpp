@@ -132,6 +132,30 @@ cudaTextureObject_t CudaTextureManager::GetCudaTextureObject(util::Texture textu
     return cuda_tex;
 }
 
+cuda::Texture CudaTextureManager::GetCudaTexture(util::Texture texture) noexcept {
+    cuda::Texture cuda_texture{};
+    cuda_texture.type = texture.type;
+    switch (texture.type) {
+        case util::ETextureType::RGB:
+            cuda_texture.rgb.x = texture.rgb.color.x;
+            cuda_texture.rgb.y = texture.rgb.color.y;
+            cuda_texture.rgb.z = texture.rgb.color.z;
+            break;
+        case util::ETextureType::Checkerboard:
+            cuda_texture.patch1.x = texture.checkerboard.patch1.x;
+            cuda_texture.patch1.y = texture.checkerboard.patch1.y;
+            cuda_texture.patch1.z = texture.checkerboard.patch1.z;
+            cuda_texture.patch2.x = texture.checkerboard.patch2.x;
+            cuda_texture.patch2.y = texture.checkerboard.patch2.y;
+            cuda_texture.patch2.z = texture.checkerboard.patch2.z;
+            break;
+        case util::ETextureType::Bitmap:
+            cuda_texture.bitmap = GetCudaTextureObject(texture);
+            break;
+    }
+    return cuda_texture;
+}
+
 void CudaTextureManager::Clear() noexcept {
     for (auto &&[key, value] : m_cuda_texture_map) {
         CUDA_CHECK(cudaDestroyTextureObject(value));

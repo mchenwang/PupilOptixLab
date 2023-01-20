@@ -20,6 +20,7 @@ target_link_libraries(${path_tracer_name} PRIVATE common)
 target_link_libraries(${path_tracer_name} PRIVATE gui)
 target_link_libraries(${path_tracer_name} PRIVATE device_api)
 target_link_libraries(${path_tracer_name} PRIVATE scene)
+target_link_libraries(${path_tracer_name} PRIVATE material)
 
 # compile for Optix
 add_custom_command(

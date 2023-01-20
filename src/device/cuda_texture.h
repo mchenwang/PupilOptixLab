@@ -1,8 +1,7 @@
 #pragma once
 
 #include "common/util.h"
-
-#include <cuda_runtime.h>
+#include "cuda_util/texture.h"
 
 namespace util {
 struct Texture;
@@ -15,6 +14,7 @@ private:
 
 public:
     [[nodiscard]] cudaTextureObject_t GetCudaTextureObject(util::Texture) noexcept;
+    [[nodiscard]] cuda::Texture GetCudaTexture(util::Texture) noexcept;
 
     void Clear() noexcept;
 };

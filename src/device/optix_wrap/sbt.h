@@ -32,11 +32,12 @@ template<typename T>
 concept RecordType = requires { RecordTraits<T>::Type; };
 
 template<typename T>
-concept SBTTypes = requires {
-                       typename T::RayGenDataType;
-                       typename T::MissDataType;
-                       typename T::HitGroupDataType;
-                   };
+concept SBTTypes =
+    requires {
+        typename T::RayGenDataType;
+        typename T::MissDataType;
+        typename T::HitGroupDataType;
+    };
 
 template<SBTTypes T>
 struct SBTDesc {
