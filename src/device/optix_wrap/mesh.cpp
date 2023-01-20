@@ -194,4 +194,5 @@ RenderObject::RenderObject(device::Optix *device, EMeshType type, void *mesh, un
 
 RenderObject::~RenderObject() noexcept {
     CUDA_FREE(gas_buffer);
+    gas_buffer = 0;
 }

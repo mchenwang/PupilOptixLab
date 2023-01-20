@@ -37,6 +37,9 @@ struct RenderObject {
 
     RenderObject(device::Optix *, EMeshType, void *, unsigned int v_mask = 1) noexcept;
     ~RenderObject() noexcept;
+
+    RenderObject(const RenderObject &) = delete;
+    RenderObject &operator=(const RenderObject &) = delete;
 };
 
 }// namespace optix_wrap

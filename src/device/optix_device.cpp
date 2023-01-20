@@ -41,6 +41,7 @@ Optix::Optix(DX12 *dx12_backend) noexcept {
 }
 
 Optix::~Optix() noexcept {
+    std::vector<std::unique_ptr<optix_wrap::RenderObject>>().swap(m_ros);
     CUDA_CHECK(cudaDestroyExternalSemaphore(cuda_semaphore));
     if (m_frame_resource) {
         for (auto i = 0u; i < DX12::NUM_OF_FRAMES; i++) {
@@ -189,8 +190,8 @@ void Optix::InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept {
 }
 
 void Optix::InitScene(scene::Scene *scene) noexcept {
-    std::vector<optix_wrap::RenderObject> ros;
-    ros.reserve(scene->shapes.size());
+    m_ros.clear();
+    m_ros.reserve(scene->shapes.size());
 
     optix_wrap::Mesh temp_mesh{};
     optix_wrap::Sphere temp_sphere{};
@@ -230,7 +231,7 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.index_triplets_num = shape.obj.face_num;
                 temp_mesh.indices = shape.obj.indices;
                 std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
-                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_rectangle:
                 temp_mesh.vertex_num = 4;
@@ -238,7 +239,7 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.index_triplets_num = 2;
                 temp_mesh.indices = rect_indices;
                 std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
-                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_cube:
                 temp_mesh.vertex_num = 8;
@@ -246,22 +247,22 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.index_triplets_num = 12;
                 temp_mesh.indices = cube_indices;
                 std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
-                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::Custom, &temp_mesh });
+                m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_sphere:
                 temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
                 temp_sphere.radius = shape.sphere.radius;
                 std::memcpy(temp_sphere.transform, shape.transform.matrix, sizeof(float) * 12);
-                ros.push_back(optix_wrap::RenderObject{ this, optix_wrap::EMeshType::BuiltinSphere, &temp_sphere });
+                m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::BuiltinSphere, &temp_sphere));
             default:
                 break;
         }
     }
 
-    CreateTopLevelAccel(ros);
+    CreateTopLevelAccel(m_ros);
 }
 
-void Optix::CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &ros) noexcept {
+void Optix::CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderObject>> &ros) noexcept {
     float transform[12] = {
         1.f, 0.f, 0.f, 0.f,
         0.f, 1.f, 0.f, 0.f,
@@ -275,9 +276,9 @@ void Optix::CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &ros) noex
         memcpy(instances[i].transform, transform, sizeof(float) * 12);
         instances[i].instanceId = i;
         instances[i].sbtOffset = i * 2;
-        instances[i].visibilityMask = ros[i].visibility_mask;
+        instances[i].visibilityMask = ros[i]->visibility_mask;
         instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-        instances[i].traversableHandle = ros[i].gas_handle;
+        instances[i].traversableHandle = ros[i]->gas_handle;
     }
 
     const auto instances_size_in_bytes = sizeof(OptixInstance) * num_instances;

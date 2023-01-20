@@ -14,7 +14,7 @@ struct Pipeline;
 struct RenderObject;
 }// namespace optix_wrap
 
-namespace scene{
+namespace scene {
 class Scene;
 }
 
@@ -49,12 +49,13 @@ public:
     ~Optix() noexcept;
 
     [[nodiscard]] SharedFrameResource *GetSharedFrameResource() noexcept;
-    
+    void ClearSharedFrameResource() noexcept { m_frame_resource.reset(); }
+
     void InitPipeline(const optix_wrap::PipelineDesc &) noexcept;
 
     template<optix_wrap::SBTTypes T>
     void InitSBT(const optix_wrap::SBTDesc<T> &) noexcept;
-    void InitScene(scene::Scene* scene) noexcept;
+    void InitScene(scene::Scene *scene) noexcept;
 
     void Run() noexcept;
 
@@ -64,8 +65,10 @@ private:
     std::unique_ptr<optix_wrap::Pipeline> pipeline = nullptr;
     std::any sbt{};
 
+    std::vector<std::unique_ptr<optix_wrap::RenderObject>> m_ros;
+
     void InitCuda() noexcept;
-    void CreateTopLevelAccel(std::vector<optix_wrap::RenderObject> &) noexcept;
+    void CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderObject>> &) noexcept;
 
     [[nodiscard]] std::unique_ptr<CudaDx12SharedTexture>
     CreateSharedResourceWithDX12() noexcept;
