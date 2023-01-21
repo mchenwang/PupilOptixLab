@@ -48,13 +48,26 @@ void Window::Init() noexcept {
 
     ::RegisterClassExW(&wc);
 
+    RECT window_rect{ 0, 0, static_cast<LONG>(g_window_w), static_cast<LONG>(g_window_h) };
+    ::AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
+
+    int screen_w = ::GetSystemMetrics(SM_CXSCREEN);
+    int screen_h = ::GetSystemMetrics(SM_CYSCREEN);
+
+    int window_w = window_rect.right - window_rect.left;
+    int window_h = window_rect.bottom - window_rect.top;
+
+    // Center the window within the screen. Clamp to 0, 0 for the top-left corner.
+    int window_x = std::max<int>(0, (screen_w - window_w) / 2);
+    int window_y = std::max<int>(0, (screen_h - window_h) / 2);
+
     m_instance = GetModuleHandleW(NULL);
     g_window_handle = ::CreateWindowExW(
         NULL,
         WND_CLASS_NAME.data(),
         WND_NAME.data(),
         WS_OVERLAPPEDWINDOW,
-        100, 100, g_window_w, g_window_h,
+        window_x, window_y, window_w, window_h,
         NULL, NULL, wc.hInstance, NULL);
 
     util::Singleton<Backend>::instance()->Init();
@@ -100,6 +113,23 @@ Backend *Window::GetBackend() const noexcept {
     return m_backend;
 }
 
+void Window::Resize(uint32_t w, uint32_t h, bool reset_window) noexcept {
+    if (w != g_window_w || h != g_window_h) {
+        g_window_w = w;
+        g_window_h = h;
+        m_backend->Resize(w, h);
+    }
+    if (reset_window) {
+        RECT window_rect{ 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
+        ::AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
+
+        int window_w = window_rect.right - window_rect.left;
+        int window_h = window_rect.bottom - window_rect.top;
+
+        ::SetWindowPos(g_window_handle, 0, 0, 0, window_w, window_h, SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_FRAMECHANGED);
+    }
+}
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 namespace {
 
@@ -112,11 +142,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (m_backend) {
                 uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
                 uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
-                if (w != g_window_w || h != g_window_h) {
-                    g_window_w = w;
-                    g_window_h = h;
-                    m_backend->Resize(w, h);
-                }
+                util::Singleton<Window>::instance()->Resize(w, h);
             }
             return 0;
         case WM_SYSCOMMAND:
