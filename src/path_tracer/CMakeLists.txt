@@ -28,10 +28,12 @@ add_custom_command(
     DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         ${CMAKE_CURRENT_SOURCE_DIR}/type.h
+        ${pupil_optix_root}/material/optix_material.h
     COMMAND nvcc ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         -ptx -o ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx -std=c++17
         -I ${OptiX_ROOT_DIR}/include
         -I ${CMAKE_CURRENT_SOURCE_DIR}
+        -I ${pupil_optix_root}
 )
 add_custom_target(raytracing-ptx
     DEPENDS

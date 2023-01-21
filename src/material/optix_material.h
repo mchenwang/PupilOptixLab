@@ -10,7 +10,7 @@ using ::material::EMatType;
 #if defined(__CUDACC__) || defined(__CUDABE__)
 #define MATERIAL_LOAD_FUNC(type)
 #else
-#define MATERIAL_LOAD_FUNC(type) void LoadMaterial(type mat) noexcept
+#define MATERIAL_LOAD_FUNC(type) void LoadMaterial(const type &mat) noexcept
 #endif
 
 struct Diffuse {

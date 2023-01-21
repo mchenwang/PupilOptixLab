@@ -20,5 +20,7 @@ add_subdirectory(gui)
 add_subdirectory(scene)
 add_subdirectory(material)
 
+set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
+
 # executable target
 add_subdirectory(path_tracer)

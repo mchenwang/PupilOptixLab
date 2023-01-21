@@ -28,8 +28,23 @@ inline void CudaCheck(CUresult error, const char *call, const char *file, unsign
         assert(false);
     }
 }
+inline void CudaSyncCheck(const char *file, unsigned int line) {
+    cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        std::stringstream ss;
+        ss << "CUDA error on synchronize with error '"
+           << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
+
+        std::wcerr << ss.str().c_str();
+        assert(false);
+    }
+}
 
 #define CUDA_CHECK(call) CudaCheck(call, #call, __FILE__, __LINE__)
+
+#define CUDA_SYNC_CHECK() CudaSyncCheck(__FILE__, __LINE__)
+
 #define CUDA_FREE(var)                                           \
     do {                                                         \
         if (var)                                                 \
@@ -43,4 +58,4 @@ inline CUdeviceptr CudaMemcpy(void *src, size_t size) {
     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(device_memory), src, size, cudaMemcpyHostToDevice));
     return device_memory;
 }
-}// namespace util
+}// namespace cuda

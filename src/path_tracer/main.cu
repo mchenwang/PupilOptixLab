@@ -11,7 +11,7 @@ extern "C" __global__ void __raygen__main() {
     const unsigned int h = optix_launch_params.config.frame.height;
     const unsigned int pixel_index = index.y * w + index.x;
 
-    optix_launch_params.frame_buffer[pixel_index] = make_float4(index.x, index.y, 1.f, 1.f);
+    optix_launch_params.frame_buffer[pixel_index] = make_float4((float)index.x / w, (float)index.y / h, 1.f, 1.f);
 }
 
 extern "C" __global__ void __miss__default() {

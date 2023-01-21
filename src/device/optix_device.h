@@ -57,15 +57,19 @@ public:
     void InitSBT(const optix_wrap::SBTDesc<T> &) noexcept;
     void InitScene(scene::Scene *scene) noexcept;
 
-    void Run() noexcept;
+    void Run(void *params, size_t params_size, void **frame_buffer) noexcept;
 
 private:
     DX12 *m_dx12_backend = nullptr;
     std::unique_ptr<SharedFrameResource> m_frame_resource = nullptr;
     std::unique_ptr<optix_wrap::Pipeline> pipeline = nullptr;
     std::any sbt{};
+    OptixShaderBindingTable *m_sbt_ptr = nullptr;
 
     std::vector<std::unique_ptr<optix_wrap::RenderObject>> m_ros;
+
+    size_t m_cuda_params_size = 0;
+    void *m_cuda_params = nullptr;
 
     void InitCuda() noexcept;
     void CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderObject>> &) noexcept;
@@ -113,5 +117,7 @@ void Optix::InitSBT(const optix_wrap::SBTDesc<T> &desc) noexcept {
         }
         o->SetMissData(miss_datas);
     }
+
+    m_sbt_ptr = &o->sbt;
 }
 }// namespace device

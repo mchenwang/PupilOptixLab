@@ -172,13 +172,41 @@ SharedFrameResource *Optix::GetSharedFrameResource() noexcept {
     return m_frame_resource.get();
 }
 
-void Optix::Run() noexcept {
+void Optix::Run(void *params, size_t params_size, void **frame_buffer) noexcept {
     uint32_t frame_index = m_dx12_backend->GetCurrentFrameIndex();
     cudaExternalSemaphoreWaitParams wait_params{};
     wait_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value;
     cudaWaitExternalSemaphoresAsync(&cuda_semaphore, &wait_params, 1, cuda_stream);
+    
+    *frame_buffer = m_frame_resource->frame[frame_index]->cuda_buffer_ptr;
+
+    if (m_cuda_params != nullptr && m_cuda_params_size != params_size) {
+        CUDA_FREE(m_cuda_params);
+        m_cuda_params = nullptr;
+    }
+
+    if (m_cuda_params == nullptr) {
+        CUDA_CHECK(cudaMalloc(&m_cuda_params, params_size));
+        m_cuda_params_size = params_size;
+    }
 
     // TODO: do ray tracing
+    CUDA_CHECK(cudaMemcpyAsync(
+        m_cuda_params,
+        params, params_size,
+        cudaMemcpyHostToDevice, cuda_stream));
+
+    OPTIX_CHECK(optixLaunch(
+        pipeline->pipeline,
+        cuda_stream,
+        reinterpret_cast<CUdeviceptr>(m_cuda_params),
+        params_size,
+        m_sbt_ptr,
+        m_dx12_backend->m_frame_w,// launch width
+        m_dx12_backend->m_frame_h,// launch height
+        1                         // launch depth
+        ));
+    CUDA_SYNC_CHECK();
 
     cudaExternalSemaphoreSignalParams signal_params{};
     signal_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value + 1;

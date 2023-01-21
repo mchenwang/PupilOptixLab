@@ -30,8 +30,10 @@ float4 PSMain(PSInput input) : SV_TARGET {
     // color += input.position.xyz * 0.5 + 0.5;
     // float3 color = float3(input.texcoord.xy * 0.5 + 0.5, 1.f);
     // return float4(color, 1.f);
-    uint tex_x = input.texcoord.x * frame.w;
-    uint tex_y = input.texcoord.y * frame.h;
+    // uint tex_x = input.texcoord.x * frame.w;
+    // uint tex_y = input.texcoord.y * frame.h;
+    uint tex_x = (input.texcoord.x + 1.f) / 2.f * 1280;
+    uint tex_y = (input.texcoord.y + 1.f) / 2.f * 720;
 
-    return render_result.Load(tex_x + tex_y * frame.w);
+    return render_result.Load(tex_x + tex_y * 1280);
 }

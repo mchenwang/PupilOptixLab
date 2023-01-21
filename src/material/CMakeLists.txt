@@ -3,6 +3,7 @@ set(material_source
     material.cpp
     ior.h
     optix_material.h
+    optix_material.cpp
 )
 
 add_library(material STATIC ${material_source})

@@ -3,6 +3,8 @@
 #include <optix.h>
 #include <vector_types.h>
 
+#include "material/optix_material.h"
+
 struct OptixLaunchParams {
     struct {
         unsigned int frame_cnt;
@@ -27,4 +29,5 @@ struct MissData {
 };
 
 struct HitGroupData {
+    optix_wrap::material::Material mat;
 };
