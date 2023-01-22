@@ -8,12 +8,18 @@
 namespace device {
 struct CudaDx12SharedTexture;
 struct SharedFrameResource;
-}
+}// namespace device
 
 namespace gui {
+struct FramInfo {
+    uint32_t w = 1;
+    uint32_t h = 1;
+};
+
 class Backend : public util::Singleton<Backend> {
 private:
     std::unique_ptr<device::DX12> m_backend;
+    FramInfo m_frame_info{};
 
 public:
     struct {
@@ -22,7 +28,7 @@ public:
         D3D12_CPU_DESCRIPTOR_HANDLE screen_cpu_srv_handle;
         D3D12_GPU_DESCRIPTOR_HANDLE screen_gpu_srv_handle;
     } frames[device::DX12::NUM_OF_FRAMES];
-    
+
     void SetScreenResource(device::SharedFrameResource *) noexcept;
 
     auto GetDevice() noexcept { return m_backend.get(); }
@@ -31,7 +37,7 @@ public:
     void Init() noexcept;
     void Destroy() noexcept;
 
-    void Resize(uint32_t w, uint32_t h) noexcept { m_backend->Resize(w, h); }
+    void Resize(uint32_t w, uint32_t h) noexcept;
 
     [[nodiscard]] Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCmdList() noexcept { return m_backend->GetCmdList(); }
 

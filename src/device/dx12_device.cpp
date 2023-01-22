@@ -45,7 +45,7 @@ void DX12::CreateDevice() noexcept {
         //D3D12_MESSAGE_CATEGORY Categories[] = {};
 
         // Suppress messages based on their severity level
-        D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
+        D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
 
         // Suppress individual messages by their ID
         D3D12_MESSAGE_ID deny_ids[] = {
@@ -158,7 +158,7 @@ void DX12::CreateSwapchain(HWND hWnd) noexcept {
     swapchain_desc.Height = m_frame_h;
     swapchain_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     swapchain_desc.Stereo = FALSE;
-    swapchain_desc.SampleDesc = {1, 0};
+    swapchain_desc.SampleDesc = { 1, 0 };
     swapchain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapchain_desc.BufferCount = DX12::NUM_OF_FRAMES;
     swapchain_desc.Scaling = DXGI_SCALING_STRETCH;
@@ -246,7 +246,7 @@ uint64_t DX12::ExecuteCommandLists(ComPtr<ID3D12GraphicsCommandList> cmd_list) n
     UINT dataSize = sizeof(allocator);
     StopIfFailed(cmd_list->GetPrivateData(__uuidof(ID3D12CommandAllocator), &dataSize, &allocator));
 
-    ID3D12CommandList *const p_cmd_lists[] = {cmd_list.Get()};
+    ID3D12CommandList *const p_cmd_lists[] = { cmd_list.Get() };
     cmd_queue->ExecuteCommandLists(1, p_cmd_lists);
 
     uint64_t fence_value = ++global_fence_value;
@@ -298,6 +298,9 @@ void DX12::UpdateRenderTarget() noexcept {
 
 void DX12::Resize(uint32_t w, uint32_t h) noexcept {
     Flush();
+    m_frame_w = w;
+    m_frame_h = h;
+
     for (uint32_t i = 0; i < NUM_OF_FRAMES; i++) {
         m_back_buffers[i].Reset();
     }
@@ -326,10 +329,9 @@ void EnableDebugLayer() noexcept {
         dxgi_info_queue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
         dxgi_info_queue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
 
-        DXGI_INFO_QUEUE_MESSAGE_ID hide[] =
-            {
-                80 /* IDXGISwapChain::GetContainingOutput: The swapchain's adapter does not control the output on which the swapchain's window resides. */,
-            };
+        DXGI_INFO_QUEUE_MESSAGE_ID hide[] = {
+            80 /* IDXGISwapChain::GetContainingOutput: The swapchain's adapter does not control the output on which the swapchain's window resides. */,
+        };
         DXGI_INFO_QUEUE_FILTER filter = {};
         filter.DenyList.NumIDs = static_cast<UINT>(std::size(hide));
         filter.DenyList.pIDList = hide;

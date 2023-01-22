@@ -10,8 +10,8 @@ struct PSInput {
 
 struct FrameInfo
 {
-    float h;
-    float w;
+    uint w;
+    uint h;
 };
 ConstantBuffer<FrameInfo> frame : register(b0);
 
@@ -32,8 +32,8 @@ float4 PSMain(PSInput input) : SV_TARGET {
     // return float4(color, 1.f);
     // uint tex_x = input.texcoord.x * frame.w;
     // uint tex_y = input.texcoord.y * frame.h;
-    uint tex_x = (input.texcoord.x + 1.f) / 2.f * 1280;
-    uint tex_y = (input.texcoord.y + 1.f) / 2.f * 720;
+    uint tex_x = (input.texcoord.x + 1.f) / 2.f * frame.w;
+    uint tex_y = (input.texcoord.y + 1.f) / 2.f * frame.h;
 
-    return render_result.Load(tex_x + tex_y * 1280);
+    return render_result.Load(tex_x + tex_y * frame.w);
 }

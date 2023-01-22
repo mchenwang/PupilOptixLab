@@ -24,16 +24,34 @@ ComPtr<ID3D12PipelineState> m_pipeline_state;
 
 ComPtr<ID3D12Resource> m_vb;
 D3D12_VERTEX_BUFFER_VIEW m_vbv;
+
+ComPtr<ID3D12Resource> m_frame_constant_buffer;
+void *m_frame_constant_buffer_mapped_ptr = nullptr;
 }// namespace
 
 namespace {
 void CreatePipeline(device::DX12 *) noexcept;
+void CreateResource(device::DX12 *) noexcept;
 }// namespace
 
 void Backend::Init() noexcept {
     m_backend = std::make_unique<device::DX12>(g_window_w, g_window_h, g_window_handle);
 
     CreatePipeline(m_backend.get());
+    CreateResource(m_backend.get());
+}
+
+void Backend::Resize(uint32_t w, uint32_t h) noexcept {
+    m_frame_info.w = w;
+    m_frame_info.h = h;
+
+    gui::FramInfo init_frame_info{
+        .w = w,
+        .h = h
+    };
+    memcpy(m_frame_constant_buffer_mapped_ptr, &init_frame_info, sizeof(gui::FramInfo));
+
+    m_backend->Resize(w, h);
 }
 
 void Backend::SetScreenResource(device::SharedFrameResource *shared_frame_resource) noexcept {
@@ -73,8 +91,8 @@ void Backend::RenderScreen(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept 
     auto &frame = frames[m_backend->GetCurrentFrameIndex()];
     ID3D12DescriptorHeap *heaps[] = { m_backend->srv_heap.Get() };
     cmd_list->SetDescriptorHeaps(1, heaps);
-    cmd_list->SetGraphicsRootDescriptorTable(0, frame.screen_gpu_srv_handle);// TODO
-    // cmd_list->SetGraphicsRootConstantBufferView(1)
+    cmd_list->SetGraphicsRootDescriptorTable(0, frame.screen_gpu_srv_handle);
+    cmd_list->SetGraphicsRootConstantBufferView(1, m_frame_constant_buffer->GetGPUVirtualAddress());
 
     D3D12_VIEWPORT viewport{ 0.f, 0.f, (FLOAT)g_window_w, (FLOAT)g_window_h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
     cmd_list->RSSetViewports(1, &viewport);
@@ -109,6 +127,10 @@ void Backend::Present(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept {
 }
 
 void Backend::Destroy() noexcept {
+    if (m_frame_constant_buffer_mapped_ptr) {
+        m_frame_constant_buffer->Unmap(0, nullptr);
+        m_frame_constant_buffer_mapped_ptr = nullptr;
+    }
     m_root_signature.Reset();
     m_pipeline_state.Reset();
     m_vb.Reset();
@@ -287,4 +309,24 @@ void CreatePipeline(device::DX12 *backend) noexcept {
     backend->Flush();
 }
 
+void CreateResource(device::DX12 *backend) noexcept {
+    // for frame info
+    CD3DX12_HEAP_PROPERTIES properties(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(gui::FramInfo));
+    StopIfFailed(backend->device->CreateCommittedResource(
+        &properties,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_frame_constant_buffer)));
+
+    m_frame_constant_buffer->Map(0, nullptr, &m_frame_constant_buffer_mapped_ptr);
+
+    gui::FramInfo init_frame_info{
+        .w = g_window_w,
+        .h = g_window_h
+    };
+    memcpy(m_frame_constant_buffer_mapped_ptr, &init_frame_info, sizeof(gui::FramInfo));
+}
 }// namespace
