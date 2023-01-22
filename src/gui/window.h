@@ -19,5 +19,7 @@ public:
     void Resize(uint32_t w, uint32_t h, bool reset_window = false) noexcept;
 
     Backend *GetBackend() const noexcept;
+
+    void GetWindowSize(uint32_t &w, uint32_t &h) noexcept;
 };
 }// namespace gui

@@ -53,6 +53,14 @@ int main() {
             if (windows_message == gui::GlobalMessage::Quit)
                 break;
             if (windows_message == gui::GlobalMessage::Resize) {
+                gui_window->GetWindowSize(g_params.config.frame.width, g_params.config.frame.height);
+
+                CUDA_FREE(g_params.accum_buffer);
+
+                CUDA_CHECK(cudaMalloc(
+                    reinterpret_cast<void **>(&g_params.accum_buffer),
+                    g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
+
                 optix_device->ClearSharedFrameResource();
                 backend->SetScreenResource(optix_device->GetSharedFrameResource());
             }

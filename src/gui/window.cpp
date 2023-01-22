@@ -83,6 +83,7 @@ void Window::Init() noexcept {
 
 GlobalMessage Window::Show() noexcept {
     MSG msg = {};
+    g_message = GlobalMessage::None;
     if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         ::TranslateMessage(&msg);
         ::DispatchMessage(&msg);
@@ -110,6 +111,11 @@ Backend *Window::GetBackend() const noexcept {
     return m_backend;
 }
 
+void Window::GetWindowSize(uint32_t &w, uint32_t &h) noexcept {
+    w = g_window_w;
+    h = g_window_h;
+}
+
 void Window::Resize(uint32_t w, uint32_t h, bool reset_window) noexcept {
     if (w != g_window_w || h != g_window_h) {
         g_window_w = w;
@@ -128,22 +134,22 @@ void Window::Resize(uint32_t w, uint32_t h, bool reset_window) noexcept {
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-namespace {
 
+namespace {
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
-    g_message = GlobalMessage::None;
-    
     switch (msg) {
         case WM_SIZE:
             if (m_backend) {
                 uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
                 uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
                 util::Singleton<Window>::instance()->Resize(w, h);
-                g_message = GlobalMessage::Resize;
             }
+            return 0;
+        case WM_EXITSIZEMOVE:
+            g_message = GlobalMessage::Resize;
             return 0;
         case WM_SYSCOMMAND:
             if ((wParam & 0xfff0) == SC_KEYMENU)// Disable ALT application menu
