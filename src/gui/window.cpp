@@ -13,6 +13,8 @@ HWND g_window_handle;
 uint32_t g_window_w = 1280;
 uint32_t g_window_h = 800;
 
+GlobalMessage g_message = GlobalMessage::None;
+
 namespace {
 const std::wstring WND_NAME = L"OptixReSTIR";
 const std::wstring WND_CLASS_NAME = L"OptixReSTIR_CLASS";
@@ -79,22 +81,17 @@ void Window::Init() noexcept {
     ImguiInit();
 }
 
-bool Window::Show() noexcept {
+GlobalMessage Window::Show() noexcept {
     MSG msg = {};
     if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         ::TranslateMessage(&msg);
         ::DispatchMessage(&msg);
     }
     OnDraw();
-    /*while (msg.message != WM_QUIT) {
-        if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-        } else {
-            OnDraw();
-        }
-    }*/
-    return msg.message != WM_QUIT;
+
+    if (msg.message == WM_QUIT)
+        g_message = GlobalMessage::Quit;
+    return g_message;
 }
 
 void Window::Destroy() noexcept {
@@ -137,12 +134,15 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
+    g_message = GlobalMessage::None;
+    
     switch (msg) {
         case WM_SIZE:
             if (m_backend) {
                 uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
                 uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
                 util::Singleton<Window>::instance()->Resize(w, h);
+                g_message = GlobalMessage::Resize;
             }
             return 0;
         case WM_SYSCOMMAND:

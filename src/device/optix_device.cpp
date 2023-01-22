@@ -26,6 +26,14 @@ void ContextLogCB(unsigned int level, const char *tag, const char *message, void
 }
 }// namespace
 
+CudaDx12SharedTexture::~CudaDx12SharedTexture() noexcept {
+    dx12_resource.Reset();
+    if (cuda_ext_memory)
+        CUDA_CHECK(cudaDestroyExternalMemory(cuda_ext_memory));
+    cuda_ext_memory = 0;
+    cuda_buffer_ptr = nullptr;
+}
+
 Optix::Optix(DX12 *dx12_backend) noexcept {
     m_dx12_backend = dx12_backend;
 
@@ -41,6 +49,8 @@ Optix::Optix(DX12 *dx12_backend) noexcept {
 }
 
 Optix::~Optix() noexcept {
+    CUDA_SYNC_CHECK();
+    m_frame_resource.reset();
     std::vector<std::unique_ptr<optix_wrap::RenderObject>>().swap(m_ros);
     CUDA_CHECK(cudaDestroyExternalSemaphore(cuda_semaphore));
     if (m_frame_resource) {
@@ -139,23 +149,6 @@ void Optix::InitCuda() noexcept {
     cuda_ext_buffer_desc.size = buffer_size;
     CUDA_CHECK(cudaExternalMemoryGetMappedBuffer(&target->cuda_buffer_ptr, target->cuda_ext_memory, &cuda_ext_buffer_desc));
 
-    //cudaExternalMemoryMipmappedArrayDesc cuda_ext_mip_desc{};
-    //cuda_ext_mip_desc.extent = make_cudaExtent(texture_desc.Width, texture_desc.Height, 0);
-    //cuda_ext_mip_desc.formatDesc = cudaCreateChannelDesc<float4>();
-    //cuda_ext_mip_desc.numLevels = 1;
-    //cuda_ext_mip_desc.flags = cudaArraySurfaceLoadStore;
-
-    //cudaMipmappedArray_t cuda_mip_array{};
-    //CUDA_CHECK(cudaExternalMemoryGetMappedMipmappedArray(&cuda_mip_array, target->cuda_ext_memory, &cuda_ext_mip_desc));
-
-    //cudaArray_t cuda_array{};
-    //CUDA_CHECK(cudaGetMipmappedArrayLevel(&cuda_array, cuda_mip_array, 0));
-
-    //cudaResourceDesc cuda_res_desc{};
-    //cuda_res_desc.resType = cudaResourceTypeArray;
-    //cuda_res_desc.res.array.array = cuda_array;
-    //CUDA_CHECK(cudaCreateSurfaceObject(&target->cuda_surf_obj, &cuda_res_desc));
-
     CUDA_CHECK(cudaStreamSynchronize(cuda_stream));
 
     return std::move(target);
@@ -174,10 +167,13 @@ SharedFrameResource *Optix::GetSharedFrameResource() noexcept {
 
 void Optix::Run(void *params, size_t params_size, void **frame_buffer) noexcept {
     uint32_t frame_index = m_dx12_backend->GetCurrentFrameIndex();
-    cudaExternalSemaphoreWaitParams wait_params{};
-    wait_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value;
-    cudaWaitExternalSemaphoresAsync(&cuda_semaphore, &wait_params, 1, cuda_stream);
-    
+    // resource synchronization has already occurred on the dx12 backend(move to next frame mothed)
+    // so, cuda semaphore is no longer needed.
+    // 
+    // cudaExternalSemaphoreWaitParams wait_params{};
+    // wait_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value;
+    // cudaWaitExternalSemaphoresAsync(&cuda_semaphore, &wait_params, 1, cuda_stream);
+
     *frame_buffer = m_frame_resource->frame[frame_index]->cuda_buffer_ptr;
 
     if (m_cuda_params != nullptr && m_cuda_params_size != params_size) {
@@ -208,9 +204,9 @@ void Optix::Run(void *params, size_t params_size, void **frame_buffer) noexcept 
         ));
     CUDA_SYNC_CHECK();
 
-    cudaExternalSemaphoreSignalParams signal_params{};
-    signal_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value + 1;
-    cudaSignalExternalSemaphoresAsync(&cuda_semaphore, &signal_params, 1, cuda_stream);
+    // cudaExternalSemaphoreSignalParams signal_params{};
+    // signal_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value + 1;
+    // cudaSignalExternalSemaphoresAsync(&cuda_semaphore, &signal_params, 1, cuda_stream);
 }
 
 void Optix::InitPipeline(const optix_wrap::PipelineDesc &desc) noexcept {

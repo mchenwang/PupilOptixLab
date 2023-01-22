@@ -70,10 +70,11 @@ void Backend::RenderScreen(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept 
     cmd_list->SetGraphicsRootSignature(m_root_signature.Get());
     cmd_list->SetPipelineState(m_pipeline_state.Get());
 
-    auto frame = frames[m_backend->GetCurrentFrameIndex()];
+    auto &frame = frames[m_backend->GetCurrentFrameIndex()];
     ID3D12DescriptorHeap *heaps[] = { m_backend->srv_heap.Get() };
     cmd_list->SetDescriptorHeaps(1, heaps);
     cmd_list->SetGraphicsRootDescriptorTable(0, frame.screen_gpu_srv_handle);// TODO
+    // cmd_list->SetGraphicsRootConstantBufferView(1)
 
     D3D12_VIEWPORT viewport{ 0.f, 0.f, (FLOAT)g_window_w, (FLOAT)g_window_h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
     cmd_list->RSSetViewports(1, &viewport);
@@ -100,7 +101,7 @@ void Backend::RenderScreen(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept 
 
 void Backend::Present(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept {
     auto fence_value = m_backend->Present(cmd_list);
-    auto frame = frames[m_backend->GetCurrentFrameIndex()];
+    auto &frame = frames[m_backend->GetCurrentFrameIndex()];
     frame.src->fence_value = fence_value;
     m_backend->global_fence_value = fence_value + 1;
     m_backend->SetCurrentFrameFenceValue(fence_value + 1);
@@ -135,21 +136,6 @@ void CreatePipeline(device::DX12 *backend) noexcept {
         CD3DX12_ROOT_PARAMETER1 root_params[2]{};
         root_params[0].InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL);
         root_params[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // D3D12_STATIC_SAMPLER_DESC sampler_desc{};
-        // sampler_desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-        // sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        // sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        // sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        // sampler_desc.RegisterSpace = 0;
-        // sampler_desc.ShaderRegister = 0;
-        // sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        // sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-        // sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-        // sampler_desc.MaxAnisotropy = 16;
-        // sampler_desc.MaxLOD = D3D12_FLOAT32_MAX;
-        // sampler_desc.MinLOD = 0.f;
-        // sampler_desc.MipLODBias = 0.f;
 
         D3D12_ROOT_SIGNATURE_FLAGS root_sign_flags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |

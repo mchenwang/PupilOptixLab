@@ -48,7 +48,15 @@ int main() {
 
         do {
             optix_device->Run(&g_params, sizeof(g_params), reinterpret_cast<void**>(&g_params.frame_buffer));
-        } while (gui_window->Show());
+            auto windows_message = gui_window->Show();
+
+            if (windows_message == gui::GlobalMessage::Quit)
+                break;
+            if (windows_message == gui::GlobalMessage::Resize) {
+                optix_device->ClearSharedFrameResource();
+                backend->SetScreenResource(optix_device->GetSharedFrameResource());
+            }
+        } while (true);
     }
     g_ReSTIR_module.reset();
     g_sphere_module.reset();

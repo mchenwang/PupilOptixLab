@@ -20,11 +20,13 @@ class Scene;
 
 namespace device {
 struct CudaDx12SharedTexture {
-    Microsoft::WRL::ComPtr<ID3D12Resource> dx12_resource;
-    cudaExternalMemory_t cuda_ext_memory;
-    void *cuda_buffer_ptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> dx12_resource = nullptr;
+    cudaExternalMemory_t cuda_ext_memory = nullptr;
+    void *cuda_buffer_ptr = nullptr;
     //cudaSurfaceObject_t cuda_surf_obj;
-    uint64_t fence_value;
+    uint64_t fence_value = 0;
+
+    ~CudaDx12SharedTexture() noexcept;
 };
 
 struct SharedFrameResource {
