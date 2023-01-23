@@ -5,12 +5,16 @@
 
 namespace cuda {
 void Camera::SetCameraTransform(float fov, float aspect_ratio, float near_clip, float far_clip) noexcept {
+    // auto dxm_camera_to_sample =
+    //     DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f) *
+    //     DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+    //     DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip);
     auto dxm_camera_to_sample =
-        DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f) *
+        DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip) *
         DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
-        DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip);
+        DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f);
 
-    auto dxm_sample_to_camera = DirectX::XMMatrixInverse(nullptr, dxm_camera_to_sample);
+    auto dxm_sample_to_camera = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, dxm_camera_to_sample));
     DirectX::XMFLOAT4X4 temp;
     DirectX::XMStoreFloat4x4(&temp, dxm_sample_to_camera);
     sample_to_camera.r0 = make_float4(temp.m[0][0], temp.m[0][1], temp.m[0][2], temp.m[0][3]);

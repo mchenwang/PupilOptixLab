@@ -88,8 +88,10 @@ void Transform::LookAt(const float3 &origin, const float3 &target, const float3 
     DirectX::XMFLOAT3 t_up_direction{ up.x, up.y, up.z };
     DirectX::XMVECTOR up_direction = DirectX::XMLoadFloat3(&t_up_direction);
 
-    auto world_to_camera = DirectX::XMMatrixLookAtRH(eye_position, focus_position, up_direction);
-    auto camera_to_world = DirectX::XMMatrixInverse(nullptr, world_to_camera);
+    auto world_to_camera =
+        //DirectX::XMMatrixTranslation(-origin.x, -origin.y, -origin.z) *
+        DirectX::XMMatrixLookAtRH(eye_position, focus_position, up_direction);
+    auto camera_to_world = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, world_to_camera));
     DirectX::XMFLOAT4X4 t_m;
     DirectX::XMStoreFloat4x4(&t_m, camera_to_world);
     for (int i = 0; i < 4; i++)
