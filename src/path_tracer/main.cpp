@@ -35,37 +35,40 @@ int main() {
     auto gui_window = util::Singleton<gui::Window>::instance();
     gui_window->Init();
 
-    //
-    {
-        auto backend = gui_window->GetBackend();
-        std::unique_ptr<device::Optix> optix_device =
-            std::make_unique<device::Optix>(backend->GetDevice());
+    bool exit_flag = true;
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::Quit,
+        [&exit_flag]() { exit_flag = false; });
 
-        ConfigOptix(optix_device.get());
-        gui_window->Resize(g_scene->sensor.film.w, g_scene->sensor.film.h, true);
+    auto backend = gui_window->GetBackend();
+    std::unique_ptr<device::Optix> optix_device =
+        std::make_unique<device::Optix>(backend->GetDevice());
 
-        backend->SetScreenResource(optix_device->GetSharedFrameResource());
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::Resize,
+        [&]() {
+            gui_window->GetWindowSize(g_params.config.frame.width, g_params.config.frame.height);
 
-        do {
-            optix_device->Run(&g_params, sizeof(g_params), reinterpret_cast<void**>(&g_params.frame_buffer));
-            auto windows_message = gui_window->Show();
+            CUDA_FREE(g_params.accum_buffer);
 
-            if (windows_message == gui::GlobalMessage::Quit)
-                break;
-            if (windows_message == gui::GlobalMessage::Resize) {
-                gui_window->GetWindowSize(g_params.config.frame.width, g_params.config.frame.height);
+            CUDA_CHECK(cudaMalloc(
+                reinterpret_cast<void **>(&g_params.accum_buffer),
+                g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
 
-                CUDA_FREE(g_params.accum_buffer);
+            optix_device->ClearSharedFrameResource();
+            backend->SetScreenResource(optix_device->GetSharedFrameResource());
+        });
 
-                CUDA_CHECK(cudaMalloc(
-                    reinterpret_cast<void **>(&g_params.accum_buffer),
-                    g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
+    ConfigOptix(optix_device.get());
+    gui_window->Resize(g_scene->sensor.film.w, g_scene->sensor.film.h, true);
 
-                optix_device->ClearSharedFrameResource();
-                backend->SetScreenResource(optix_device->GetSharedFrameResource());
-            }
-        } while (true);
-    }
+    backend->SetScreenResource(optix_device->GetSharedFrameResource());
+
+    do {
+        optix_device->Run(&g_params, sizeof(g_params), reinterpret_cast<void **>(&g_params.frame_buffer));
+        gui_window->Show();
+    } while (exit_flag);
+
     g_ReSTIR_module.reset();
     g_sphere_module.reset();
     gui_window->Destroy();
@@ -114,25 +117,27 @@ void ConfigSBT(device::Optix *device) {
     {
         using HitGroupDataRecord = decltype(desc)::Pair<SBTTypes::HitGroupDataType>;
         for (auto &&shape : g_scene->shapes) {
-            HitGroupDataRecord hit_default_data{};
-            hit_default_data.program_name = "__closesthit__default";
-            hit_default_data.data.mat.LoadMaterial(shape.mat);
-            desc.hit_datas.push_back(hit_default_data);
+            if (shape.type == scene::EShapeType::_sphere) {
+                HitGroupDataRecord hit_default_sphere_data{};
+                hit_default_sphere_data.program_name = "__closesthit__default_sphere";
+                hit_default_sphere_data.data.mat.LoadMaterial(shape.mat);
+                desc.hit_datas.push_back(hit_default_sphere_data);
 
-            HitGroupDataRecord hit_shadow_data{};
-            hit_shadow_data.program_name = "__closesthit__shadow";
-            hit_shadow_data.data.mat.type = shape.mat.type;
-            desc.hit_datas.push_back(hit_shadow_data);
+                HitGroupDataRecord hit_shadow_sphere_data{};
+                hit_shadow_sphere_data.program_name = "__closesthit__shadow_sphere",
+                hit_shadow_sphere_data.data.mat.type = shape.mat.type;
+                desc.hit_datas.push_back(hit_shadow_sphere_data);
+            } else {
+                HitGroupDataRecord hit_default_data{};
+                hit_default_data.program_name = "__closesthit__default";
+                hit_default_data.data.mat.LoadMaterial(shape.mat);
+                desc.hit_datas.push_back(hit_default_data);
 
-            HitGroupDataRecord hit_default_sphere_data{};
-            hit_default_sphere_data.program_name = "__closesthit__default_sphere";
-            hit_default_sphere_data.data.mat.LoadMaterial(shape.mat);
-            desc.hit_datas.push_back(hit_default_sphere_data);
-
-            HitGroupDataRecord hit_shadow_sphere_data{};
-            hit_shadow_sphere_data.program_name = "__closesthit__shadow_sphere",
-            hit_shadow_sphere_data.data.mat.type = shape.mat.type;
-            desc.hit_datas.push_back(hit_shadow_sphere_data);
+                HitGroupDataRecord hit_shadow_data{};
+                hit_shadow_data.program_name = "__closesthit__shadow";
+                hit_shadow_data.data.mat.type = shape.mat.type;
+                desc.hit_datas.push_back(hit_shadow_data);
+            }
         }
     }
     {
@@ -160,6 +165,10 @@ void InitLaunchParams(device::Optix *device) {
 
     g_params.frame_buffer = nullptr;
     g_params.handle = device->ias_handle;
+
+    float aspect = static_cast<float>(g_scene->sensor.film.w) / g_scene->sensor.film.h;
+    g_params.camera.SetCameraTransform(g_scene->sensor.fov, aspect);
+    g_params.camera.SetWorldTransform(g_scene->sensor.transform.matrix);
 }
 
 void ConfigOptix(device::Optix *device) {

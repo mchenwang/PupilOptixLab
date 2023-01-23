@@ -6,6 +6,7 @@
 #include "backends/imgui_impl_dx12.h"
 
 #include <string>
+#include <unordered_map>
 
 using namespace gui;
 
@@ -22,6 +23,8 @@ const std::wstring WND_CLASS_NAME = L"OptixReSTIR_CLASS";
 HINSTANCE m_instance;
 
 Backend *m_backend = nullptr;
+
+std::unordered_map<gui::GlobalMessage, std::function<void()>> m_message_callbacks;
 }// namespace
 
 namespace {
@@ -81,7 +84,12 @@ void Window::Init() noexcept {
     ImguiInit();
 }
 
-GlobalMessage Window::Show() noexcept {
+
+void Window::SetWindowMessageCallback(GlobalMessage message, std::function<void()> &&callback) noexcept {
+    m_message_callbacks[message] = callback;
+}
+
+void Window::Show() noexcept {
     MSG msg = {};
     g_message = GlobalMessage::None;
     if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -92,7 +100,10 @@ GlobalMessage Window::Show() noexcept {
 
     if (msg.message == WM_QUIT)
         g_message = GlobalMessage::Quit;
-    return g_message;
+
+    auto cb_it = m_message_callbacks.find(g_message);
+    if (cb_it != m_message_callbacks.end())
+        cb_it->second();
 }
 
 void Window::Destroy() noexcept {
