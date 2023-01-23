@@ -4,6 +4,8 @@ set(cuda_util_src
     vec_math.h
     cuda_util.cpp
     texture.h
+    camera.h
+    camera.cpp
 )
 
 add_library(cuda_util STATIC ${cuda_util_src})

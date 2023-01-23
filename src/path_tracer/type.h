@@ -4,6 +4,7 @@
 #include <vector_types.h>
 
 #include "material/optix_material.h"
+#include "cuda_util/camera.h"
 
 struct OptixLaunchParams {
     struct {
@@ -15,6 +16,8 @@ struct OptixLaunchParams {
             unsigned int height;
         } frame;
     } config;
+
+    cuda::Camera camera;
 
     float4 *accum_buffer;
     float4 *frame_buffer;
