@@ -11,8 +11,8 @@ void Camera::SetCameraTransform(float fov, float aspect_ratio, float near_clip, 
     //     DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip);
     auto dxm_camera_to_sample =
         DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip) *
-        DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
-        DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f);
+        DirectX::XMMatrixTranslation(-1.f, 1.f, 0.f) *
+        DirectX::XMMatrixScaling(-0.5f, 0.5f, 1.f);
 
     auto dxm_sample_to_camera = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, dxm_camera_to_sample));
     DirectX::XMFLOAT4X4 temp;

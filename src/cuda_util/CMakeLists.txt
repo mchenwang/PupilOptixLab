@@ -6,6 +6,7 @@ set(cuda_util_src
     texture.h
     camera.h
     camera.cpp
+    random.h
 )
 
 add_library(cuda_util STATIC ${cuda_util_src})

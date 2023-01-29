@@ -30,6 +30,7 @@ struct SBTTypes {
 };
 
 void ConfigOptix(device::Optix *device);
+void InitGuiEventCallback();
 
 int main() {
     auto gui_window = util::Singleton<gui::Window>::instance();
@@ -47,16 +48,19 @@ int main() {
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Resize,
         [&]() {
-            gui_window->GetWindowSize(g_params.config.frame.width, g_params.config.frame.height);
+            unsigned int &w = g_params.config.frame.width;
+            unsigned int &h = g_params.config.frame.height;
+            gui_window->GetWindowSize(w, h);
 
             CUDA_FREE(g_params.accum_buffer);
 
-            CUDA_CHECK(cudaMalloc(
-                reinterpret_cast<void **>(&g_params.accum_buffer),
-                g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&g_params.accum_buffer), w * h * sizeof(float4)));
 
             optix_device->ClearSharedFrameResource();
             backend->SetScreenResource(optix_device->GetSharedFrameResource());
+
+            float aspect = static_cast<float>(w) / h;
+            g_params.camera.SetCameraTransform(g_scene->sensor.fov, aspect);
         });
 
     ConfigOptix(optix_device.get());
@@ -65,8 +69,11 @@ int main() {
     backend->SetScreenResource(optix_device->GetSharedFrameResource());
 
     do {
+        // TODO: handle minimize event
         optix_device->Run(&g_params, sizeof(g_params), reinterpret_cast<void **>(&g_params.frame_buffer));
         gui_window->Show();
+
+        ++g_params.frame_cnt;
     } while (exit_flag);
 
     g_ReSTIR_module.reset();
@@ -105,6 +112,7 @@ void ConfigPipeline(device::Optix *device) {
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
     g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/test.xml");
+    //g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/test.xml");
     device->InitScene(g_scene.get());
 }
 
@@ -159,6 +167,8 @@ void InitLaunchParams(device::Optix *device) {
     g_params.config.frame.width = g_scene->sensor.film.w;
     g_params.config.frame.height = g_scene->sensor.film.h;
 
+    g_params.frame_cnt = 0;
+
     CUDA_CHECK(cudaMalloc(
         reinterpret_cast<void **>(&g_params.accum_buffer),
         g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
@@ -176,4 +186,15 @@ void ConfigOptix(device::Optix *device) {
     ConfigScene(device);
     ConfigSBT(device);
     InitLaunchParams(device);
+}
+
+void InitGuiEventCallback() {
+    auto gui_window = util::Singleton<gui::Window>::instance();
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::MouseLeftButtonMove,
+        [&camera = g_params.camera, &gui_window]() {
+            float dx = 0.25f * gui_window->GetMouseLastDeltaX();
+            float dy = 0.25f * gui_window->GetMouseLastDeltaY();
+            //camera
+        });
 }

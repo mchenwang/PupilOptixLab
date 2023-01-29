@@ -8,7 +8,6 @@
 
 struct OptixLaunchParams {
     struct {
-        unsigned int frame_cnt;
         unsigned int max_depth;
 
         struct {
@@ -16,6 +15,8 @@ struct OptixLaunchParams {
             unsigned int height;
         } frame;
     } config;
+
+    unsigned int frame_cnt;
 
     cuda::Camera camera;
 

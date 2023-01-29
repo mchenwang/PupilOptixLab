@@ -59,6 +59,14 @@ CUDA_INLINE CUDA_HOSTDEVICE int min(int a, int b) {
     return a < b ? a : b;
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float max(float a, float b) {
+    return a > b ? a : b;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float min(float a, float b) {
+    return a < b ? a : b;
+}
+
 CUDA_INLINE CUDA_HOSTDEVICE long long max(long long a, long long b) {
     return a > b ? a : b;
 }
