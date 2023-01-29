@@ -9,6 +9,58 @@
 #include <iostream>
 #include <functional>
 
+// static data
+namespace {
+// clang-format off
+float m_rect_positions[] = {
+    -1.f, 0.f, -1.f,
+    1.f, 0.f, -1.f,
+    1.f, 0.f, 1.f,
+    -1.f, 0.f, 1.f
+};
+float m_rect_normals[] = {
+    0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f
+};
+float m_rect_texcoords[] = {
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+};
+uint32_t m_rect_indices[] = { 0, 1, 2, 0, 2, 3 };
+
+float m_cube_positions[] = {
+    0.f,0.f,0.f, 0.f,0.f,1.f, 0.f,1.f,1.f, 0.f,1.f,0.f,
+    1.f,0.f,0.f, 0.f,0.f,0.f, 0.f,1.f,0.f, 1.f,1.f,0.f,
+    1.f,0.f,1.f, 1.f,0.f,0.f, 1.f,1.f,0.f, 1.f,1.f,1.f,
+    0.f,0.f,1.f, 1.f,0.f,1.f, 1.f,1.f,1.f, 0.f,1.f,1.f,
+    0.f,1.f,1.f, 1.f,1.f,1.f, 1.f,1.f,0.f, 0.f,1.f,0.f,
+    0.f,0.f,0.f, 1.f,0.f,0.f, 1.f,0.f,1.f, 0.f,0.f,1.f
+};
+float m_cube_normals[] = {
+    -1.f,0.f,0.f, -1.f,0.f,0.f, -1.f,0.f,0.f, -1.f,0.f,0.f,
+    0.f,0.f,-1.f, 0.f,0.f,-1.f, 0.f,0.f,-1.f, 0.f,0.f,-1.f,
+    1.f,0.f,0.f, 1.f,0.f,0.f, 1.f,0.f,0.f, 1.f,0.f,0.f,
+    0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f,
+    0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f,
+    0.f,-1.f,0.f, 0.f,-1.f,0.f, 0.f,-1.f,0.f, 0.f,-1.f,0.f
+};
+float m_cube_texcoords[] = {
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
+    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f
+};
+uint32_t m_cube_indices[] = {
+    0,1,2, 0,2,3,
+    4,5,6, 4,6,7,
+    8,9,10, 8,10,11,
+    12,13,14, 12,14,15,
+    16,17,18, 16,18,19,
+    20,21,22, 20,22,23
+};
+// clang-format on
+}// namespace
+
 namespace {
 using scene::EShapeType;
 using scene::Shape;
@@ -225,6 +277,12 @@ Shape ShapeDataManager::GetCube(bool flip_normals) noexcept {
     shape.type = EShapeType::_cube;
     shape.mat.type = material::EMatType::_unknown;
     shape.cube.flip_normals = flip_normals;
+    shape.cube.vertex_num = 24;
+    shape.cube.face_num = 12;
+    shape.cube.positions = m_cube_positions;
+    shape.cube.normals = m_cube_normals;
+    shape.cube.texcoords = m_cube_texcoords;
+    shape.cube.indices = m_cube_indices;
 
     return shape;
 }
@@ -234,6 +292,12 @@ Shape ShapeDataManager::GetRectangle(bool flip_normals) noexcept {
     shape.type = EShapeType::_rectangle;
     shape.mat.type = material::EMatType::_unknown;
     shape.rect.flip_normals = flip_normals;
+    shape.rect.vertex_num = 4;
+    shape.rect.face_num = 2;
+    shape.rect.positions = m_rect_positions;
+    shape.rect.normals = m_rect_normals;
+    shape.rect.texcoords = m_rect_texcoords;
+    shape.rect.indices = m_rect_indices;
 
     return shape;
 }

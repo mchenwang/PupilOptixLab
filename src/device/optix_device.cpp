@@ -169,7 +169,7 @@ void Optix::Run(void *params, size_t params_size, void **frame_buffer) noexcept 
     uint32_t frame_index = m_dx12_backend->GetCurrentFrameIndex();
     // resource synchronization has already occurred on the dx12 backend(move to next frame mothed)
     // so, cuda semaphore is no longer needed.
-    // 
+    //
     // cudaExternalSemaphoreWaitParams wait_params{};
     // wait_params.params.fence.value = m_frame_resource->frame[frame_index]->fence_value;
     // cudaWaitExternalSemaphoresAsync(&cuda_semaphore, &wait_params, 1, cuda_stream);
@@ -220,33 +220,6 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
     optix_wrap::Mesh temp_mesh{};
     optix_wrap::Sphere temp_sphere{};
 
-    float rect_position[] = {
-        1.f, 0.f, 1.f,  // v0
-        1.f, 0.f, -1.f, // v1
-        -1.f, 0.f, -1.f,// v2
-        -1.f, 0.f, 1.f  // v3
-    };
-    uint32_t rect_indices[] = { 0, 1, 2, 0, 2, 3 };
-
-    float cube_position[] = {
-        0.f, 0.f, 0.f,
-        0.f, 0.f, 1.f,
-        0.f, 1.f, 0.f,
-        0.f, 1.f, 1.f,
-        1.f, 0.f, 0.f,
-        1.f, 0.f, 1.f,
-        1.f, 1.f, 0.f,
-        1.f, 1.f, 1.f
-    };
-    uint32_t cube_indices[] = {
-        0, 1, 2, 1, 3, 2,
-        4, 6, 7, 4, 7, 5,
-        0, 2, 6, 0, 6, 4,
-        1, 5, 7, 1, 7, 3,
-        2, 3, 7, 2, 7, 6,
-        0, 4, 5, 0, 5, 1
-    };
-
     for (int i = 0; auto &&shape : scene->shapes) {
         switch (shape.type) {
             case scene::EShapeType::_obj:
@@ -258,18 +231,18 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_rectangle:
-                temp_mesh.vertex_num = 4;
-                temp_mesh.vertices = rect_position;
-                temp_mesh.index_triplets_num = 2;
-                temp_mesh.indices = rect_indices;
+                temp_mesh.vertex_num = shape.rect.vertex_num;
+                temp_mesh.vertices = shape.rect.positions;
+                temp_mesh.index_triplets_num = shape.rect.face_num;
+                temp_mesh.indices = shape.rect.indices;
                 std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_cube:
-                temp_mesh.vertex_num = 8;
-                temp_mesh.vertices = cube_position;
-                temp_mesh.index_triplets_num = 12;
-                temp_mesh.indices = cube_indices;
+                temp_mesh.vertex_num = shape.cube.vertex_num;
+                temp_mesh.vertices = shape.cube.positions;
+                temp_mesh.index_triplets_num = shape.cube.face_num;
+                temp_mesh.indices = shape.cube.indices;
                 std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;

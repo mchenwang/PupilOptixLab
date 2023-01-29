@@ -49,10 +49,24 @@ struct Sphere {
 
 struct Cube {
     bool flip_normals;
+    uint32_t vertex_num;
+    uint32_t face_num;
+
+    float *positions;
+    float *normals;
+    float *texcoords;
+    uint32_t *indices;
 };
 
 struct Rectangle {
     bool flip_normals;
+    uint32_t vertex_num;
+    uint32_t face_num;
+
+    float *positions;
+    float *normals;
+    float *texcoords;
+    uint32_t *indices;
 };
 
 struct Shape {
