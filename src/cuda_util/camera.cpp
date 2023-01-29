@@ -11,8 +11,8 @@ void Camera::SetCameraTransform(float fov, float aspect_ratio, float near_clip, 
     //     DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip);
     auto dxm_camera_to_sample =
         DirectX::XMMatrixPerspectiveFovRH(fov / 180.f * 3.14159265358979323846f, aspect_ratio, near_clip, far_clip) *
-        DirectX::XMMatrixTranslation(-1.f, 1.f, 0.f) *
-        DirectX::XMMatrixScaling(-0.5f, 0.5f, 1.f);
+        DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+        DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f);
 
     auto dxm_sample_to_camera = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, dxm_camera_to_sample));
     DirectX::XMFLOAT4X4 temp;
@@ -24,9 +24,9 @@ void Camera::SetCameraTransform(float fov, float aspect_ratio, float near_clip, 
 }
 
 void Camera::SetWorldTransform(float matrix[16]) noexcept {
-    camera_to_world.r0 = make_float4(matrix[0], matrix[1], matrix[2], matrix[3]);
+    camera_to_world.r0 = make_float4(-matrix[0], -matrix[1], -matrix[2], matrix[3]);
     camera_to_world.r1 = make_float4(matrix[4], matrix[5], matrix[6], matrix[7]);
-    camera_to_world.r2 = make_float4(matrix[8], matrix[9], matrix[10], matrix[11]);
+    camera_to_world.r2 = make_float4(-matrix[8], -matrix[9], -matrix[10], matrix[11]);
     camera_to_world.r3 = make_float4(matrix[12], matrix[13], matrix[14], matrix[15]);
 }
 }// namespace cuda

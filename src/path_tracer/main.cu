@@ -20,6 +20,11 @@ extern "C" __global__ void __raygen__main() {
     const unsigned int pixel_index = index.y * w + index.x;
     auto &camera = optix_launch_params.camera;
 
+    // optix_launch_params.frame_buffer[pixel_index] =
+    //     make_float4(
+    //         (float)index.x / w,
+    //         (float)index.y / h, 0.f, 1.f);
+
     PathPayloadRecord record{};
     uint32_t u0, u1;
     optix_util::PackPointer(&record, u0, u1);
@@ -49,7 +54,7 @@ extern "C" __global__ void __raygen__main() {
     d = normalize(d);
 
     float3 ray_direction = (make_float3(
-        dot(-camera.camera_to_world.r0, d),
+        dot(camera.camera_to_world.r0, d),
         dot(camera.camera_to_world.r1, d),
         dot(camera.camera_to_world.r2, d)));
 
