@@ -4,6 +4,7 @@
 #include <vector_types.h>
 
 #include "material/optix_material.h"
+#include "optix_util/geometry.h"
 #include "cuda_util/camera.h"
 
 struct OptixLaunchParams {
@@ -33,5 +34,6 @@ struct MissData {
 };
 
 struct HitGroupData {
-    optix_wrap::material::Material mat;
+    optix_util::material::Material mat;
+    optix_util::Geometry geo;
 };

@@ -129,6 +129,7 @@ void ConfigSBT(device::Optix *device) {
                 HitGroupDataRecord hit_default_sphere_data{};
                 hit_default_sphere_data.program_name = "__closesthit__default_sphere";
                 hit_default_sphere_data.data.mat.LoadMaterial(shape.mat);
+                hit_default_sphere_data.data.geo.LoadGeometry(shape);
                 desc.hit_datas.push_back(hit_default_sphere_data);
 
                 HitGroupDataRecord hit_shadow_sphere_data{};
@@ -139,6 +140,7 @@ void ConfigSBT(device::Optix *device) {
                 HitGroupDataRecord hit_default_data{};
                 hit_default_data.program_name = "__closesthit__default";
                 hit_default_data.data.mat.LoadMaterial(shape.mat);
+                hit_default_data.data.geo.LoadGeometry(shape);
                 desc.hit_datas.push_back(hit_default_data);
 
                 HitGroupDataRecord hit_shadow_data{};

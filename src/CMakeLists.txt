@@ -19,6 +19,7 @@ add_subdirectory(device)
 add_subdirectory(gui)
 add_subdirectory(scene)
 add_subdirectory(material)
+add_subdirectory(optix_util)
 
 set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -7,6 +7,7 @@ set(cuda_util_src
     camera.h
     camera.cpp
     random.h
+    data_view.h
 )
 
 add_library(cuda_util STATIC ${cuda_util_src})

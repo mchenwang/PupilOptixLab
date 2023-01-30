@@ -21,14 +21,13 @@ target_link_libraries(${path_tracer_name} PRIVATE gui)
 target_link_libraries(${path_tracer_name} PRIVATE device_api)
 target_link_libraries(${path_tracer_name} PRIVATE scene)
 target_link_libraries(${path_tracer_name} PRIVATE material)
+target_link_libraries(${path_tracer_name} PRIVATE optix_util)
 
 # compile for Optix
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx
     DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
-        ${CMAKE_CURRENT_SOURCE_DIR}/type.h
-        ${pupil_optix_root}/material/optix_material.h
     COMMAND nvcc ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         -ptx -o ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx -std=c++17
         -I ${OptiX_ROOT_DIR}/include

@@ -3,7 +3,7 @@
 #include "cuda_util/texture.h"
 #include "material.h"
 
-namespace optix_wrap {
+namespace optix_util {
 namespace material {
 using ::material::EMatType;
 
@@ -79,4 +79,4 @@ struct Material {
 #endif
 };
 }
-}// namespace optix_wrap::material
+}// namespace optix_util::material
