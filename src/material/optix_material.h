@@ -56,6 +56,27 @@ struct Material {
 
     CUDA_HOSTDEVICE Material() noexcept {}
 
+#if defined(__CUDACC__) || defined(__CUDABE__)
+    CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
+        float3 color;
+        switch (type) {
+            case EMatType::_diffuse:
+                color = diffuse.reflectance.Sample(tex);
+                break;
+            case EMatType::_dielectric:
+                color = dielectric.specular_reflectance.Sample(tex);
+                break;
+            case EMatType::_conductor:
+                color = conductor.specular_reflectance.Sample(tex);
+                break;
+            case EMatType::_roughconductor:
+                color = rough_conductor.specular_reflectance.Sample(tex);
+                break;
+        }
+        return color;
+    }
+#endif
+
 #if !defined(__CUDACC__) && !defined(__CUDABE__)
     void LoadMaterial(::material::Material mat) noexcept {
         type = mat.type;

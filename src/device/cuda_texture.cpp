@@ -62,48 +62,16 @@ cudaTextureObject_t CudaTextureManager::GetCudaTextureObject(util::Texture textu
     auto it = m_cuda_texture_map.find(texture);
     if (it != m_cuda_texture_map.end()) return it->second;
 
-    size_t w = 1;
-    size_t h = 1;
-
-    w = texture.bitmap.w;
-    h = texture.bitmap.h;
-
-    //if (texture.type == util::ETextureType::Bitmap) {
-    //    w = texture.bitmap.w;
-    //    h = texture.bitmap.h;
-    //} else if (texture.type == util::ETextureType::Checkerboard) {
-    //    w = 2;
-    //    h = 2;
-    //}
+    size_t w = texture.bitmap.w;
+    size_t h = texture.bitmap.h;
 
     cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
     cudaArray_t cuda_array;
     cudaMallocArray(&cuda_array, &channel_desc, w, h);
 
-    size_t size = w * h * 4 * sizeof(float);
+    // size_t size = w * h * 4 * sizeof(float);
     size_t pitch = w * 4 * sizeof(float);
     CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, texture.bitmap.data, pitch, pitch, h, cudaMemcpyHostToDevice));
-
-    //if (texture.type == util::ETextureType::Bitmap) {
-    //    size_t size = w * h * 4 * sizeof(float);
-    //    size_t pitch = w * 4 * sizeof(float);
-    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, texture.bitmap.data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    //} else if (texture.type == util::ETextureType::RGB) {
-    //    float data[4]{ texture.rgb.color.r, texture.rgb.color.g, texture.rgb.color.b, 255.f };
-    //    size_t size = w * h * 4 * sizeof(float);
-    //    size_t pitch = w * 4 * sizeof(float);
-    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    //} else {
-    //    auto [r1, g1, b1] = texture.checkerboard.patch1;
-    //    auto [r2, g2, b2] = texture.checkerboard.patch2;
-    //    float data[]{
-    //        r1, g1, b1, 255.f, r2, g2, b2, 255.f,
-    //        r2, g2, b2, 255.f, r1, g1, b1, 255.f
-    //    };
-    //    size_t size = w * h * 4 * sizeof(float);
-    //    size_t pitch = w * 4 * sizeof(float);
-    //    CUDA_CHECK(cudaMemcpy2DToArray(cuda_array, 0, 0, data, pitch, pitch, h, cudaMemcpyHostToDevice));
-    //}
 
     cudaResourceDesc res_desc{};
     res_desc.resType = cudaResourceTypeArray;
@@ -153,6 +121,11 @@ cuda::Texture CudaTextureManager::GetCudaTexture(util::Texture texture) noexcept
             cuda_texture.bitmap = GetCudaTextureObject(texture);
             break;
     }
+    const auto &m = texture.transform.matrix;
+    cuda_texture.transform.r0 = make_float4(m[0], m[1], m[2], m[3]);
+    cuda_texture.transform.r1 = make_float4(m[4], m[5], m[6], m[7]);
+    cuda_texture.transform.r2 = make_float4(m[8], m[9], m[10], m[11]);
+    cuda_texture.transform.r3 = make_float4(m[12], m[13], m[14], m[15]);
     return cuda_texture;
 }
 

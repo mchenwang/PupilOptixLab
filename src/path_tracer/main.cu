@@ -82,7 +82,9 @@ extern "C" __global__ void __closesthit__default() {
     auto prd = optix_util::GetPRD<PathPayloadRecord>();
     const auto hit_geo = sbt_data->geo.GetHitLocalGeometry();
 
-    prd->radiance = hit_geo.normal * 0.5f + 0.5f;
+    prd->radiance = sbt_data->mat.GetColor(hit_geo.texcoord);
+    // printf("%f %f %f\n", prd->radiance.x, prd->radiance.y, prd->radiance.z);
+    // prd->radiance = make_float3(hit_geo.texcoord, 0.f);
 }
 extern "C" __global__ void __closesthit__shadow() {
 }

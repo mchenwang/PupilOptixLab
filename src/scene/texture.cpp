@@ -25,7 +25,7 @@ void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
                 image_data->data[j++] = data[i + 0];
                 image_data->data[j++] = data[i + 1];
                 image_data->data[j++] = data[i + 2];
-                image_data->data[j++] = c == 4 ? data[i + 3] : 255.f;
+                image_data->data[j++] = c == 4 ? data[i + 3] : 1.f;
             }
             stbi_image_free(data);
         }
@@ -35,14 +35,18 @@ void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
             size_t data_size = static_cast<size_t>(w) * h * c;
             image_data = std::make_unique<ImageData>(w, h);
             for (size_t i = 0, j = 0; i < data_size; i += c) {
-                image_data->data[j++] = data[i + 0];
-                image_data->data[j++] = data[i + 1];
-                image_data->data[j++] = data[i + 2];
-                image_data->data[j++] = c == 4 ? data[i + 3] : 255.f;
+                image_data->data[j++] = data[i + 0] * 1.f / 255.f;
+                image_data->data[j++] = data[i + 1] * 1.f / 255.f;
+                image_data->data[j++] = data[i + 2] * 1.f / 255.f;
+                image_data->data[j++] = c == 4 ? data[i + 3] * 1.f / 255.f : 1.f;
             }
             stbi_image_free(data);
         }
     }
+
+    auto r = image_data->data[0];
+    auto g = image_data->data[2];
+    auto b = image_data->data[3];
 
     if (image_data == nullptr)
         std::cerr << "warring: fail to load image " << file_path << std::endl;
