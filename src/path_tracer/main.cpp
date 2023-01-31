@@ -23,6 +23,9 @@ std::unique_ptr<scene::Scene> g_scene;
 
 OptixLaunchParams g_params;
 
+CUdeviceptr g_camera_cuda_memory = 0;
+cuda::Camera g_camera;
+
 struct SBTTypes {
     using RayGenDataType = RayGenData;
     using MissDataType = MissData;
@@ -60,7 +63,8 @@ int main() {
             backend->SetScreenResource(optix_device->GetSharedFrameResource());
 
             float aspect = static_cast<float>(w) / h;
-            g_params.camera.SetCameraTransform(g_scene->sensor.fov, aspect);
+            g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
+            g_params.camera.Reset(&g_camera, sizeof(g_camera));
         });
 
     ConfigOptix(optix_device.get());
@@ -75,6 +79,8 @@ int main() {
 
         ++g_params.frame_cnt;
     } while (exit_flag);
+
+    CUDA_FREE(g_camera_cuda_memory);
 
     g_ReSTIR_module.reset();
     g_sphere_module.reset();
@@ -112,7 +118,7 @@ void ConfigPipeline(device::Optix *device) {
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
     g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/test.xml");
-    //g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/test.xml");
+    // g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/test.xml");
     device->InitScene(g_scene.get());
 }
 
@@ -179,8 +185,11 @@ void InitLaunchParams(device::Optix *device) {
     g_params.handle = device->ias_handle;
 
     float aspect = static_cast<float>(g_scene->sensor.film.w) / g_scene->sensor.film.h;
-    g_params.camera.SetCameraTransform(g_scene->sensor.fov, aspect);
-    g_params.camera.SetWorldTransform(g_scene->sensor.transform.matrix);
+    g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
+    g_camera.SetWorldTransform(g_scene->sensor.transform.matrix);
+
+    g_camera_cuda_memory = cuda::CudaMemcpy(&g_camera, sizeof(g_camera));
+    g_params.camera.SetData(g_camera_cuda_memory);
 }
 
 void ConfigOptix(device::Optix *device) {

@@ -13,6 +13,10 @@ __constant__ OptixLaunchParams optix_launch_params;
 struct PathPayloadRecord {
     float3 radiance;
     cuda::Random random;
+
+    float throughput;
+
+    bool done;
 };
 
 extern "C" __global__ void __raygen__main() {
@@ -20,7 +24,7 @@ extern "C" __global__ void __raygen__main() {
     const unsigned int w = optix_launch_params.config.frame.width;
     const unsigned int h = optix_launch_params.config.frame.height;
     const unsigned int pixel_index = index.y * w + index.x;
-    auto &camera = optix_launch_params.camera;
+    auto &camera = *optix_launch_params.camera.operator->();
 
     // optix_launch_params.frame_buffer[pixel_index] =
     //     make_float4(
@@ -31,6 +35,9 @@ extern "C" __global__ void __raygen__main() {
     uint32_t u0, u1;
     optix_util::PackPointer(&record, u0, u1);
 
+    record.done = false;
+    record.throughput = 1.f;
+    record.radiance = make_float3(0.f);
     record.random.Init(4, pixel_index, optix_launch_params.frame_cnt);
 
     const float2 subpixel_jitter = make_float2(record.random.Next(), record.random.Next());
@@ -62,6 +69,17 @@ extern "C" __global__ void __raygen__main() {
         camera.camera_to_world.r0.w,
         camera.camera_to_world.r1.w,
         camera.camera_to_world.r2.w);
+
+    // for (uint32_t depth = 0u; depth < optix_launch_params.config.max_depth; ++depth) {
+    //     if (record.done)
+    //         break;
+
+    //     double rr = depth > 2 ? 0.95 : 1.0;
+    //     if (record.random.Next() > rr)
+    //         break;
+
+    //     record.throughput /= rr;
+    // }
 
     optixTrace(optix_launch_params.handle,
                ray_origin, ray_direction,

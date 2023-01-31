@@ -58,4 +58,7 @@ inline CUdeviceptr CudaMemcpy(void *src, size_t size) {
     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(device_memory), src, size, cudaMemcpyHostToDevice));
     return device_memory;
 }
+inline void CudaMemcpy(CUdeviceptr dst, void *src, size_t size) {
+    CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(dst), src, size, cudaMemcpyHostToDevice));
+}
 }// namespace cuda
