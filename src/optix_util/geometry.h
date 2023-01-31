@@ -14,10 +14,10 @@
 
 namespace optix_util {
 struct TriMesh {
-    cuda::ConstDataView<float3> positions;
-    cuda::ConstDataView<float3> normals;
-    cuda::ConstDataView<float2> texcoords;
-    cuda::ConstDataView<uint3> indices;
+    cuda::ConstArrayView<float3> positions;
+    cuda::ConstArrayView<float3> normals;
+    cuda::ConstArrayView<float2> texcoords;
+    cuda::ConstArrayView<uint3> indices;
     bool flip_normals;
     bool flip_tex_coords;
 };

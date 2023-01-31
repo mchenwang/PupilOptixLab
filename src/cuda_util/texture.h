@@ -10,7 +10,7 @@ namespace cuda {
 struct Texture {
     util::ETextureType type = util::ETextureType::RGB;
     union {
-        cudaTextureObject_t bitmap = 0;
+        cudaTextureObject_t bitmap CONST_STATIC_INIT(0);
         float3 rgb;
         struct {
             float3 patch1;
