@@ -1,9 +1,9 @@
 #include "camera.h"
-#include "vec_math.h"
+#include "cuda_util/vec_math.h"
 
 #include <DirectXMath.h>
 
-namespace cuda {
+namespace optix_util {
 void Camera::SetCameraTransform(float fov, float aspect_ratio, float near_clip, float far_clip) noexcept {
     // auto dxm_camera_to_sample =
     //     DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f) *
@@ -29,4 +29,4 @@ void Camera::SetWorldTransform(float matrix[16]) noexcept {
     camera_to_world.r2 = make_float4(-matrix[8], -matrix[9], -matrix[10], matrix[11]);
     camera_to_world.r3 = make_float4(matrix[12], matrix[13], matrix[14], matrix[15]);
 }
-}// namespace cuda
+}// namespace optix_util

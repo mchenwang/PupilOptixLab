@@ -1,10 +1,10 @@
 #pragma once
 
-#include "preprocessor.h"
+#include "cuda_util/preprocessor.h"
 
 #include <vector_types.h>
 
-namespace cuda {
+namespace optix_util {
 struct Camera {
     struct {
         float4 r0;
@@ -18,4 +18,4 @@ struct Camera {
     void SetWorldTransform(float matrix[16]) noexcept;
 #endif
 };
-}// namespace cuda
+}// namespace optix_util

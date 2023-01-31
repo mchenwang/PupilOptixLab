@@ -4,8 +4,6 @@ set(cuda_util_src
     vec_math.h
     cuda_util.cpp
     texture.h
-    camera.h
-    camera.cpp
     random.h
     data_view.h
 )

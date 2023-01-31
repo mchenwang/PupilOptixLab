@@ -2,6 +2,9 @@ set(optix_util_source
     util.h
     geometry.h
     geometry.cpp
+    camera.h
+    camera.cpp
+    emitter.h
 )
 
 add_library(optix_util STATIC ${optix_util_source})

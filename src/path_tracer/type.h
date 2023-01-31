@@ -5,7 +5,8 @@
 
 #include "material/optix_material.h"
 #include "optix_util/geometry.h"
-#include "cuda_util/camera.h"
+#include "optix_util/camera.h"
+
 #include "cuda_util/data_view.h"
 
 struct OptixLaunchParams {
@@ -20,7 +21,7 @@ struct OptixLaunchParams {
 
     unsigned int frame_cnt;
 
-    cuda::ConstDataView<cuda::Camera> camera;
+    cuda::ConstDataView<optix_util::Camera> camera;
 
     float4 *accum_buffer;
     float4 *frame_buffer;

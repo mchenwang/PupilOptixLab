@@ -24,7 +24,7 @@ std::unique_ptr<scene::Scene> g_scene;
 OptixLaunchParams g_params;
 
 CUdeviceptr g_camera_cuda_memory = 0;
-cuda::Camera g_camera;
+optix_util::Camera g_camera;
 
 struct SBTTypes {
     using RayGenDataType = RayGenData;
