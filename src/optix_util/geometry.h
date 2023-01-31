@@ -3,13 +3,11 @@
 #include "cuda_util/data_view.h"
 #include <vector_types.h>
 
-#if defined(__CUDACC__) || defined(__CUDABE__)
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#include "scene/shape.h"
+#else
 #include <optix.h>
 #include "cuda_util/vec_math.h"
-#endif
-
-#if !defined(__CUDACC__) && !defined(__CUDABE__)
-#include "scene/shape.h"
 #endif
 
 namespace optix_util {
@@ -47,7 +45,9 @@ struct Geometry {
 
     CUDA_HOSTDEVICE Geometry() noexcept {}
 
-#if defined(__CUDACC__) || defined(__CUDABE__)
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+    void LoadGeometry(const scene::Shape &) noexcept;
+#else
     CUDA_HOSTDEVICE LocalGeometry GetHitLocalGeometry() const noexcept {
         LocalGeometry ret;
         switch (type) {
@@ -91,10 +91,6 @@ struct Geometry {
         }
         return ret;
     }
-#endif
-
-#if !defined(__CUDACC__) && !defined(__CUDABE__)
-    void LoadGeometry(const scene::Shape &) noexcept;
 #endif
 };
 }// namespace optix_util

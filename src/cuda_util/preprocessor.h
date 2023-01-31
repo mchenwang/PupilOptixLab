@@ -35,6 +35,7 @@
 #define CUDA_INLINE __forceinline__
 #define CONST_STATIC_INIT(...)
 #else
+#define PUPIL_OPTIX_LAUNCHER_SIDE
 #define CUDA_HOST
 #define CUDA_DEVICE
 #define CUDA_HOSTDEVICE

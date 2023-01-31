@@ -7,10 +7,10 @@ namespace optix_util {
 namespace material {
 using ::material::EMatType;
 
-#if defined(__CUDACC__) || defined(__CUDABE__)
-#define MATERIAL_LOAD_FUNC(type)
-#else
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
 #define MATERIAL_LOAD_FUNC(type) void LoadMaterial(const type &mat) noexcept
+#else
+#define MATERIAL_LOAD_FUNC(type)
 #endif
 
 struct Diffuse {
@@ -56,28 +56,7 @@ struct Material {
 
     CUDA_HOSTDEVICE Material() noexcept {}
 
-#if defined(__CUDACC__) || defined(__CUDABE__)
-    CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
-        float3 color;
-        switch (type) {
-            case EMatType::_diffuse:
-                color = diffuse.reflectance.Sample(tex);
-                break;
-            case EMatType::_dielectric:
-                color = dielectric.specular_reflectance.Sample(tex);
-                break;
-            case EMatType::_conductor:
-                color = conductor.specular_reflectance.Sample(tex);
-                break;
-            case EMatType::_roughconductor:
-                color = rough_conductor.specular_reflectance.Sample(tex);
-                break;
-        }
-        return color;
-    }
-#endif
-
-#if !defined(__CUDACC__) && !defined(__CUDABE__)
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
     void LoadMaterial(::material::Material mat) noexcept {
         type = mat.type;
         switch (type) {
@@ -96,6 +75,25 @@ struct Material {
 
                 // case new material
         }
+    }
+#else
+    CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
+        float3 color;
+        switch (type) {
+            case EMatType::_diffuse:
+                color = diffuse.reflectance.Sample(tex);
+                break;
+            case EMatType::_dielectric:
+                color = dielectric.specular_reflectance.Sample(tex);
+                break;
+            case EMatType::_conductor:
+                color = conductor.specular_reflectance.Sample(tex);
+                break;
+            case EMatType::_roughconductor:
+                color = rough_conductor.specular_reflectance.Sample(tex);
+                break;
+        }
+        return color;
     }
 #endif
 };

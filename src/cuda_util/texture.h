@@ -27,7 +27,7 @@ struct Texture {
 
     CUDA_HOSTDEVICE Texture() noexcept {}
 
-#if defined(__CUDACC__) || defined(__CUDABE__)
+#if !defined(PUPIL_OPTIX_LAUNCHER_SIDE)
     CUDA_HOSTDEVICE float3 Sample(float2 texcoord) const noexcept {
         const float4 tex = make_float4(texcoord, 0.f, 1.f);
         float tex_x = dot(transform.r0, tex);
