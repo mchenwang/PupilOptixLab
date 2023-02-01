@@ -1,7 +1,7 @@
 #pragma once
 
 #include "preprocessor.h"
-#include "util.h"
+#include <cuda.h>
 
 namespace cuda {
 // cuda memory needs to be released explicitly
@@ -14,10 +14,6 @@ public:
     CUDA_HOSTDEVICE ConstArrayView() noexcept {}
 
     CUDA_HOST void SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
-    CUDA_HOST void Reset(void *data, size_t size) noexcept {
-        if (m_data)
-            cuda::CudaMemcpy(m_data, data, size);
-    }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE const T &operator[](unsigned int index) const noexcept {
@@ -35,10 +31,6 @@ public:
     CUDA_HOSTDEVICE ConstDataView() noexcept {}
 
     CUDA_HOST void SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
-    CUDA_HOST void Reset(void *data, size_t size) noexcept {
-        if (m_data)
-            cuda::CudaMemcpy(m_data, data, size);
-    }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE const T *operator->() const noexcept {

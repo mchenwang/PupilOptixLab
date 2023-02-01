@@ -64,7 +64,7 @@ int main() {
 
             float aspect = static_cast<float>(w) / h;
             g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
-            g_params.camera.Reset(&g_camera, sizeof(g_camera));
+            cuda::CudaMemcpy(g_camera_cuda_memory, &g_camera, sizeof(g_camera));
         });
 
     ConfigOptix(optix_device.get());
