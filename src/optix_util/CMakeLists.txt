@@ -5,6 +5,7 @@ set(optix_util_source
     camera.h
     camera.cpp
     emitter.h
+    emitter.cpp
 )
 
 add_library(optix_util STATIC ${optix_util_source})

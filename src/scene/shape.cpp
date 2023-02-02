@@ -165,19 +165,14 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
             auto transform = obj->GetUniqueSubObject("transform");
             scene->InvokeXmlObjLoadCallBack(transform, &shape.transform);
 
-            auto emitter_xml_obj = obj->GetUniqueSubObject("emitter");
-            if (emitter_xml_obj) {
-                Emitter emitter;
-                scene->InvokeXmlObjLoadCallBack(emitter_xml_obj, &emitter);
-                shape.is_emitter = true;
-                if (emitter.type == EEmitterType::Area && emitter.area.radiance.type == util::ETextureType::RGB) {
-                    shape.emitter_radiance = emitter.area.radiance.rgb.color;
-                } else {
-                    std::cerr << "warring: shape emitter not support\n";
-                    shape.emitter_radiance = util::float3(1.f);
-                }
-            } else
-                shape.is_emitter = false;
+            shape.is_emitter = false;
+            if (auto emitter_xml_obj = obj->GetUniqueSubObject("emitter"); emitter_xml_obj) {
+                scene->InvokeXmlObjLoadCallBack(emitter_xml_obj, &shape.emitter);
+                if (shape.emitter.type != EEmitterType::Area) {
+                    std::cerr << "warring: shape emitter not support.\n";
+                } else
+                    shape.is_emitter = true;
+            }
             return shape;
         }
         ++i;

@@ -22,6 +22,7 @@ struct OptixLaunchParams {
     unsigned int frame_cnt;
 
     cuda::ConstDataView<optix_util::Camera> camera;
+    // cuda::ConstArrayView<
 
     float4 *accum_buffer;
     float4 *frame_buffer;

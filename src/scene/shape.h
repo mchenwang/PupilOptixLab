@@ -6,6 +6,7 @@
 #include "common/type.h"
 
 #include "material/material.h"
+#include "emitter.h"
 
 #include <string>
 #include <memory>
@@ -81,7 +82,8 @@ struct Shape {
     };
 
     bool is_emitter = false;
-    util::float3 emitter_radiance;
+    Emitter emitter;
+    // util::float3 emitter_radiance;
 
     util::Transform transform;
 
