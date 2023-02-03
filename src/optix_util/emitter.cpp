@@ -1,11 +1,24 @@
 #include "emitter.h"
 #include "scene/scene.h"
+#include "device/cuda_texture.h"
+
+#include <DirectXMath.h>
 
 namespace {
-void SplitMesh(std::vector<optix_util::Emitter> &emitters,
-               uint32_t vertex_num, uint32_t face_num, uint32_t *indices,
-               const float *positions, const float *normals, const float *texcoords,
-               const util::Transform &transform) noexcept {
+float SplitMesh(std::vector<optix_util::Emitter> &emitters,
+                uint32_t vertex_num, uint32_t face_num, uint32_t *indices,
+                const float *positions, const float *normals, const float *texcoords,
+                const util::Transform &transform, const cuda::Texture &radiance, const float select_wight) noexcept {
+    DirectX::XMMATRIX dx_transform(transform.matrix);
+    DirectX::XMFLOAT4X4 dx_tra_inv_t;
+    DirectX::XMStoreFloat4x4(
+        &dx_tra_inv_t,
+        DirectX::XMMatrixTranspose(
+            DirectX::XMMatrixInverse(nullptr, dx_transform)));
+    float *tra_inv_t = reinterpret_cast<float *>(dx_tra_inv_t.m);
+
+    float weight_sum = 0.f;
+
     for (auto i = 0u; i < face_num; ++i) {
         optix_util::Emitter emitter;
         emitter.type = optix_util::EEmitterType::Triangle;
@@ -13,24 +26,140 @@ void SplitMesh(std::vector<optix_util::Emitter> &emitters,
         auto idx0 = indices[i * 3 + 0];
         auto idx1 = indices[i * 3 + 1];
         auto idx2 = indices[i * 3 + 2];
+
+        util::float3 p0(positions[idx0 * 3 + 0], positions[idx0 * 3 + 1], positions[idx0 * 3 + 2]);
+        util::float3 p1(positions[idx1 * 3 + 0], positions[idx1 * 3 + 1], positions[idx1 * 3 + 2]);
+        util::float3 p2(positions[idx2 * 3 + 0], positions[idx2 * 3 + 1], positions[idx2 * 3 + 2]);
+
+        p0 = util::Transform::TransformPoint(p0, transform.matrix);
+        p1 = util::Transform::TransformPoint(p1, transform.matrix);
+        p2 = util::Transform::TransformPoint(p2, transform.matrix);
+
+        util::float3 n0(normals[idx0 * 3 + 0], normals[idx0 * 3 + 1], normals[idx0 * 3 + 2]);
+        util::float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
+        util::float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
+
+        n0 = util::Transform::TransformNormal(n0, tra_inv_t);
+        n1 = util::Transform::TransformNormal(n1, tra_inv_t);
+        n2 = util::Transform::TransformNormal(n2, tra_inv_t);
+
+        emitter.triangle.geo.v0.pos = make_float3(p0.x, p0.y, p0.z);
+        emitter.triangle.geo.v0.normal = make_float3(n0.x, n0.y, n0.z);
+        emitter.triangle.geo.v0.tex = make_float2(texcoords[idx0 * 2 + 0], texcoords[idx0 * 2 + 1]);
+
+        emitter.triangle.geo.v1.pos = make_float3(p1.x, p1.y, p1.z);
+        emitter.triangle.geo.v1.normal = make_float3(n1.x, n1.y, n1.z);
+        emitter.triangle.geo.v1.tex = make_float2(texcoords[idx1 * 2 + 0], texcoords[idx1 * 2 + 1]);
+
+        emitter.triangle.geo.v2.pos = make_float3(p2.x, p2.y, p2.z);
+        emitter.triangle.geo.v2.normal = make_float3(n2.x, n2.y, n2.z);
+        emitter.triangle.geo.v2.tex = make_float2(texcoords[idx2 * 2 + 0], texcoords[idx2 * 2 + 1]);
+
+        auto v1 = emitter.triangle.geo.v1.pos - emitter.triangle.geo.v0.pos;
+        auto v2 = emitter.triangle.geo.v2.pos - emitter.triangle.geo.v0.pos;
+        emitter.triangle.area = length(cross(v1, v2)) * 0.5f;
+
+        emitter.triangle.radiance = radiance;
+        emitter.triangle.select_probability = select_wight * emitter.triangle.area;
+
+        weight_sum += emitter.triangle.select_probability;
+
+        emitters.emplace_back(emitter);
     }
+
+    return weight_sum;
+}
+
+inline float GetMax(float r, float g, float b) noexcept {
+    return (r > g ? (r > b ? r : b) : (g > b ? g : b));
+}
+
+float GetWeight(util::Texture texture) noexcept {
+    float w = 0.f;
+    switch (texture.type) {
+        case util::ETextureType::RGB:
+            w = GetMax(texture.rgb.color.r, texture.rgb.color.g, texture.rgb.color.b);
+            break;
+        case util::ETextureType::Checkerboard: {
+            float p1_w = GetMax(texture.checkerboard.patch1.r, texture.checkerboard.patch1.g, texture.checkerboard.patch1.b);
+            float p2_w = GetMax(texture.checkerboard.patch2.r, texture.checkerboard.patch2.g, texture.checkerboard.patch2.b);
+            w = (p1_w + p2_w) * 0.5f;
+        } break;
+        case util::ETextureType::Bitmap: {
+            for (size_t i = 0; i < texture.bitmap.w; i++) {
+                for (size_t j = 0; j < texture.bitmap.h; j++) {
+                    w += GetMax(
+                        texture.bitmap.data[(i * texture.bitmap.w + j) * 4 + 0],
+                        texture.bitmap.data[(i * texture.bitmap.w + j) * 4 + 1],
+                        texture.bitmap.data[(i * texture.bitmap.w + j) * 4 + 2]);
+                }
+            }
+            w /= 1.f * texture.bitmap.w * texture.bitmap.h;
+        } break;
+    }
+    return w;
 }
 }// namespace
 
 namespace optix_util {
 std::vector<Emitter> GenerateEmitters(const scene::Scene *scene) noexcept {
     std::vector<Emitter> emitters;
+    auto tex_mngr = util::Singleton<device::CudaTextureManager>::instance();
+    float select_weight_sum = 0.f;
+
     for (auto &&shape : scene->shapes) {
         if (!shape.is_emitter) continue;
 
+        auto radiance = tex_mngr->GetCudaTexture(shape.emitter.area.radiance);
+        float select_weight = GetWeight(shape.emitter.area.radiance);
+
         switch (shape.type) {
             case scene::EShapeType::_cube: {
-            }
-            case scene::EShapeType::_obj:
-            case scene::EShapeType::_rectangle:
-            case scene::EShapeType::_sphere:
-                break;
+                select_weight_sum += SplitMesh(emitters, shape.cube.vertex_num, shape.cube.face_num, shape.cube.indices,
+                                               shape.cube.positions, shape.cube.normals, shape.cube.texcoords,
+                                               shape.transform, radiance, select_weight);
+            } break;
+            case scene::EShapeType::_obj: {
+                select_weight_sum += SplitMesh(emitters, shape.obj.vertex_num, shape.obj.face_num, shape.obj.indices,
+                                               shape.obj.positions, shape.obj.normals, shape.obj.texcoords,
+                                               shape.transform, radiance, select_weight);
+            } break;
+            case scene::EShapeType::_rectangle: {
+                select_weight_sum += SplitMesh(emitters, shape.rect.vertex_num, shape.rect.face_num, shape.rect.indices,
+                                               shape.rect.positions, shape.rect.normals, shape.rect.texcoords,
+                                               shape.transform, radiance, select_weight);
+            } break;
+            case scene::EShapeType::_sphere: {
+                optix_util::Emitter emitter;
+                emitter.type = optix_util::EEmitterType::Sphere;
+                emitter.sphere.geo.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+                emitter.sphere.geo.radius = shape.sphere.radius;
+                emitter.sphere.area = 4 * 3.14159265358979323846f * shape.sphere.radius * shape.sphere.radius;
+                emitter.sphere.radiance = radiance;
+                emitter.sphere.select_probability = select_weight * emitter.sphere.area;
+
+                select_weight_sum += emitter.sphere.select_probability;
+
+                emitters.emplace_back(emitter);
+            } break;
         }
     }
+
+    float pre_weight = 0.f;
+    for (auto &&e : emitters) {
+        auto t_p = 0.f;
+        if (e.type == EEmitterType::Sphere) {
+            t_p = e.sphere.select_probability;
+            e.sphere.select_probability += pre_weight;
+            e.sphere.select_probability /= select_weight_sum;
+        } else if (e.type == EEmitterType::Triangle) {
+            t_p = e.triangle.select_probability;
+            e.triangle.select_probability += pre_weight;
+            e.triangle.select_probability /= select_weight_sum;
+        }
+        pre_weight += t_p;
+    }
+
+    return emitters;
 }
 }// namespace optix_util
