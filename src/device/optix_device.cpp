@@ -186,7 +186,6 @@ void Optix::Run(void *params, size_t params_size, void **frame_buffer) noexcept 
         m_cuda_params_size = params_size;
     }
 
-    // TODO: do ray tracing
     CUDA_CHECK(cudaMemcpyAsync(
         m_cuda_params,
         params, params_size,

@@ -20,6 +20,7 @@ struct PathPayloadRecord {
 };
 
 extern "C" __global__ void __raygen__main() {
+    // const RayGenData *sbt_data = (RayGenData *)optixGetSbtDataPointer();
     const uint3 index = optixGetLaunchIndex();
     const unsigned int w = optix_launch_params.config.frame.width;
     const unsigned int h = optix_launch_params.config.frame.height;

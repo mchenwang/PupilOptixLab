@@ -13,6 +13,8 @@
 #include "scene/scene.h"
 #include "material/optix_material.h"
 
+#include "optix_util/emitter.h"
+
 #include <memory>
 #include <iostream>
 
@@ -25,6 +27,9 @@ OptixLaunchParams g_params;
 
 CUdeviceptr g_camera_cuda_memory = 0;
 optix_util::Camera g_camera;
+
+CUdeviceptr g_emitters_cuda_memory = 0;
+std::vector<optix_util::Emitter> g_emitters;
 
 struct SBTTypes {
     using RayGenDataType = RayGenData;
@@ -81,6 +86,7 @@ int main() {
     } while (exit_flag);
 
     CUDA_FREE(g_camera_cuda_memory);
+    CUDA_FREE(g_emitters_cuda_memory);
 
     g_ReSTIR_module.reset();
     g_sphere_module.reset();
@@ -120,6 +126,10 @@ void ConfigScene(device::Optix *device) {
     g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/test.xml");
     // g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/test.xml");
     device->InitScene(g_scene.get());
+
+    g_emitters = optix_util::GenerateEmitters(g_scene.get());
+    g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
+    g_params.emitters.SetData(g_emitters_cuda_memory);
 }
 
 void ConfigSBT(device::Optix *device) {
