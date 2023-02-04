@@ -1,6 +1,7 @@
 #include "pipeline.h"
 #include "module.h"
-#include "../optix_device.h"
+
+#include "../error_handle.h"
 
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
@@ -20,7 +21,7 @@ OptixPipelineCompileOptions Pipeline::pipeline_compile_options = {
         static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE)
 };
 
-Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
+Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &desc) noexcept {
     // create program group
     {
         OptixProgramGroupOptions program_group_options{};
@@ -39,7 +40,7 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
 
                 OptixProgramGroup p = nullptr;
                 OPTIX_CHECK_LOG(optixProgramGroupCreate(
-                    device->context, &desc, 1, &program_group_options,
+                    device_context, &desc, 1, &program_group_options,
                     LOG, &LOG_SIZE, &p));
 
                 programs.push_back(p);
@@ -76,7 +77,7 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
             if (create_flag) {
                 OptixProgramGroup p = nullptr;
                 OPTIX_CHECK_LOG(optixProgramGroupCreate(
-                    device->context, &desc, 1, &program_group_options,
+                    device_context, &desc, 1, &program_group_options,
                     LOG, &LOG_SIZE, &p));
                 programs.push_back(p);
                 m_program_map[hit_group.ch_entry] = p;
@@ -99,7 +100,7 @@ Pipeline::Pipeline(device::Optix *device, const PipelineDesc &desc) noexcept {
     pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 
     OPTIX_CHECK_LOG(optixPipelineCreate(
-        device->context,
+        device_context,
         &Pipeline::pipeline_compile_options,
         &pipeline_link_options,
         programs.data(),

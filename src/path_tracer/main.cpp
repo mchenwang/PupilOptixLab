@@ -9,6 +9,7 @@
 #include "device/dx12_device.h"
 #include "device/optix_wrap/module.h"
 #include "device/optix_wrap/pipeline.h"
+#include "device/optix_wrap/pass.h"
 
 #include "scene/scene.h"
 #include "material/optix_material.h"
@@ -37,6 +38,8 @@ struct SBTTypes {
     using HitGroupDataType = HitGroupData;
 };
 
+std::unique_ptr<optix_wrap::Pass<SBTTypes, OptixLaunchParams>> g_pt_pass;
+
 void ConfigOptix(device::Optix *device);
 void InitGuiEventCallback();
 
@@ -50,8 +53,9 @@ int main() {
         [&exit_flag]() { exit_flag = false; });
 
     auto backend = gui_window->GetBackend();
-    std::unique_ptr<device::Optix> optix_device =
-        std::make_unique<device::Optix>(backend->GetDevice());
+    std::unique_ptr<device::Optix> optix_device = std::make_unique<device::Optix>(backend->GetDevice());
+    
+    g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(optix_device->context, optix_device->cuda_stream);
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Resize,
@@ -79,7 +83,9 @@ int main() {
 
     do {
         // TODO: handle minimize event
-        optix_device->Run(&g_params, sizeof(g_params), reinterpret_cast<void **>(&g_params.frame_buffer));
+        g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
+        g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
+        
         gui_window->Show();
 
         ++g_params.frame_cnt;
@@ -95,8 +101,8 @@ int main() {
 }
 
 void ConfigPipeline(device::Optix *device) {
-    g_sphere_module = std::make_unique<optix_wrap::Module>(device, OPTIX_PRIMITIVE_TYPE_SPHERE);
-    g_ReSTIR_module = std::make_unique<optix_wrap::Module>(device, "path_tracer/main.ptx");
+    g_sphere_module = std::make_unique<optix_wrap::Module>(device->context, OPTIX_PRIMITIVE_TYPE_SPHERE);
+    g_ReSTIR_module = std::make_unique<optix_wrap::Module>(device->context, "path_tracer/main.ptx");
     optix_wrap::PipelineDesc pipeline_desc;
     {
         optix_wrap::ProgramDesc desc{
@@ -118,7 +124,7 @@ void ConfigPipeline(device::Optix *device) {
         };
         pipeline_desc.programs.push_back(desc);
     }
-    device->InitPipeline(pipeline_desc);
+    g_pt_pass->InitPipeline(pipeline_desc);
 }
 
 void ConfigScene(device::Optix *device) {
@@ -178,7 +184,7 @@ void ConfigSBT(device::Optix *device) {
         };
         desc.miss_datas.push_back(miss_shadow_data);
     }
-    device->InitSBT(desc);
+    g_pt_pass->InitSBT(desc);
 }
 
 void InitLaunchParams(device::Optix *device) {

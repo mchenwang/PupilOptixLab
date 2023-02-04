@@ -97,6 +97,8 @@ void SBT<T>::SetRayGenData(BindingInfo<typename T::RayGenDataType> binding_info)
     else {
         using RayGenDataRecord = Record<typename T::RayGenDataType>;
         constexpr auto size = sizeof(RayGenDataRecord);
+
+        if (ray_gen_sbt) CUDA_FREE(ray_gen_sbt);
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ray_gen_sbt), size));
         RayGenDataRecord record{};
 
@@ -118,6 +120,8 @@ void SBT<T>::SetMissData(BindingInfo<typename T::MissDataType> binding_info) noe
     else {
         using MissDataRecord = Record<typename T::MissDataType>;
         const auto size = sizeof(MissDataRecord) * binding_info.datas.size();
+
+        if (miss_sbt) CUDA_FREE(miss_sbt);
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&miss_sbt), size));
 
         std::vector<MissDataRecord> ms_data;
@@ -147,6 +151,8 @@ void SBT<T>::SetHitGroupData(BindingInfo<typename T::HitGroupDataType> binding_i
     else {
         using HitGroupDataRecord = Record<typename T::HitGroupDataType>;
         const auto size = sizeof(HitGroupDataRecord) * binding_info.datas.size();
+
+        if (hitgroup_sbt) CUDA_FREE(hitgroup_sbt);
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&hitgroup_sbt), size));
 
         std::vector<HitGroupDataRecord> hit_data;

@@ -40,7 +40,8 @@ public:
     void Resize(uint32_t w, uint32_t h) noexcept;
 
     [[nodiscard]] Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCmdList() noexcept { return m_backend->GetCmdList(); }
-
+    [[nodiscard]] auto GetCurrentFrameResource() const noexcept { return frames[m_backend->GetCurrentFrameIndex()]; }
+    
     void RenderScreen(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>) noexcept;
     void Present(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>) noexcept;
 };

@@ -1,6 +1,6 @@
 #include "module.h"
 #include "pipeline.h"
-#include "../optix_device.h"
+#include "../error_handle.h"
 #include "static.h"
 
 #include <optix_stubs.h>
@@ -8,7 +8,7 @@
 #include <fstream>
 #include <filesystem>
 
-optix_wrap::Module::Module(device::Optix *device, OptixPrimitiveType builtin_type) noexcept {
+optix_wrap::Module::Module(OptixDeviceContext context, OptixPrimitiveType builtin_type) noexcept {
     OptixModuleCompileOptions module_compile_options{
         .optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
         .debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL
@@ -16,14 +16,14 @@ optix_wrap::Module::Module(device::Optix *device, OptixPrimitiveType builtin_typ
 
     OptixBuiltinISOptions options{ .builtinISModuleType = builtin_type };
     OPTIX_CHECK_LOG(optixBuiltinISModuleGet(
-        device->context,
+        context,
         &module_compile_options,
         &Pipeline::pipeline_compile_options,
         &options,
         &module));
 }
 
-optix_wrap::Module::Module(device::Optix *device, std::string_view file_name) noexcept {
+optix_wrap::Module::Module(OptixDeviceContext context, std::string_view file_name) noexcept {
     OptixModuleCompileOptions module_compile_options{
         .optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
         .debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL
@@ -40,7 +40,7 @@ optix_wrap::Module::Module(device::Optix *device, std::string_view file_name) no
     //std::ifstream ptx_fin(file_path.string());
     //const std::string ptx_source((std::istreambuf_iterator<char>(ptx_fin)), std::istreambuf_iterator<char>());
     OPTIX_CHECK_LOG(optixModuleCreateFromPTX(
-        device->context,
+        context,
         &module_compile_options,
         &Pipeline::pipeline_compile_options,
         ptx_source.c_str(),

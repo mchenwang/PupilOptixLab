@@ -5,10 +5,6 @@
 #include <unordered_map>
 #include <string>
 
-namespace device {
-class Optix;
-}
-
 namespace optix_wrap {
 struct Module;
 
@@ -38,7 +34,9 @@ public:
     OptixPipeline pipeline;
     std::vector<OptixProgramGroup> programs;
 
-    Pipeline(device::Optix *, const PipelineDesc &desc) noexcept;
+    operator OptixPipeline() const noexcept { return pipeline; }
+
+    Pipeline(const OptixDeviceContext device_context, const PipelineDesc &desc) noexcept;
     ~Pipeline() noexcept;
 
     OptixProgramGroup FindProgram(std::string) noexcept;
