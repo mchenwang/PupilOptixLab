@@ -9,13 +9,18 @@ template<typename T>
 class ConstArrayView {
 private:
     CUdeviceptr m_data CONST_STATIC_INIT(0);
+    size_t m_num CONST_STATIC_INIT(0);
 
 public:
     CUDA_HOSTDEVICE ConstArrayView() noexcept {}
 
-    CUDA_HOST void SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
+    CUDA_HOST void SetData(CUdeviceptr cuda_data, size_t num) noexcept {
+        m_data = cuda_data;
+        m_num = num;
+    }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
+    CUDA_HOSTDEVICE const size_t GetNum() const noexcept { return m_num; }
     CUDA_HOSTDEVICE const T &operator[](unsigned int index) const noexcept {
         return *reinterpret_cast<T *>(m_data + index * sizeof(T));
     }
