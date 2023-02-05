@@ -54,7 +54,7 @@ int main() {
 
     auto backend = gui_window->GetBackend();
     std::unique_ptr<device::Optix> optix_device = std::make_unique<device::Optix>(backend->GetDevice());
-    
+
     g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(optix_device->context, optix_device->cuda_stream);
 
     gui_window->SetWindowMessageCallback(
@@ -85,7 +85,7 @@ int main() {
         // TODO: handle minimize event
         g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
         g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
-        
+
         gui_window->Show();
 
         ++g_params.frame_cnt;
@@ -135,7 +135,7 @@ void ConfigScene(device::Optix *device) {
 
     g_emitters = optix_util::GenerateEmitters(g_scene.get());
     g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
-    g_params.emitters.SetData(g_emitters_cuda_memory);
+    g_params.emitters.SetData(g_emitters_cuda_memory, g_emitters.size());
 }
 
 void ConfigSBT(device::Optix *device) {
@@ -145,6 +145,7 @@ void ConfigSBT(device::Optix *device) {
         .data = SBTTypes::RayGenDataType{}
     };
     {
+        int emitter_index_offset = 0;
         using HitGroupDataRecord = decltype(desc)::Pair<SBTTypes::HitGroupDataType>;
         for (auto &&shape : g_scene->shapes) {
             if (shape.type == scene::EShapeType::_sphere) {
@@ -152,6 +153,11 @@ void ConfigSBT(device::Optix *device) {
                 hit_default_sphere_data.program_name = "__closesthit__default_sphere";
                 hit_default_sphere_data.data.mat.LoadMaterial(shape.mat);
                 hit_default_sphere_data.data.geo.LoadGeometry(shape);
+                if (shape.is_emitter) {
+                    hit_default_sphere_data.data.emitter_index_offset = emitter_index_offset;
+                    emitter_index_offset += shape.sub_emitters_num;
+                }
+
                 desc.hit_datas.push_back(hit_default_sphere_data);
 
                 HitGroupDataRecord hit_shadow_sphere_data{};
@@ -163,6 +169,11 @@ void ConfigSBT(device::Optix *device) {
                 hit_default_data.program_name = "__closesthit__default";
                 hit_default_data.data.mat.LoadMaterial(shape.mat);
                 hit_default_data.data.geo.LoadGeometry(shape);
+                if (shape.is_emitter) {
+                    hit_default_data.data.emitter_index_offset = emitter_index_offset;
+                    emitter_index_offset += shape.sub_emitters_num;
+                }
+
                 desc.hit_datas.push_back(hit_default_data);
 
                 HitGroupDataRecord hit_shadow_data{};
@@ -190,6 +201,7 @@ void ConfigSBT(device::Optix *device) {
 void InitLaunchParams(device::Optix *device) {
     g_params.config.frame.width = g_scene->sensor.film.w;
     g_params.config.frame.height = g_scene->sensor.film.h;
+    g_params.config.max_depth = g_scene->integrator.max_depth;
 
     g_params.frame_cnt = 0;
 

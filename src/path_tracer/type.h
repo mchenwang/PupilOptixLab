@@ -22,6 +22,7 @@ struct OptixLaunchParams {
     unsigned int frame_cnt;
 
     cuda::ConstDataView<optix_util::Camera> camera;
+    cuda::ConstDataView<cuda::Texture> env;
     cuda::ConstArrayView<optix_util::Emitter> emitters;
 
     float4 *accum_buffer;
@@ -39,4 +40,5 @@ struct MissData {
 struct HitGroupData {
     optix_util::material::Material mat;
     optix_util::Geometry geo;
+    int emitter_index_offset = -1;
 };

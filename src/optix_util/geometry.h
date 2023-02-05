@@ -61,7 +61,7 @@ struct Geometry {
                 const auto p1 = tri_mesh.positions[v1];
                 const auto p2 = tri_mesh.positions[v2];
                 ret.position = (1.f - bary.x - bary.y) * p0 + bary.x * p1 + bary.y * p2;
-                // ret.position = optixTransformPointFromObjectToWorldSpace(ret.position);
+                ret.position = optixTransformPointFromObjectToWorldSpace(ret.position);
 
                 if (tri_mesh.normals) {
                     const auto n0 = tri_mesh.normals[v0];
@@ -72,6 +72,8 @@ struct Geometry {
                 } else {
                     ret.normal = normalize(cross(p1 - p0, p2 - p0));
                 }
+                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+
                 if (tri_mesh.flip_normals) ret.normal *= -1.f;
 
                 if (tri_mesh.texcoords) {
@@ -83,9 +85,9 @@ struct Geometry {
                 }
             } break;
             case EType::Sphere: {
-                const auto p_w = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
-                ret.position = optixTransformPointFromWorldToObjectSpace(p_w);
-                ret.normal = normalize(ret.position - sphere.center);
+                ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+                const auto center = optixTransformPointFromObjectToWorldSpace(sphere.center);
+                ret.normal = normalize(ret.position - center);
                 if (sphere.flip_normal) ret.normal *= -1.f;
             } break;
         }
