@@ -25,7 +25,9 @@ struct PathPayloadRecord {
 
 struct ShadingData {
     optix_util::LocalGeometry hit_geo;
+    optix_util::material::Material mat;
     float3 ray_dir;
+    float3 ray_o;
 
     int emitter_index_offset;
 };
@@ -34,14 +36,24 @@ static __device__ void Shading(
     PathPayloadRecord *record,
     const ShadingData &data) {
 
-    if (record->depth == 0) {
-        if (data.emitter_index_offset > 0) {
-            unsigned int emitter_index = data.emitter_index_offset + optixGetPrimitiveIndex();
-            record->radiance += optix_launch_params.emitters[emitter_index].radiance.Sample(data.hit_geo.texcoord);
-        }
-    }
-
     record->hit_p = data.hit_geo.position;
+
+    if (data.emitter_index_offset > 0) {
+        unsigned int emitter_index = data.emitter_index_offset + optixGetPrimitiveIndex();
+        auto &emitter = optix_launch_params.emitters[emitter_index];
+        float3 emission = emitter.radiance.Sample(data.hit_geo.texcoord);
+        if (record->depth == 0) {
+            record->radiance += emission;
+            return;
+        }
+        // mis
+        // float distance = length(data.ray_o - data.hit_geo.position);
+        // auto e = emitter.GetLocalInfo(data.hit_geo.position);
+        // float LNoL = dot(e.normal, data.ray_dir);
+        // float light_pdf = distance * distance / (LNoL * emitter.area);
+        // float mis = 0.5f;
+        // record->radiance += record->throughput * emission * mis;
+    }
 
     // direct illumination sampling
     auto &emitter = optix_util::Emitter::SelectOneEmiiter(record->random.Next(), optix_launch_params.emitters);
@@ -50,8 +62,6 @@ static __device__ void Shading(
     const float3 L = normalize(emitter_sample.position - data.hit_geo.position);
     const float NoL = dot(data.hit_geo.normal, L);
     const float LNoL = dot(emitter_sample.normal, -L);
-
-    record->wi = L;
 
     if (NoL > 0.f && LNoL > 0.f) {
         unsigned int occluded = 0u;
@@ -62,13 +72,25 @@ static __device__ void Shading(
                    1, 2, 1,
                    occluded);
 
-        if (!occluded) {
+        if (occluded == 0u) {
             float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
-            float f = M_1_PIf;
+            float3 f = data.mat.GetColor(data.hit_geo.texcoord) / M_1_PIf;
+            float mis = 1.f;
 
-            record->radiance += record->throughput * emitter_sample.radiance * f * NoL / light_pdf;
+            record->radiance += record->throughput * emitter_sample.radiance * f * NoL * mis / light_pdf;
         }
     }
+
+    record->wi = optix_util::CosineSampleHemisphere(record->random.Next(), record->random.Next(), data.hit_geo.normal);
+
+    float3 wh = normalize(-data.ray_dir + record->wi);
+    float pdf = dot(wh, record->wi) / M_1_PIf;
+    if (pdf > 0.f) {
+        float cos_theta = dot(record->wi, data.hit_geo.normal);
+        record->throughput *= cos_theta * data.mat.GetColor(data.hit_geo.texcoord) / M_1_PIf / pdf;
+    } else
+        record->done = true;
+    record->throughput *= data.mat.GetColor(data.hit_geo.texcoord);
 }
 
 extern "C" __global__ void __raygen__main() {
@@ -123,16 +145,19 @@ extern "C" __global__ void __raygen__main() {
         camera.camera_to_world.r1.w,
         camera.camera_to_world.r2.w);
 
-    // optixTrace(optix_launch_params.handle,
-    //            ray_origin, ray_direction,
-    //            0.001f, 1e16f, 0.f,
-    //            255, OPTIX_RAY_FLAG_NONE,
-    //            0, 2, 0,
-    //            u0, u1);
+    optixTrace(optix_launch_params.handle,
+               ray_origin, ray_direction,
+               0.001f, 1e16f, 0.f,
+               255, OPTIX_RAY_FLAG_NONE,
+               0, 2, 0,
+               u0, u1);
 
     for (; record.depth < optix_launch_params.config.max_depth; ++record.depth) {
         if (record.done)
             break;
+
+        ray_origin = record.hit_p;
+        ray_direction = record.wi;
 
         optixTrace(optix_launch_params.handle,
                    ray_origin, ray_direction,
@@ -145,21 +170,26 @@ extern "C" __global__ void __raygen__main() {
         if (record.random.Next() > rr)
             break;
         record.throughput /= rr;
-
-        ray_origin = record.hit_p;
-        ray_direction = record.wi;
     }
 
-    optix_launch_params.frame_buffer[pixel_index] = make_float4(record.radiance, 1.f);
+    if (optix_launch_params.frame_cnt > 0) {
+        const float t = 1.f / (optix_launch_params.frame_cnt + 1.f);
+        const float3 pre = make_float3(optix_launch_params.accum_buffer[pixel_index]);
+        record.radiance = lerp(pre, record.radiance, t);
+    }
+    optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
+
+    float3 color = optix_util::ACESToneMapping(record.radiance, 1.f);
+    optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
 }
 
 extern "C" __global__ void __miss__default() {
     auto record = optix_util::GetPRD<PathPayloadRecord>();
-    if (optix_launch_params.env) {
-        // TODO: environment texture
-        float2 tex = make_float2(0.f, 0.f);
-        record->radiance += record->throughput * optix_launch_params.env->Sample(tex);
-    }
+    // if (optix_launch_params.env) {
+    //     // TODO: environment texture
+    //     float2 tex = make_float2(0.f, 0.f);
+    //     record->radiance += record->throughput * optix_launch_params.env->Sample(tex);
+    // }
     record->done = true;
 }
 extern "C" __global__ void __miss__shadow() {
@@ -173,11 +203,12 @@ extern "C" __global__ void __closesthit__default() {
     shading_data.emitter_index_offset = sbt_data->emitter_index_offset;
     shading_data.hit_geo = sbt_data->geo.GetHitLocalGeometry();
     shading_data.ray_dir = optixGetWorldRayDirection();
+    shading_data.ray_o = optixGetWorldRayOrigin();
+    shading_data.mat = sbt_data->mat;
+
+    // record->radiance = sbt_data->mat.GetColor(shading_data.hit_geo.texcoord);
 
     Shading(record, shading_data);
-    record->throughput *= sbt_data->mat.GetColor(shading_data.hit_geo.texcoord);
-    // record->done = true;
-    // record->radiance = sbt_data->mat.GetColor(hit_geo.texcoord);
 }
 extern "C" __global__ void __closesthit__shadow() {
     optixSetPayload_0(1u);
@@ -190,6 +221,7 @@ extern "C" __global__ void __closesthit__default_sphere() {
     shading_data.emitter_index_offset = sbt_data->emitter_index_offset;
     shading_data.hit_geo = sbt_data->geo.GetHitLocalGeometry();
     shading_data.ray_dir = optixGetWorldRayDirection();
+    shading_data.mat = sbt_data->mat;
 
     Shading(record, shading_data);
 }
