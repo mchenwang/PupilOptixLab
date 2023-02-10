@@ -2,51 +2,15 @@
 
 #include "cuda_util/texture.h"
 #include "material.h"
+#include "bsdf/bsdf.h"
 
 namespace optix_util {
 namespace material {
 using ::material::EMatType;
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-#define MATERIAL_LOAD_FUNC(type) void LoadMaterial(const type &mat) noexcept
-#else
-#define MATERIAL_LOAD_FUNC(type)
-#endif
-
-struct Diffuse {
-    cuda::Texture reflectance;
-
-    MATERIAL_LOAD_FUNC(::material::Diffuse);
-};
-
-struct Dielectric {
-    float int_ior;
-    float ext_ior;
-    cuda::Texture specular_reflectance;
-    cuda::Texture specular_transmittance;
-
-    MATERIAL_LOAD_FUNC(::material::Dielectric);
-};
-
-struct Conductor {
-    cuda::Texture eta;
-    cuda::Texture k;
-    cuda::Texture specular_reflectance;
-
-    MATERIAL_LOAD_FUNC(::material::Conductor);
-};
-
-struct RoughConductor {
-    float alpha;
-    cuda::Texture eta;
-    cuda::Texture k;
-    cuda::Texture specular_reflectance;
-
-    MATERIAL_LOAD_FUNC(::material::RoughConductor);
-};
-
 struct Material {
     EMatType type;
+    bool twosided;
     union {
         Diffuse diffuse;
         Dielectric dielectric;
@@ -57,25 +21,7 @@ struct Material {
     CUDA_HOSTDEVICE Material() noexcept {}
 
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-    void LoadMaterial(::material::Material mat) noexcept {
-        type = mat.type;
-        switch (type) {
-            case EMatType::_diffuse:
-                diffuse.LoadMaterial(mat.diffuse);
-                break;
-            case EMatType::_dielectric:
-                dielectric.LoadMaterial(mat.dielectric);
-                break;
-            case EMatType::_conductor:
-                conductor.LoadMaterial(mat.conductor);
-                break;
-            case EMatType::_roughconductor:
-                rough_conductor.LoadMaterial(mat.rough_conductor);
-                break;
-
-                // case new material
-        }
-    }
+    void LoadMaterial(::material::Material mat) noexcept;
 #else
     CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
         float3 color;
@@ -94,6 +40,25 @@ struct Material {
                 break;
         }
         return color;
+    }
+
+    CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 tex) const noexcept {
+        BsdfSampleRecord ret;
+        switch (type) {
+            case EMatType::_diffuse:
+                ret = diffuse.Sample(xi, wo, tex);
+                break;
+            case EMatType::_dielectric:
+                ret = dielectric.Sample(xi, wo, tex);
+                break;
+            case EMatType::_conductor:
+                ret = conductor.Sample(xi, wo, tex);
+                break;
+            case EMatType::_roughconductor:
+                ret = rough_conductor.Sample(xi, wo, tex);
+                break;
+        }
+        return ret;
     }
 #endif
 };

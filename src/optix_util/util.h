@@ -7,20 +7,20 @@
 namespace optix_util {
 CUDA_DEVICE static const float EPS = 0.000001f;
 
-CUDA_INLINE CUDA_DEVICE void PackPointer(void *target, uint32_t &u0, uint32_t &u1) {
+CUDA_INLINE CUDA_DEVICE void PackPointer(void *target, uint32_t &u0, uint32_t &u1) noexcept {
     const uint64_t ptr = reinterpret_cast<uint64_t>(target);
     u0 = ptr >> 32;
     u1 = ptr & 0x00000000ffffffff;
 }
 
-CUDA_INLINE CUDA_DEVICE void *UnpackPointer(uint32_t u0, uint32_t u1) {
+CUDA_INLINE CUDA_DEVICE void *UnpackPointer(uint32_t u0, uint32_t u1) noexcept {
     const uint64_t ptr = static_cast<uint64_t>(u0) << 32 | u1;
     return reinterpret_cast<void *>(ptr);
 }
 
 #ifndef PUPIL_OPTIX_LAUNCHER_SIDE
 template<typename T>
-CUDA_INLINE CUDA_DEVICE T *GetPRD() {
+CUDA_INLINE CUDA_DEVICE T *GetPRD() noexcept {
     const uint32_t u0 = optixGetPayload_0();
     const uint32_t u1 = optixGetPayload_1();
     return reinterpret_cast<T *>(UnpackPointer(u0, u1));
@@ -29,19 +29,19 @@ CUDA_INLINE CUDA_DEVICE T *GetPRD() {
 
 // https://math.stackexchange.com/questions/18686/uniform-random-point-in-triangle-in-3d
 // return interpolation factor for triangle vertex
-CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleTriangle(const float u1, const float u2) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleTriangle(const float u1, const float u2) noexcept {
     const float sqrt_u1 = sqrtf(u1);
     return make_float3(1.f - sqrt_u1, sqrt_u1 * (1.f - u2), u2 * sqrt_u1);
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleSphere(const float u1, const float u2) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleSphere(const float u1, const float u2) noexcept {
     const float z = 1.f - 2.f * u1;
     const float sin_theta = sqrtf(max(0.f, 1.f - z * z));
     const float phi = 2.f * M_PIf * u2;
     return make_float3(sin_theta * cos(phi), sin_theta * sin(phi), z);
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE float3 Onb(const float3 normal, const float3 p) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 Onb(const float3 normal, const float3 p) noexcept {
     float3 binormal;
     if (fabs(normal.x) > fabs(normal.z))
         binormal = make_float3(-normal.y, normal.x, 0.f);
@@ -54,7 +54,7 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Onb(const float3 normal, const float3 p) {
     return p.x * tangent + p.y * binormal + p.z * normal;
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE float3 CosineSampleHemisphere(const float u1, const float u2, const float3 N) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 CosineSampleHemisphere(const float u1, const float u2) noexcept {
     float3 p{ 0.f };
     const float sin_theta = sqrtf(u1);
     const float phi = 2.0f * M_PIf * u2;
@@ -62,11 +62,21 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 CosineSampleHemisphere(const float u1, const 
     p.y = sin_theta * sinf(phi);
     p.z = sqrtf(fmaxf(0.f, 1.f - sin_theta * sin_theta));
 
-    return Onb(N, p);
+    return p;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v) noexcept {
+    v.x = -v.x;
+    v.y = -v.y;
+    return v;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
+    return -v + 2 * dot(v, normal) * normal;
 }
 
 // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
-CUDA_INLINE CUDA_HOSTDEVICE float3 GetBarycentricCoordinates(float3 P, float3 A, float3 B, float3 C) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 GetBarycentricCoordinates(float3 P, float3 A, float3 B, float3 C) noexcept {
     float3 v0 = B - A, v1 = C - A, v2 = P - A;
     float d00 = dot(v0, v0);
     float d01 = dot(v0, v1);
@@ -81,7 +91,7 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 GetBarycentricCoordinates(float3 P, float3 A,
     return bary;
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE float3 ACESToneMapping(float3 color, float adaptedLum) {
+CUDA_INLINE CUDA_HOSTDEVICE float3 ACESToneMapping(float3 color, float adaptedLum) noexcept {
     const float A = 2.51f;
     const float B = 0.03f;
     const float C = 2.43f;
@@ -92,15 +102,15 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 ACESToneMapping(float3 color, float adaptedLu
     return (color * (A * color + B)) / (color * (C * color + D) + E);
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float v) {
+CUDA_INLINE CUDA_DEVICE bool IsZero(float v) noexcept {
     return abs(v) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float2 v) {
+CUDA_INLINE CUDA_DEVICE bool IsZero(float2 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float3 v) {
+CUDA_INLINE CUDA_DEVICE bool IsZero(float3 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
 }
 }// namespace optix_util

@@ -111,6 +111,15 @@ struct MaterialLoader<EMatType::_roughconductor> {
     }
 };
 
+template<>
+struct MaterialLoader<EMatType::_twosided> {
+    Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+        Material mat = material::LoadMaterialFromXml(obj->GetUniqueSubObject("bsdf"), scene);
+        mat.twosided = true;
+        return mat;
+    }
+};
+
 using LoaderType = std::function<material::Material(const scene::xml::Object *, scene::Scene *)>;
 
 #define MAT_LOADER(mat) MaterialLoader<EMatType::##_##mat>()
