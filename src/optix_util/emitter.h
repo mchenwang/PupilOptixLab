@@ -68,14 +68,33 @@ struct Emitter {
     //     return make_float4(emit_radiance, pdf);
     // }
 
-    struct SampleRecord {
+    struct LocalRecord {
         float3 position;
         float3 normal;
         float3 radiance;
     };
 
-    CUDA_HOSTDEVICE SampleRecord SampleDirect(const float u1, const float u2) const noexcept {
-        SampleRecord ret;
+    CUDA_HOSTDEVICE LocalRecord GetLocalInfo(const float3 p) const noexcept {
+        LocalRecord ret;
+        ret.position = p;
+        switch (type) {
+            case EEmitterType::Triangle: {
+                float3 t = optix_util::GetBarycentricCoordinates(p, geo.triangle.v0.pos, geo.triangle.v1.pos, geo.triangle.v2.pos);
+                ret.normal = geo.triangle.v0.normal * t.x + geo.triangle.v1.normal * t.y + geo.triangle.v2.normal * t.z;
+                auto tex = geo.triangle.v0.tex * t.x + geo.triangle.v1.tex * t.y + geo.triangle.v2.tex * t.z;
+                ret.radiance = radiance.Sample(tex);
+            } break;
+            case EEmitterType::Sphere: {
+                ret.normal = (p - geo.sphere.center) / geo.sphere.radius;
+                float2 tex = make_float2(asin(ret.normal.x) * M_1_PIf + 0.5f, asin(ret.normal.y) * M_1_PIf + 0.5f);
+                ret.radiance = radiance.Sample(tex);
+            } break;
+        }
+        return ret;
+    }
+
+    CUDA_HOSTDEVICE LocalRecord SampleDirect(const float u1, const float u2) const noexcept {
+        LocalRecord ret;
         switch (type) {
             case EEmitterType::Triangle: {
                 float3 t = optix_util::UniformSampleTriangle(u1, u2);
