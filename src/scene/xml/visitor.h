@@ -120,10 +120,10 @@ IMPL_VISITOR(ETag::_ref,
     return true;
 )
 
-/*<look_at origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>*/
-IMPL_VISITOR(ETag::_look_at,
+/*<lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>*/
+IMPL_VISITOR(ETag::_lookat,
     global_manager->ReplaceDefaultValue(&node);
-    auto lookat_obj = std::make_unique<Object>(node.name(), "", ETag::_look_at);
+    auto lookat_obj = std::make_unique<Object>(node.name(), "", ETag::_lookat);
     auto origin = node.attribute("origin");
     lookat_obj->properties.emplace_back(origin.name(), origin.value());
     auto target = node.attribute("target");

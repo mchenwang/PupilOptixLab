@@ -44,7 +44,7 @@ void LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
             }
         }
     } else {
-        auto look_at = obj->GetUniqueSubObject("look_at");
+        auto look_at = obj->GetUniqueSubObject("lookat");
         if (look_at) {
             util::float3 origin{ 1.f, 0.f, 0.f };
             util::float3 target{ 0.f, 0.f, 0.f };
