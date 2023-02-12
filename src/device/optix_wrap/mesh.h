@@ -17,7 +17,7 @@ enum class EMeshType {
 // one to one correspondence between mesh and material
 struct Mesh {
     unsigned int vertex_num;
-    float *vertices; // position
+    float *vertices;// position
     unsigned int index_triplets_num;
     unsigned int *indices;
     float transform[12];

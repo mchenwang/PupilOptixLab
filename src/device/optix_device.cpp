@@ -211,17 +211,17 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
 }
 
 void Optix::CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderObject>> &ros) noexcept {
-    float transform[12] = {
-        1.f, 0.f, 0.f, 0.f,
-        0.f, 1.f, 0.f, 0.f,
-        0.f, 0.f, 1.f, 0.f
-    };
+    //float transform[12] = {
+    //    1.f, 0.f, 0.f, 0.f,
+    //    0.f, 1.f, 0.f, 0.f,
+    //    0.f, 0.f, 1.f, 0.f
+    //};
 
     const auto num_instances = ros.size();
     std::vector<OptixInstance> instances(num_instances);
 
     for (auto i = 0u; i < num_instances; i++) {
-        memcpy(instances[i].transform, transform, sizeof(float) * 12);
+        memcpy(instances[i].transform, ros[i]->transform, sizeof(float) * 12);
         instances[i].instanceId = i;
         instances[i].sbtOffset = i * 2;
         instances[i].visibilityMask = ros[i]->visibility_mask;

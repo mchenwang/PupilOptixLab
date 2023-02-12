@@ -17,7 +17,7 @@ void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
 
     unsigned int sbt_index = 0;
     CUdeviceptr d_sbt_index = cuda::CudaMemcpy(&sbt_index, sizeof(sbt_index));
-    CUdeviceptr d_transform = cuda::CudaMemcpy(mesh->transform, sizeof(float) * 12);
+    // CUdeviceptr d_transform = cuda::CudaMemcpy(mesh->transform, sizeof(float) * 12);
 
     unsigned int input_flag = OPTIX_GEOMETRY_FLAG_NONE;
     OptixBuildInput input{};
@@ -31,13 +31,13 @@ void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
         .numIndexTriplets = mesh->index_triplets_num,
         .indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3,
         .indexStrideInBytes = sizeof(unsigned int) * 3,
-        .preTransform = d_transform,
+        // .preTransform = d_transform,
         .flags = &input_flag,
         .numSbtRecords = 1,// num == 1, gas_sbt_index_offset will be always equal to 0
         .sbtIndexOffsetBuffer = d_sbt_index,
         .sbtIndexOffsetSizeInBytes = sizeof(sbt_index),
         .sbtIndexOffsetStrideInBytes = sizeof(sbt_index),
-        .transformFormat = OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+        // .transformFormat = OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
     };
 
     OptixAccelBuildOptions accel_options{};
@@ -79,7 +79,7 @@ void CreateAccel(device::Optix *device, Mesh *mesh, RenderObject *ro) {
     CUDA_FREE(d_vertex);
     CUDA_FREE(d_index);
     CUDA_FREE(d_sbt_index);
-    CUDA_FREE(d_transform);
+    // CUDA_FREE(d_transform);
     CUDA_FREE(d_temp_buffer);
 
     size_t compacted_gas_size;
@@ -101,7 +101,7 @@ void CreateAccel(device::Optix *device, Sphere *sphere, RenderObject *ro) {
     CUdeviceptr d_radius = cuda::CudaMemcpy(&sphere->radius, sizeof(sphere->radius));
     unsigned int sbt_index = 0;
     CUdeviceptr d_sbt_index = cuda::CudaMemcpy(&sbt_index, sizeof(sbt_index));
-    CUdeviceptr d_transform = cuda::CudaMemcpy(sphere->transform, sizeof(float) * 12);
+    // CUdeviceptr d_transform = cuda::CudaMemcpy(sphere->transform, sizeof(float) * 12);
 
     unsigned int input_flag = OPTIX_GEOMETRY_FLAG_NONE;
     OptixBuildInput input{};
@@ -159,7 +159,7 @@ void CreateAccel(device::Optix *device, Sphere *sphere, RenderObject *ro) {
     CUDA_FREE(d_center);
     CUDA_FREE(d_radius);
     CUDA_FREE(d_sbt_index);
-    CUDA_FREE(d_transform);
+    // CUDA_FREE(d_transform);
     CUDA_FREE(d_temp_buffer);
 
     size_t compacted_gas_size;
@@ -181,12 +181,16 @@ void CreateAccel(device::Optix *device, Sphere *sphere, RenderObject *ro) {
 RenderObject::RenderObject(device::Optix *device, EMeshType type, void *mesh, unsigned int v_mask) noexcept
     : gas_handle(0), gas_buffer(0), visibility_mask(v_mask), transform() {
     switch (type) {
-        case optix_wrap::EMeshType::Custom:
-            CreateAccel(device, (Mesh *)mesh, this);
-            break;
-        case optix_wrap::EMeshType::BuiltinSphere:
-            CreateAccel(device, (Sphere *)mesh, this);
-            break;
+        case optix_wrap::EMeshType::Custom: {
+            auto m = static_cast<Mesh *>(mesh);
+            CreateAccel(device, m, this);
+            std::memcpy(transform, m->transform, 12 * sizeof(float));
+        } break;
+        case optix_wrap::EMeshType::BuiltinSphere: {
+            auto m = static_cast<Sphere *>(mesh);
+            CreateAccel(device, m, this);
+            std::memcpy(transform, m->transform, 12 * sizeof(float));
+        } break;
         default:
             break;
     }

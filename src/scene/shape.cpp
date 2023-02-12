@@ -12,14 +12,16 @@
 // static data
 namespace {
 // clang-format off
+
+// XY-range [-1,1]x[-1,1]
 float m_rect_positions[] = {
-    -1.f, 0.f, -1.f,
-    1.f, 0.f, -1.f,
-    1.f, 0.f, 1.f,
-    -1.f, 0.f, 1.f
+    -1.f, -1.f, 0.f,
+     1.f, -1.f, 0.f,
+     1.f,  1.f, 0.f,
+    -1.f,  1.f, 0.f
 };
 float m_rect_normals[] = {
-    0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f
+    0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f
 };
 float m_rect_texcoords[] = {
     0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
