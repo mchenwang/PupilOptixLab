@@ -64,6 +64,24 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 CosineSampleHemisphere(const float u1, const 
 
     return p;
 }
+CUDA_INLINE CUDA_HOSTDEVICE float CosineSampleHemispherePdf(float3 v) noexcept {
+    return v.z > 0.f ? M_1_PIf * v.z : 0.f;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleHemisphere(const float u1, const float u2) noexcept {
+    float3 p{ 0.f };
+    const float z = 1.f - 2.f * u1;
+    const float sin_theta = sqrtf(fmaxf(0.f, 1.f - z * z));
+    const float phi = 2.0f * M_PIf * u2;
+    p.x = sin_theta * cosf(phi);
+    p.y = sin_theta * sinf(phi);
+    p.z = abs(z);
+
+    return p;
+}
+CUDA_INLINE CUDA_HOSTDEVICE float UniformSampleHemispherePdf(float3 v) noexcept {
+    return v.z > 0.f ? M_1_PIf * 0.5f : 0.f;
+}
 
 CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v) noexcept {
     v.x = -v.x;
@@ -73,6 +91,34 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v) noexcept {
 
 CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
     return -v + 2 * dot(v, normal) * normal;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE void CoordinateSystem(const float3 &a, float3 &b, float3 &c) {
+    if (abs(a.x) > abs(a.y)) {
+        float invLen = 1.0f / sqrtf(a.x * a.x + a.z * a.z);
+        c = make_float3(a.z * invLen, 0.0f, -a.x * invLen);
+    } else {
+        float inv_len = 1.0f / sqrtf(a.y * a.y + a.z * a.z);
+        c = make_float3(0.0f, a.z * inv_len, -a.y * inv_len);
+    }
+    float3 _a = make_float3(a.x, a.y, a.z);
+    c = normalize(c);
+    b = cross(_a, c);
+    b = normalize(b);
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 ToLocal(float3 v, float3 N) {
+    float3 S;
+    float3 T;
+    CoordinateSystem(N, S, T);
+    return make_float3(dot(v, S), dot(v, T), dot(v, N));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 ToWorld(float3 p, float3 N) {
+    float3 S;
+    float3 T;
+    CoordinateSystem(N, S, T);
+    return S * p.x + T * p.y + N * p.z;
 }
 
 // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
@@ -100,6 +146,14 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 ACESToneMapping(float3 color, float adaptedLu
 
     color *= adaptedLum;
     return (color * (A * color + B)) / (color * (C * color + D) + E);
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 GammaCorrection(float3 color, float gamma) {
+    return make_float3(powf(color.x, 1.f / gamma), powf(color.y, 1.f / gamma), powf(color.z, 1.f / gamma));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float MISWeight(float x, float y) {
+    return x / (x + y);
 }
 
 CUDA_INLINE CUDA_DEVICE bool IsZero(float v) noexcept {
