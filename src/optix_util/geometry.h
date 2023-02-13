@@ -93,6 +93,13 @@ struct Geometry {
         }
         return ret;
     }
+
+    CUDA_HOSTDEVICE LocalGeometry GetHitLocalGeometry(float3 ray_dir, bool twosided) const noexcept {
+        auto ret = GetHitLocalGeometry();
+        if (dot(-ray_dir, ret.normal) < 0.f && twosided)
+            ret.normal = -ret.normal;
+        return ret;
+    }
 #endif
 };
 }// namespace optix_util

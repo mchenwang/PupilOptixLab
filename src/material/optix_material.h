@@ -60,6 +60,33 @@ struct Material {
         }
         return ret;
     }
+
+    CUDA_HOSTDEVICE BsdfEvalRecord Eval(float3 wi, float3 wo, float2 tex) const noexcept {
+        BsdfEvalRecord ret;
+        // if (twosided) {
+        //     wi.z = abs(wi.z);
+        //     wo.z = abs(wo.z);
+        // }
+        switch (type) {
+            case EMatType::_diffuse:
+                ret.f = diffuse.GetBsdf(tex);
+                ret.pdf = diffuse.GetPdf(wi, wo);
+                break;
+            case EMatType::_dielectric:
+                ret.f = dielectric.GetBsdf(tex);
+                ret.pdf = dielectric.GetPdf(wi, wo);
+                break;
+            case EMatType::_conductor:
+                ret.f = conductor.GetBsdf();
+                ret.pdf = conductor.GetPdf();
+                break;
+            case EMatType::_roughconductor:
+                ret.f = rough_conductor.GetBsdf(tex, wi, wo);
+                ret.pdf = rough_conductor.GetPdf(wi, wo);
+                break;
+        }
+        return ret;
+    }
 #endif
 };
 }

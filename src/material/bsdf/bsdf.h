@@ -6,6 +6,10 @@ struct BsdfSampleRecord {
     float3 wi;
     float pdf;
 };
+struct BsdfEvalRecord {
+    float3 f;
+    float pdf;
+};
 }// namespace optix_util
 
 #include "diffuse.h"
