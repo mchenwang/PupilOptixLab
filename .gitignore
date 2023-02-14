@@ -5,3 +5,4 @@ target/
 *.ptx
 data/*
 *.ini
+src/static.h
