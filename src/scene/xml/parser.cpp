@@ -50,9 +50,7 @@ Parser::Parser() noexcept {
 Parser::~Parser() noexcept {
 }
 
-Object *Parser::LoadFromFile(std::string_view path) noexcept {
-    std::filesystem::path file_path(path.data());
-
+Object *Parser::LoadFromFile(std::filesystem::path file_path) noexcept {
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(file_path.c_str());
     DfsParse(this, doc.document_element());

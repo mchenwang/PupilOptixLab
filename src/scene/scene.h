@@ -3,6 +3,7 @@
 #include "shape.h"
 #include "emitter.h"
 #include "xml/object.h"
+#include "static.h"
 
 #include <vector>
 #include <string>
@@ -48,7 +49,7 @@ public:
 
     Scene() noexcept;
 
-    void LoadFromXML(std::string_view) noexcept;
+    void LoadFromXML(std::string_view, std::string_view root = DATA_DIR) noexcept;
 
     template<typename Func>
         requires std::invocable<Func, xml::Object *, void *>

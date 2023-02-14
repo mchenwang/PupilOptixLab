@@ -1,4 +1,5 @@
 set(scene_source
+    ${STATIC_DATA_FILE}
     scene.cpp
     scene.h
     shape.h

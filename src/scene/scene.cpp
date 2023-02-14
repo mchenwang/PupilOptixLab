@@ -315,12 +315,14 @@ Scene::Scene() noexcept {
         });
 }
 
-void Scene::LoadFromXML(std::string_view path) noexcept {
+void Scene::LoadFromXML(std::string_view path, std::string_view root) noexcept {
     xml::Parser parser;
-    std::filesystem::path file(path);
+    std::filesystem::path src_root(root);
+    std::filesystem::path file = src_root / path;
+
     scene_root_path = file.parent_path().make_preferred();
 
-    auto scene_xml_root_obj = parser.LoadFromFile(path);
+    auto scene_xml_root_obj = parser.LoadFromFile(file);
     for (auto &xml_obj : scene_xml_root_obj->sub_object) {
         switch (xml_obj->tag) {
             case xml::ETag::_integrator:

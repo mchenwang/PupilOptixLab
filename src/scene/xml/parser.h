@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <filesystem>
 
 namespace scene {
 class Scene;
@@ -20,7 +21,7 @@ public:
 
     static void DeregisterContext() noexcept;
 
-    [[nodiscard]] Object *LoadFromFile(std::string_view path) noexcept;
+    [[nodiscard]] Object *LoadFromFile(std::filesystem::path file_path) noexcept;
     [[nodiscard]] GlobalManager *GetXMLGlobalManager() const noexcept { return m_global_manager.get(); }
 };
 }// namespace xml

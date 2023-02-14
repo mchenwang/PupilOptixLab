@@ -1,4 +1,5 @@
 set(gui_source
+    ${STATIC_DATA_FILE}
     window.h
     window.cpp
     dx12_backend.h
