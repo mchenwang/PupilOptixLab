@@ -69,7 +69,7 @@ struct Material {
         // }
         switch (type) {
             case EMatType::_diffuse:
-                ret.f = diffuse.GetBsdf(tex);
+                ret.f = diffuse.GetBsdf(tex, wi, wo);
                 ret.pdf = diffuse.GetPdf(wi, wo);
                 break;
             case EMatType::_dielectric:

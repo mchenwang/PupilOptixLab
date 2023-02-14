@@ -90,6 +90,7 @@ struct Emitter {
                 ret.radiance = radiance.Sample(tex);
             } break;
         }
+        ret.normal = normalize(ret.normal);
         return ret;
     }
 
@@ -111,6 +112,7 @@ struct Emitter {
                 ret.radiance = radiance.Sample(tex);
             } break;
         }
+        ret.normal = normalize(ret.normal);
         return ret;
     }
 };

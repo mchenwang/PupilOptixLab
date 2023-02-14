@@ -68,11 +68,10 @@ struct Geometry {
                     const auto n1 = tri_mesh.normals[v1];
                     const auto n2 = tri_mesh.normals[v2];
                     ret.normal = (1.f - bary.x - bary.y) * n0 + bary.x * n1 + bary.y * n2;
-                    ret.normal = normalize(ret.normal);
                 } else {
-                    ret.normal = normalize(cross(p1 - p0, p2 - p0));
+                    ret.normal = cross(p1 - p0, p2 - p0);
                 }
-                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+                ret.normal = normalize(optixTransformNormalFromObjectToWorldSpace(ret.normal));
 
                 if (tri_mesh.flip_normals) ret.normal *= -1.f;
 
