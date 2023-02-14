@@ -20,7 +20,7 @@ public:
     }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
-    CUDA_HOSTDEVICE const size_t GetNum() const noexcept { return m_num; }
+    CUDA_HOSTDEVICE size_t GetNum() const noexcept { return m_num; }
     CUDA_HOSTDEVICE const T &operator[](unsigned int index) const noexcept {
         return *reinterpret_cast<T *>(m_data + index * sizeof(T));
     }
