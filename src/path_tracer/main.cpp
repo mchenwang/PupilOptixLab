@@ -131,11 +131,7 @@ void ConfigPipeline(device::Optix *device) {
 
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
-    g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/scene_v3.xml");
-    //g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/veach-ajar/test.xml");
-    //g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/cornell-box/scene_v3.xml");
-    // g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/test.xml");
-    // g_scene->LoadFromXML("D:/work/ReSTIR/OptixReSTIR/data/classroom/scene_v3.xml");
+    g_scene->LoadFromXML("veach-ajar/scene_v3.xml", DATA_DIR);
     device->InitScene(g_scene.get());
 
     g_emitters = optix_util::GenerateEmitters(g_scene.get());

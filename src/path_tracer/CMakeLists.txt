@@ -34,11 +34,11 @@ add_custom_command(
         -I ${CMAKE_CURRENT_SOURCE_DIR}
         -I ${pupil_optix_root}
 )
-add_custom_target(raytracing-ptx
+add_custom_target(path_tracer-ptx
     DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx
         # ${CMAKE_CURRENT_SOURCE_DIR}/spatial.ptx
         # ${CMAKE_CURRENT_SOURCE_DIR}/lighting.ptx
 )
 
-add_dependencies(${path_tracer_name} raytracing-ptx)
+add_dependencies(${path_tracer_name} path_tracer-ptx)

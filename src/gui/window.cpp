@@ -17,8 +17,8 @@ uint32_t g_window_h = 800;
 GlobalMessage g_message = GlobalMessage::None;
 
 namespace {
-const std::wstring WND_NAME = L"OptixReSTIR";
-const std::wstring WND_CLASS_NAME = L"OptixReSTIR_CLASS";
+const std::wstring WND_NAME = L"PupilOptixLab";
+const std::wstring WND_CLASS_NAME = L"PupilOptixLab_CLASS";
 
 HINSTANCE m_instance;
 
@@ -169,7 +169,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
-    LONG x, y; 
+    LONG x, y;
     switch (msg) {
         case WM_SIZE:
             if (m_backend) {
