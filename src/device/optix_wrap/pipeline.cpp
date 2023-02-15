@@ -68,10 +68,11 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
             if (hit_group.is_entry) {
                 desc.hitgroup.entryFunctionNameIS = hit_group.is_entry;
                 create_flag = true;
-                if (hit_group.intersect_module)
-                    desc.hitgroup.moduleIS = hit_group.intersect_module->module;
-                else
-                    desc.hitgroup.moduleIS = module->module;
+                desc.hitgroup.moduleIS = module->module;
+            }
+            if (hit_group.intersect_module) {
+                create_flag = true;
+                desc.hitgroup.moduleIS = hit_group.intersect_module->module;
             }
 
             if (create_flag) {
