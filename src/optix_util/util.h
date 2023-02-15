@@ -93,32 +93,27 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
     return -v + 2 * dot(v, normal) * normal;
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE void CoordinateSystem(const float3 &a, float3 &b, float3 &c) {
-    if (abs(a.x) > abs(a.y)) {
-        float invLen = 1.0f / sqrtf(a.x * a.x + a.z * a.z);
-        c = make_float3(a.z * invLen, 0.0f, -a.x * invLen);
-    } else {
-        float inv_len = 1.0f / sqrtf(a.y * a.y + a.z * a.z);
-        c = make_float3(0.0f, a.z * inv_len, -a.y * inv_len);
-    }
-    float3 _a = make_float3(a.x, a.y, a.z);
-    c = normalize(c);
-    b = cross(_a, c);
-    b = normalize(b);
+// https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+CUDA_INLINE CUDA_HOSTDEVICE void BuildONB(float3 N, float3 &b1, float3 &b2) noexcept {
+    float sign = copysignf(1.f, N.z);
+    float a = -1.f / (sign + N.z);
+    float b = N.x * N.y * a;
+    b1 = make_float3(1.f + sign * N.x * N.x * a, sign * b, -sign * N.x);
+    b2 = make_float3(b, sign + N.y * N.y * a, -N.y);
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float3 ToLocal(float3 v, float3 N) {
-    float3 S;
-    float3 T;
-    CoordinateSystem(N, S, T);
-    return make_float3(dot(v, S), dot(v, T), dot(v, N));
+    float3 b1;
+    float3 b2;
+    BuildONB(N, b1, b2);
+    return make_float3(dot(v, b1), dot(v, b2), dot(v, N));
 }
 
-CUDA_INLINE CUDA_HOSTDEVICE float3 ToWorld(float3 p, float3 N) {
-    float3 S;
-    float3 T;
-    CoordinateSystem(N, S, T);
-    return S * p.x + T * p.y + N * p.z;
+CUDA_INLINE CUDA_HOSTDEVICE float3 ToWorld(float3 v, float3 N) {
+    float3 b1;
+    float3 b2;
+    BuildONB(N, b1, b2);
+    return b1 * v.x + b2 * v.y + N * v.z;
 }
 
 // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
