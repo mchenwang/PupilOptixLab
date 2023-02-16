@@ -199,6 +199,25 @@ Scene::Scene() noexcept {
             auto film_obj = obj->GetUniqueSubObject("film");
             InvokeXmlObjLoadCallBack(film_obj, &sensor->film);
 
+            value = obj->GetProperty("fov_axis");
+            char fov_axis = 'x';
+            if (!value.empty()) {
+                if (value.compare("x") == 0 || value.compare("X") == 0) {
+                    fov_axis = 'x';
+                } else if (value.compare("y") == 0 || value.compare("Y") == 0) {
+                    fov_axis = 'y';
+                } else {
+                    std::cerr << "warring: sensor fov_axis must be x or y.\n";
+                }
+            }
+
+            if (fov_axis == 'x') {
+                float aspect = static_cast<float>(sensor->film.h) / static_cast<float>(sensor->film.w);
+                float radian = sensor->fov * 3.14159265358979323846f / 180.f * 0.5f;
+                float t = std::tan(radian) * aspect;
+                sensor->fov = 2.f * std::atan(t) * 180.f / 3.14159265358979323846f;
+            }
+
             auto transform_obj = obj->GetUniqueSubObject("transform");
             InvokeXmlObjLoadCallBack(transform_obj, &sensor->transform);
         });
