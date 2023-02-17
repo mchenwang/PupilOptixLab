@@ -249,8 +249,8 @@ Scene::Scene() noexcept {
                     texture->bitmap.address_mode = util::ETextureAddressMode::Mirror;
                 else if (value.compare("clamp") == 0)
                     texture->bitmap.address_mode = util::ETextureAddressMode::Clamp;
-                else
-                    texture->bitmap.address_mode = util::ETextureAddressMode::Border;
+                else// default is repeat
+                    texture->bitmap.address_mode = util::ETextureAddressMode::Wrap;
 
             } else if (obj->type.compare("checkerboard") == 0) {
                 texture->type = util::ETextureType::Checkerboard;
