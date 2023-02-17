@@ -131,7 +131,11 @@ void ConfigPipeline(device::Optix *device) {
 
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
-    g_scene->LoadFromXML("veach-ajar/scene_v3.xml", DATA_DIR);
+    std::string scene_name = "staircase/scene_v3.xml";
+    scene_name = "veach-ajar/scene_v3.xml";
+    // scene_name = "veach-mis/scene_v3.xml";
+    // scene_name = "cornell-box/scene_v3.xml";
+    g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
     g_emitters = optix_util::GenerateEmitters(g_scene.get());
@@ -164,39 +168,6 @@ void ConfigSBT(device::Optix *device) {
             hit_shadow_data.program_name = "__closesthit__shadow";
             hit_shadow_data.data.mat.type = shape.mat.type;
             desc.hit_datas.push_back(hit_shadow_data);
-            // if (shape.type == scene::EShapeType::_sphere) {
-            //     HitGroupDataRecord hit_default_sphere_data{};
-            //     hit_default_sphere_data.program_name = "__closesthit__default_sphere";
-            //     hit_default_sphere_data.data.mat.LoadMaterial(shape.mat);
-            //     hit_default_sphere_data.data.geo.LoadGeometry(shape);
-            //     if (shape.is_emitter) {
-            //         hit_default_sphere_data.data.emitter_index_offset = emitter_index_offset;
-            //         emitter_index_offset += shape.sub_emitters_num;
-            //     }
-
-            //     desc.hit_datas.push_back(hit_default_sphere_data);
-
-            //     HitGroupDataRecord hit_shadow_sphere_data{};
-            //     hit_shadow_sphere_data.program_name = "__closesthit__shadow_sphere",
-            //     hit_shadow_sphere_data.data.mat.type = shape.mat.type;
-            //     desc.hit_datas.push_back(hit_shadow_sphere_data);
-            // } else {
-            //     HitGroupDataRecord hit_default_data{};
-            //     hit_default_data.program_name = "__closesthit__default";
-            //     hit_default_data.data.mat.LoadMaterial(shape.mat);
-            //     hit_default_data.data.geo.LoadGeometry(shape);
-            //     if (shape.is_emitter) {
-            //         hit_default_data.data.emitter_index_offset = emitter_index_offset;
-            //         emitter_index_offset += shape.sub_emitters_num;
-            //     }
-
-            //     desc.hit_datas.push_back(hit_default_data);
-
-            //     HitGroupDataRecord hit_shadow_data{};
-            //     hit_shadow_data.program_name = "__closesthit__shadow";
-            //     hit_shadow_data.data.mat.type = shape.mat.type;
-            //     desc.hit_datas.push_back(hit_shadow_data);
-            // }
         }
     }
     {
