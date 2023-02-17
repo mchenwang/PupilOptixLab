@@ -12,6 +12,8 @@ set(material_source
     bsdf/dielectric.h
     bsdf/conductor.h
     bsdf/rough_conductor.h
+    bsdf/plastic.h
+    bsdf/rough_plastic.h
 )
 
 add_library(material STATIC ${material_source})

@@ -39,6 +39,29 @@ MATERIAL_LOAD_FUNC(RoughConductor) {
     return ret;
 }
 
+MATERIAL_LOAD_FUNC(Plastic) {
+    optix_util::material::Plastic ret;
+    auto tex_mngr = util::Singleton<device::CudaTextureManager>::instance();
+    ret.int_ior = mat.int_ior;
+    ret.ext_ior = mat.ext_ior;
+    ret.nonlinear = mat.nonlinear;
+    ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
+    ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+    return ret;
+}
+
+MATERIAL_LOAD_FUNC(RoughPlastic) {
+    optix_util::material::RoughPlastic ret;
+    auto tex_mngr = util::Singleton<device::CudaTextureManager>::instance();
+    ret.int_ior = mat.int_ior;
+    ret.ext_ior = mat.ext_ior;
+    ret.nonlinear = mat.nonlinear;
+    ret.alpha = mat.alpha;
+    ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
+    ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+    return ret;
+}
+
 namespace optix_util::material {
 void Material::LoadMaterial(::material::Material mat) noexcept {
     type = mat.type;
@@ -55,6 +78,12 @@ void Material::LoadMaterial(::material::Material mat) noexcept {
             break;
         case EMatType::_roughconductor:
             rough_conductor = ::LoadMaterial(mat.rough_conductor);
+            break;
+        case EMatType::_plastic:
+            plastic = ::LoadMaterial(mat.plastic);
+            break;
+        case EMatType::_roughplastic:
+            rough_plastic = ::LoadMaterial(mat.rough_plastic);
             break;
 
             // case new material

@@ -16,3 +16,5 @@ struct BsdfEvalRecord {
 #include "dielectric.h"
 #include "conductor.h"
 #include "rough_conductor.h"
+#include "plastic.h"
+#include "rough_plastic.h"

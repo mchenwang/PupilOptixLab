@@ -67,7 +67,7 @@ extern "C" __global__ void __raygen__main() {
     d.w = 0.f;
     d = normalize(d);
 
-    float3 ray_direction = (make_float3(
+    float3 ray_direction = normalize(make_float3(
         dot(camera.camera_to_world.r0, d),
         dot(camera.camera_to_world.r1, d),
         dot(camera.camera_to_world.r2, d)));
@@ -114,7 +114,7 @@ extern "C" __global__ void __raygen__main() {
     optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
 
     float3 color = optix_util::ACESToneMapping(record.radiance, 1.f);
-    // color = optix_util::GammaCorrection(color, 2.2f);
+    color = optix_util::GammaCorrection(color, 2.2f);
     optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
 }
 

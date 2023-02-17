@@ -36,6 +36,24 @@ struct RoughConductor {
     util::Texture specular_reflectance;
 };
 
+struct Plastic {
+    float int_ior;
+    float ext_ior;
+    bool nonlinear;
+    util::Texture diffuse_reflectance;
+    util::Texture specular_reflectance;
+};
+
+struct RoughPlastic {
+    float alpha;
+    float int_ior;
+    float ext_ior;
+    bool nonlinear;
+    // bool sample_visible;
+    util::Texture diffuse_reflectance;
+    util::Texture specular_reflectance;
+};
+
 // struct PrincipledBSDF {
 // };
 
@@ -48,6 +66,8 @@ struct Material {
         Dielectric dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
+        Plastic plastic;
+        RoughPlastic rough_plastic;
         // PrincipledBSDF principled;
     };
 

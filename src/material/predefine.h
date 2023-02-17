@@ -13,7 +13,7 @@ namespace material {
 /// 4. add the corresponding optix_material
 /// 5. implement material loader and [] method for optix
 #define PUPIL_RENDER_MATERIAL \
-    diffuse, dielectric, conductor, roughconductor, twosided
+    diffuse, dielectric, conductor, roughconductor, twosided, plastic, roughplastic
 
 PUPIL_ENUM_DEFINE(EMatType, PUPIL_RENDER_MATERIAL)
 PUPIL_ENUM_STRING_ARRAY(S_MAT_TYPE_NAME, PUPIL_RENDER_MATERIAL)

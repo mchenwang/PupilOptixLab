@@ -16,6 +16,8 @@ struct Material {
         Dielectric dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
+        Plastic plastic;
+        RoughPlastic rough_plastic;
     };
 
     CUDA_HOSTDEVICE Material() noexcept {}
@@ -38,6 +40,12 @@ struct Material {
             case EMatType::_roughconductor:
                 color = rough_conductor.specular_reflectance.Sample(tex);
                 break;
+            case EMatType::_plastic:
+                color = plastic.diffuse_reflectance.Sample(tex);
+                break;
+            case EMatType::_roughplastic:
+                color = rough_plastic.diffuse_reflectance.Sample(tex);
+                break;
         }
         return color;
     }
@@ -57,16 +65,18 @@ struct Material {
             case EMatType::_roughconductor:
                 ret = rough_conductor.Sample(xi, wo, tex);
                 break;
+            case EMatType::_plastic:
+                ret = plastic.Sample(xi, wo, tex);
+                break;
+            case EMatType::_roughplastic:
+                ret = rough_plastic.Sample(xi, wo, tex);
+                break;
         }
         return ret;
     }
 
     CUDA_HOSTDEVICE BsdfEvalRecord Eval(float3 wi, float3 wo, float2 tex) const noexcept {
         BsdfEvalRecord ret;
-        // if (twosided) {
-        //     wi.z = abs(wi.z);
-        //     wo.z = abs(wo.z);
-        // }
         switch (type) {
             case EMatType::_diffuse:
                 ret.f = diffuse.GetBsdf(tex, wi, wo);
@@ -83,6 +93,14 @@ struct Material {
             case EMatType::_roughconductor:
                 ret.f = rough_conductor.GetBsdf(tex, wi, wo);
                 ret.pdf = rough_conductor.GetPdf(wi, wo);
+                break;
+            case EMatType::_plastic:
+                ret.f = plastic.GetBsdf(tex, wi, wo);
+                ret.pdf = plastic.GetPdf(wi, wo);
+                break;
+            case EMatType::_roughplastic:
+                ret.f = rough_plastic.GetBsdf(tex, wi, wo);
+                ret.pdf = rough_plastic.GetPdf(wi, wo);
                 break;
         }
         return ret;

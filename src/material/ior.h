@@ -48,8 +48,8 @@ const static IOREntry S_IOR_DATA[] = {
 };
 // clang-format on
 
-static float LoadIor(std::string_view str) noexcept {
-    if (str.empty()) return 0.f;
+static float LoadIor(std::string_view str, float default_value) noexcept {
+    if (str.empty()) return default_value;
 
     float value;
     auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
@@ -62,7 +62,7 @@ static float LoadIor(std::string_view str) noexcept {
         }
     }
 
-    return 0.f;
+    return default_value;
 }
 
 }// namespace material
