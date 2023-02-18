@@ -22,6 +22,7 @@ public:
     void Destroy() noexcept;
 
     void SetWindowMessageCallback(GlobalMessage, std::function<void()> &&) noexcept;
+    void AppendGuiConsoleOperations(std::function<void()> &&) noexcept;
 
     void Resize(uint32_t w, uint32_t h, bool reset_window = false) noexcept;
 

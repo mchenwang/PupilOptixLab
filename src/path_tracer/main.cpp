@@ -4,6 +4,7 @@
 
 #include "gui/dx12_backend.h"
 #include "gui/window.h"
+#include "imgui.h"
 
 #include "device/optix_device.h"
 #include "device/dx12_device.h"
@@ -51,6 +52,10 @@ int main() {
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Quit,
         [&exit_flag]() { exit_flag = false; });
+
+    gui_window->AppendGuiConsoleOperations([]() {
+        ImGui::Text("test Text.");
+    });
 
     auto backend = gui_window->GetBackend();
     std::unique_ptr<device::Optix> optix_device = std::make_unique<device::Optix>(backend->GetDevice());
@@ -132,9 +137,9 @@ void ConfigPipeline(device::Optix *device) {
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
     std::string scene_name = "staircase/scene_v3.xml";
-    scene_name = "veach-ajar/scene_v3.xml";
+    // scene_name = "veach-ajar/scene_v3.xml";
     // scene_name = "veach-mis/scene_v3.xml";
-    // scene_name = "cornell-box/scene_v3.xml";
+    scene_name = "cornell-box/scene_v3.xml";
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 

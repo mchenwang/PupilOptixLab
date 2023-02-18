@@ -6,13 +6,14 @@
 #include "backends/imgui_impl_dx12.h"
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 
 using namespace gui;
 
 HWND g_window_handle;
 uint32_t g_window_w = 1280;
-uint32_t g_window_h = 800;
+uint32_t g_window_h = 720;
 
 GlobalMessage g_message = GlobalMessage::None;
 
@@ -31,6 +32,7 @@ uint32_t m_last_mouse_pos_delta_y = 0;
 short m_mouse_wheel_delta = 0;
 
 std::unordered_map<gui::GlobalMessage, std::function<void()>> m_message_callbacks;
+std::vector<std::function<void()>> m_gui_console_ops;
 }// namespace
 
 namespace {
@@ -103,6 +105,10 @@ void Window::Init() noexcept {
 
 void Window::SetWindowMessageCallback(GlobalMessage message, std::function<void()> &&callback) noexcept {
     m_message_callbacks[message] = callback;
+}
+
+void Window::AppendGuiConsoleOperations(std::function<void()> &&op) noexcept {
+    m_gui_console_ops.emplace_back(op);
 }
 
 void Window::Show() noexcept {
@@ -223,6 +229,7 @@ inline void ImguiInit() noexcept {
     auto &io = ImGui::GetIO();
     (void)io;
     ImGui::StyleColorsDark();
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     ImGui_ImplWin32_Init(g_window_handle);
 
@@ -243,12 +250,13 @@ void OnDraw() noexcept {
         static float f = 0.0f;
         static int counter = 0;
 
-        ImGui::Begin("Hello, world!");// Create a window called "Hello, world!" and append into it.
-
-        ImGui::Text("This is some useful text.");// Display some text (you can use a format strings too)
-        ImGui::Text("counter = %d", counter);
-
+        ImGui::Begin("Lab Console");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+        for (auto &&op : m_gui_console_ops) {
+            op();
+        }
+
         ImGui::End();
     }
 
@@ -257,6 +265,12 @@ void OnDraw() noexcept {
     m_backend->RenderScreen(cmd_list);
 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
+
+    auto &io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault(NULL, (void *)cmd_list.Get());
+    }
 
     m_backend->Present(cmd_list);
 }
