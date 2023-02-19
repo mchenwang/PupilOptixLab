@@ -80,7 +80,7 @@ void Transform::Scale(float x, float y, float z) noexcept {
     MatrixMultiply(scale, matrix, matrix);
 }
 
-void Transform::LookAt(const float3 &origin, const float3 &target, const float3 &up) noexcept {
+void Transform::LookAt(const Float3 &origin, const Float3 &target, const Float3 &up) noexcept {
     DirectX::XMFLOAT3 t_eye_position{ origin.x, origin.y, origin.z };
     DirectX::XMVECTOR eye_position = DirectX::XMLoadFloat3(&t_eye_position);
     DirectX::XMFLOAT3 t_focus_position{ target.x, target.y, target.z };
@@ -104,28 +104,28 @@ void Transform::LookAt(const float3 &origin, const float3 &target, const float3 
             this->matrix[i * 4 + j] = t_m.m[i][j];
 }
 
-float3 Transform::TransformPoint(const float3 point, const float *transform_matrix) noexcept {
+Float3 Transform::TransformPoint(const Float3 point, const float *transform_matrix) noexcept {
     auto &m = transform_matrix;
     float x = m[0] * point.x + m[1] * point.y + m[2] * point.z + m[3];
     float y = m[4] * point.x + m[5] * point.y + m[6] * point.z + m[7];
     float z = m[8] * point.x + m[9] * point.y + m[10] * point.z + m[11];
     float w = m[12] * point.x + m[13] * point.y + m[14] * point.z + m[15];
-    return float3{ x / w, y / w, z / w };
+    return Float3{ x / w, y / w, z / w };
 }
-float3 Transform::TransformVector(const float3 vector, const float *transform_matrix) noexcept {
+Float3 Transform::TransformVector(const Float3 vector, const float *transform_matrix) noexcept {
     auto &m = transform_matrix;
     float x = m[0] * vector.x + m[1] * vector.y + m[2] * vector.z;
     float y = m[4] * vector.x + m[5] * vector.y + m[6] * vector.z;
     float z = m[8] * vector.x + m[9] * vector.y + m[10] * vector.z;
-    return float3{ x, y, z };
+    return Float3{ x, y, z };
 }
-float3 Transform::TransformNormal(const float3 normal, const float *transform_matrix_inv_t) noexcept {
+Float3 Transform::TransformNormal(const Float3 normal, const float *transform_matrix_inv_t) noexcept {
     auto &m = transform_matrix_inv_t;
     float x = m[0] * normal.x + m[1] * normal.y + m[2] * normal.z;
     float y = m[4] * normal.x + m[5] * normal.y + m[6] * normal.z;
     float z = m[8] * normal.x + m[9] * normal.y + m[10] * normal.z;
 
     float len = std::sqrtf(x * x + y * y + z * z);
-    return float3{ x / len, y / len, z / len };
+    return Float3{ x / len, y / len, z / len };
 }
 }// namespace util

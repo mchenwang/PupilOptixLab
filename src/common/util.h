@@ -38,5 +38,5 @@ struct StringHash {
 
 std::vector<std::string> Split(std::string_view str, std::string_view deli);
 
-float3 StrToFloat3(std::string_view);
+Float3 StrToFloat3(std::string_view);
 }// namespace util

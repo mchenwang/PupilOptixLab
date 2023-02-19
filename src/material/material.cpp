@@ -23,7 +23,7 @@ struct MaterialLoader {
 };
 
 inline void LoadTextureOrRGB(const scene::xml::Object *obj, scene::Scene *scene, std::string_view param_name,
-                             util::Texture &param, util::float3 default_value = { 0.f, 0.f, 0.f }) {
+                             util::Texture &param, util::Float3 default_value = { 0.f, 0.f, 0.f }) {
     auto [texture, rgb] = obj->GetParameter(param_name);
 
     if (texture == nullptr && rgb.empty()) {

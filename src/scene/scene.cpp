@@ -46,9 +46,9 @@ void LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
     } else {
         auto look_at = obj->GetUniqueSubObject("lookat");
         if (look_at) {
-            util::float3 origin{ 1.f, 0.f, 0.f };
-            util::float3 target{ 0.f, 0.f, 0.f };
-            util::float3 up{ 0.f, 1.f, 0.f };
+            util::Float3 origin{ 1.f, 0.f, 0.f };
+            util::Float3 target{ 0.f, 0.f, 0.f };
+            util::Float3 up{ 0.f, 1.f, 0.f };
             value = look_at->GetProperty("origin");
             if (!value.empty()) {
                 auto origin_value = util::Split(value, ",");
@@ -255,7 +255,7 @@ Scene::Scene() noexcept {
             } else if (obj->type.compare("checkerboard") == 0) {
                 texture->type = util::ETextureType::Checkerboard;
 
-                auto set_patch = [](util::float3 &p, std::string value) {
+                auto set_patch = [](util::Float3 &p, std::string value) {
                     if (!value.empty()) {
                         auto patch1 = util::Split(value, ",");
                         if (patch1.size() == 3) {
@@ -272,7 +272,7 @@ Scene::Scene() noexcept {
                     }
                 };
 
-                util::float3 p1{ 0.4f }, p2{ 0.2f };
+                util::Float3 p1{ 0.4f }, p2{ 0.2f };
                 auto value = obj->GetProperty("color0");
                 set_patch(p1, value);
                 value = obj->GetProperty("color1");

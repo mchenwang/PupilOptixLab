@@ -31,7 +31,7 @@ public:
 
     void LoadTextureFromFile(std::string_view) noexcept;
     [[nodiscard]] util::Texture GetColorTexture(float r, float g, float b) noexcept;
-    [[nodiscard]] util::Texture GetCheckerboardTexture(util::float3 patch1, util::float3 patch2) noexcept;
+    [[nodiscard]] util::Texture GetCheckerboardTexture(util::Float3 patch1, util::Float3 patch2) noexcept;
     [[nodiscard]] util::Texture GetTexture(std::string_view) noexcept;
 
     void Clear() noexcept;
