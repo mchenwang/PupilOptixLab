@@ -32,7 +32,7 @@ uint32_t m_last_mouse_pos_delta_y = 0;
 short m_mouse_wheel_delta = 0;
 
 std::unordered_map<gui::GlobalMessage, std::function<void()>> m_message_callbacks;
-std::vector<std::function<void()>> m_gui_console_ops;
+std::vector<std::pair<std::string, std::function<void()>>> m_gui_console_ops;
 }// namespace
 
 namespace {
@@ -40,6 +40,8 @@ namespace {
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 inline void ImguiInit() noexcept;
+
+void DrawImGuiConsoleWindow() noexcept;
 
 void OnDraw() noexcept;
 
@@ -107,8 +109,8 @@ void Window::SetWindowMessageCallback(GlobalMessage message, std::function<void(
     m_message_callbacks[message] = callback;
 }
 
-void Window::AppendGuiConsoleOperations(std::function<void()> &&op) noexcept {
-    m_gui_console_ops.emplace_back(op);
+void Window::AppendGuiConsoleOperations(std::string title, std::function<void()> &&op) noexcept {
+    m_gui_console_ops.emplace_back(title, op);
 }
 
 void Window::Show() noexcept {
@@ -242,23 +244,39 @@ inline void ImguiInit() noexcept {
         m_backend->GetDevice()->srv_heap->GetGPUDescriptorHandleForHeapStart());
 }
 
+void DrawImGuiConsoleWindow() noexcept {
+    if (ImGui::Begin("Lab Console", nullptr, ImGuiWindowFlags_MenuBar)) {
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("Menu")) {
+                if (ImGui::MenuItem("Save")) {
+                    printf("test save\n");
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        if (ImGui::CollapsingHeader("Basic Information", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::Text("Render Target Size(width x height): %d x %d", g_window_w, g_window_h);
+        }
+
+        for (auto &&[title, op] : m_gui_console_ops) {
+            if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                op();
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
 void OnDraw() noexcept {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    {
-        static float f = 0.0f;
-        static int counter = 0;
 
-        ImGui::Begin("Lab Console");
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-        for (auto &&op : m_gui_console_ops) {
-            op();
-        }
-
-        ImGui::End();
-    }
+    DrawImGuiConsoleWindow();
 
     ImGui::Render();
     auto cmd_list = m_backend->GetCmdList();

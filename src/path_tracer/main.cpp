@@ -53,7 +53,8 @@ int main() {
         gui::GlobalMessage::Quit,
         [&exit_flag]() { exit_flag = false; });
 
-    gui_window->AppendGuiConsoleOperations([]() {
+    gui_window->AppendGuiConsoleOperations("Path Tracer Option",
+        []() {
         ImGui::Text("test Text.");
     });
 
