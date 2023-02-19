@@ -240,7 +240,7 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
 Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     auto it = m_shape_datas.find(id);
     if (it == m_shape_datas.end()) {
-        return GetSphere(1.f, util::float3{ 0.f, 0.f, 0.f }, false);
+        return GetSphere(1.f, util::Float3{ 0.f, 0.f, 0.f }, false);
     }
 
     Shape shape;
@@ -259,7 +259,7 @@ Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     return shape;
 }
 
-Shape ShapeDataManager::GetSphere(float r, util::float3 c, bool flip_normals) noexcept {
+Shape ShapeDataManager::GetSphere(float r, util::Float3 c, bool flip_normals) noexcept {
     Shape shape;
     shape.type = EShapeType::_sphere;
     shape.mat.type = material::EMatType::_unknown;

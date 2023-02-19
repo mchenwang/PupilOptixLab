@@ -23,12 +23,12 @@ enum class ETextureType : unsigned int {
 };
 
 struct RGBTexture {
-    float3 color{ 0.f, 0.f, 0.f };
+    Float3 color{ 0.f, 0.f, 0.f };
 };
 
 struct CheckerboardTexture {
-    float3 patch1{ 0.4f, 0.4f, 0.4f };
-    float3 patch2{ 0.2f, 0.2f, 0.2f };
+    Float3 patch1{ 0.4f, 0.4f, 0.4f };
+    Float3 patch2{ 0.2f, 0.2f, 0.2f };
 };
 
 struct BitmapTexture {

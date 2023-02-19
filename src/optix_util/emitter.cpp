@@ -27,17 +27,17 @@ float SplitMesh(std::vector<optix_util::Emitter> &emitters,
         auto idx1 = indices[i * 3 + 1];
         auto idx2 = indices[i * 3 + 2];
 
-        util::float3 p0(positions[idx0 * 3 + 0], positions[idx0 * 3 + 1], positions[idx0 * 3 + 2]);
-        util::float3 p1(positions[idx1 * 3 + 0], positions[idx1 * 3 + 1], positions[idx1 * 3 + 2]);
-        util::float3 p2(positions[idx2 * 3 + 0], positions[idx2 * 3 + 1], positions[idx2 * 3 + 2]);
+        util::Float3 p0(positions[idx0 * 3 + 0], positions[idx0 * 3 + 1], positions[idx0 * 3 + 2]);
+        util::Float3 p1(positions[idx1 * 3 + 0], positions[idx1 * 3 + 1], positions[idx1 * 3 + 2]);
+        util::Float3 p2(positions[idx2 * 3 + 0], positions[idx2 * 3 + 1], positions[idx2 * 3 + 2]);
 
         p0 = util::Transform::TransformPoint(p0, transform.matrix);
         p1 = util::Transform::TransformPoint(p1, transform.matrix);
         p2 = util::Transform::TransformPoint(p2, transform.matrix);
 
-        util::float3 n0(normals[idx0 * 3 + 0], normals[idx0 * 3 + 1], normals[idx0 * 3 + 2]);
-        util::float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
-        util::float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
+        util::Float3 n0(normals[idx0 * 3 + 0], normals[idx0 * 3 + 1], normals[idx0 * 3 + 2]);
+        util::Float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
+        util::Float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
 
         n0 = util::Transform::TransformNormal(n0, tra_inv_t);
         n1 = util::Transform::TransformNormal(n1, tra_inv_t);
@@ -134,8 +134,8 @@ std::vector<Emitter> GenerateEmitters(scene::Scene *scene) noexcept {
             case scene::EShapeType::_sphere: {
                 optix_util::Emitter emitter;
                 emitter.type = optix_util::EEmitterType::Sphere;
-                util::float3 o(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
-                util::float3 p(o.x + shape.sphere.radius, o.y, o.z);
+                util::Float3 o(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+                util::Float3 p(o.x + shape.sphere.radius, o.y, o.z);
                 o = util::Transform::TransformPoint(o, shape.transform.matrix);
                 p = util::Transform::TransformPoint(p, shape.transform.matrix);
 

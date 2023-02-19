@@ -45,7 +45,7 @@ struct ObjShape {
 struct Sphere {
     bool flip_normals;
     float radius;
-    util::float3 center{};
+    util::Float3 center{};
 };
 
 struct Cube {
@@ -110,7 +110,7 @@ public:
 
     void LoadShapeFromFile(std::string_view) noexcept;
     [[nodiscard]] Shape GetShape(std::string_view) noexcept;
-    [[nodiscard]] Shape GetSphere(float, util::float3, bool flip_normals = false) noexcept;
+    [[nodiscard]] Shape GetSphere(float, util::Float3, bool flip_normals = false) noexcept;
     [[nodiscard]] Shape GetCube(bool flip_normals = false) noexcept;
     [[nodiscard]] Shape GetRectangle(bool flip_normals = false) noexcept;
 

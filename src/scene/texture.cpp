@@ -61,7 +61,7 @@ util::Texture TextureManager::GetColorTexture(float r, float g, float b) noexcep
     return texture;
 }
 
-util::Texture TextureManager::GetCheckerboardTexture(util::float3 patch1, util::float3 patch2) noexcept {
+util::Texture TextureManager::GetCheckerboardTexture(util::Float3 patch1, util::Float3 patch2) noexcept {
     util::Texture texture{};
     texture.type = util::ETextureType::Checkerboard;
     texture.checkerboard.patch1.r = patch1.r;
