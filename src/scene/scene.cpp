@@ -29,18 +29,18 @@ void LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
         auto matrix_elems = util::Split(value, " ");
         if (matrix_elems.size() == 16) {
             for (int i = 0; auto &&e : matrix_elems) {
-                transform->matrix[i++] = std::stof(e);
+                transform->matrix.e[i++] = std::stof(e);
             }
         } else if (matrix_elems.size() == 9) {
             for (int i = 0, j = 0; auto &&e : matrix_elems) {
-                transform->matrix[i] = std::stof(e);
+                transform->matrix.e[i] = std::stof(e);
                 ++i, ++j;
                 if (j % 3 == 0) ++i;
             }
         } else {
             std::cerr << "warring: transform matrix size is " << matrix_elems.size() << "(must be 9 or 16).\n";
             for (size_t i = 0; i < matrix_elems.size() && i < 16; i++) {
-                transform->matrix[i] = std::stof(matrix_elems[i]);
+                transform->matrix.e[i] = std::stof(matrix_elems[i]);
             }
         }
     } else {

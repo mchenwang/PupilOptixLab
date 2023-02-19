@@ -3,23 +3,23 @@
 #include <cmath>
 #include <DirectXMath.h>
 
-namespace {
-// clang-format off
-void MatrixMultiply(float l[16], float r[16], float *ans) noexcept {
-    float temp[16]{};
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            temp[i * 4 + j] = l[i * 4 + 0] * r[0 * 4 + j] 
-                            + l[i * 4 + 1] * r[1 * 4 + j] 
-                            + l[i * 4 + 2] * r[2 * 4 + j] 
-                            + l[i * 4 + 3] * r[3 * 4 + j];
-        }
-    }
+// namespace {
+// // clang-format off
+// void MatrixMultiply(float l[16], float r[16], float *ans) noexcept {
+//     float temp[16]{};
+//     for (int i = 0; i < 4; i++) {
+//         for (int j = 0; j < 4; j++) {
+//             temp[i * 4 + j] = l[i * 4 + 0] * r[0 * 4 + j]
+//                             + l[i * 4 + 1] * r[1 * 4 + j]
+//                             + l[i * 4 + 2] * r[2 * 4 + j]
+//                             + l[i * 4 + 3] * r[3 * 4 + j];
+//         }
+//     }
 
-    memcpy(ans, temp, sizeof(float) * 16);
-}
-// clang-format on
-}// namespace
+//     memcpy(ans, temp, sizeof(float) * 16);
+// }
+// // clang-format on
+// }// namespace
 
 namespace util {
 void Transform::Rotate(float ux, float uy, float uz, float angle) noexcept {
@@ -50,34 +50,56 @@ void Transform::Rotate(float ux, float uy, float uz, float angle) noexcept {
     float c = sin(0.5f * theta) * uy;
     float d = sin(0.5f * theta) * uz;
 
-    float rotate[16]{
+    // float rotate[16]{
+    //     1.f - 2.f * c * c - 2.f * d * d, 2.f * b * c - 2.f * a * d, 2.f * a * c + 2.f * b * d, 0.f,
+    //     2.f * b * c + 2.f * a * d, 1.f - 2.f * b * b - 2.f * d * d, 2.f * c * d - 2.f * a * b, 0.f,
+    //     2.f * b * d - 2.f * a * c, 2.f * a * b + 2.f * c * d, 1.f - 2.f * b * b - 2.f * c * c, 0.f,
+    //     0.f, 0.f, 0.f, 1.f
+    // };
+    // MatrixMultiply(rotate, matrix.e, matrix.e);
+
+    DirectX::XMMATRIX rotate{
         1.f - 2.f * c * c - 2.f * d * d, 2.f * b * c - 2.f * a * d, 2.f * a * c + 2.f * b * d, 0.f,
         2.f * b * c + 2.f * a * d, 1.f - 2.f * b * b - 2.f * d * d, 2.f * c * d - 2.f * a * b, 0.f,
         2.f * b * d - 2.f * a * c, 2.f * a * b + 2.f * c * d, 1.f - 2.f * b * b - 2.f * c * c, 0.f,
         0.f, 0.f, 0.f, 1.f
     };
-
-    MatrixMultiply(rotate, matrix, matrix);
+    matrix = rotate * matrix;
 }
 
 void Transform::Translate(float x, float y, float z) noexcept {
-    float translate[16]{
+    // float translate[16]{
+    //     1.f, 0.f, 0.f, x,
+    //     0.f, 1.f, 0.f, y,
+    //     0.f, 0.f, 1.f, z,
+    //     0.f, 0.f, 0.f, 1.f
+    // };
+    // MatrixMultiply(translate, matrix.e, matrix.e);
+
+    DirectX::XMMATRIX translate{
         1.f, 0.f, 0.f, x,
         0.f, 1.f, 0.f, y,
         0.f, 0.f, 1.f, z,
         0.f, 0.f, 0.f, 1.f
     };
-    MatrixMultiply(translate, matrix, matrix);
+    matrix = translate * matrix;
 }
 
 void Transform::Scale(float x, float y, float z) noexcept {
-    float scale[16]{
+    // float scale[16]{
+    //     x, 0.f, 0.f, 0.f,
+    //     0.f, y, 0.f, 0.f,
+    //     0.f, 0.f, z, 0.f,
+    //     0.f, 0.f, 0.f, 1.f
+    // };
+    // MatrixMultiply(scale, matrix.e, matrix.e);
+    DirectX::XMMATRIX scale{
         x, 0.f, 0.f, 0.f,
         0.f, y, 0.f, 0.f,
         0.f, 0.f, z, 0.f,
         0.f, 0.f, 0.f, 1.f
     };
-    MatrixMultiply(scale, matrix, matrix);
+    matrix = scale * matrix;
 }
 
 void Transform::LookAt(const Float3 &origin, const Float3 &target, const Float3 &up) noexcept {
@@ -90,37 +112,34 @@ void Transform::LookAt(const Float3 &origin, const Float3 &target, const Float3 
 
     auto world_to_camera = DirectX::XMMatrixLookAtRH(eye_position, focus_position, up_direction);
     auto camera_to_world = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, world_to_camera));
-    DirectX::XMFLOAT4X4 t_m;
-    DirectX::XMStoreFloat4x4(&t_m, camera_to_world);
-    t_m.m[0][0] *= -1;
-    t_m.m[0][1] *= -1;
-    t_m.m[0][2] *= -1;
-    t_m.m[2][0] *= -1;
-    t_m.m[2][1] *= -1;
-    t_m.m[2][2] *= -1;
-
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            this->matrix[i * 4 + j] = t_m.m[i][j];
+    matrix = camera_to_world;
+    // Mitsuba 3: +X points left, +Y points up, +Z points view
+    // Pupil Transform: +X points right, +Y points up, +Z points -view
+    this->matrix.re[0][0] *= -1;
+    this->matrix.re[0][1] *= -1;
+    this->matrix.re[0][2] *= -1;
+    this->matrix.re[2][0] *= -1;
+    this->matrix.re[2][1] *= -1;
+    this->matrix.re[2][2] *= -1;
 }
 
-Float3 Transform::TransformPoint(const Float3 point, const float *transform_matrix) noexcept {
-    auto &m = transform_matrix;
+Float3 Transform::TransformPoint(const Float3 point, const Mat4 &transform_matrix) noexcept {
+    auto &m = transform_matrix.e;
     float x = m[0] * point.x + m[1] * point.y + m[2] * point.z + m[3];
     float y = m[4] * point.x + m[5] * point.y + m[6] * point.z + m[7];
     float z = m[8] * point.x + m[9] * point.y + m[10] * point.z + m[11];
     float w = m[12] * point.x + m[13] * point.y + m[14] * point.z + m[15];
     return Float3{ x / w, y / w, z / w };
 }
-Float3 Transform::TransformVector(const Float3 vector, const float *transform_matrix) noexcept {
-    auto &m = transform_matrix;
+Float3 Transform::TransformVector(const Float3 vector, const Mat4 &transform_matrix) noexcept {
+    auto &m = transform_matrix.e;
     float x = m[0] * vector.x + m[1] * vector.y + m[2] * vector.z;
     float y = m[4] * vector.x + m[5] * vector.y + m[6] * vector.z;
     float z = m[8] * vector.x + m[9] * vector.y + m[10] * vector.z;
     return Float3{ x, y, z };
 }
-Float3 Transform::TransformNormal(const Float3 normal, const float *transform_matrix_inv_t) noexcept {
-    auto &m = transform_matrix_inv_t;
+Float3 Transform::TransformNormal(const Float3 normal, const Mat4 &transform_matrix_inv_t) noexcept {
+    auto &m = transform_matrix_inv_t.e;
     float x = m[0] * normal.x + m[1] * normal.y + m[2] * normal.z;
     float y = m[4] * normal.x + m[5] * normal.y + m[6] * normal.z;
     float z = m[8] * normal.x + m[9] * normal.y + m[10] * normal.z;
