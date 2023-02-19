@@ -121,7 +121,7 @@ cuda::Texture CudaTextureManager::GetCudaTexture(util::Texture texture) noexcept
             cuda_texture.bitmap = GetCudaTextureObject(texture);
             break;
     }
-    const auto &m = texture.transform.matrix;
+    const auto &m = texture.transform.matrix.e;
     cuda_texture.transform.r0 = make_float4(m[0], m[1], m[2], m[3]);
     cuda_texture.transform.r1 = make_float4(m[4], m[5], m[6], m[7]);
     cuda_texture.transform.r2 = make_float4(m[8], m[9], m[10], m[11]);

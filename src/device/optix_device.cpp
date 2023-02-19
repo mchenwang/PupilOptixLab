@@ -178,7 +178,7 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.vertices = shape.obj.positions;
                 temp_mesh.index_triplets_num = shape.obj.face_num;
                 temp_mesh.indices = shape.obj.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_rectangle:
@@ -186,7 +186,7 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.vertices = shape.rect.positions;
                 temp_mesh.index_triplets_num = shape.rect.face_num;
                 temp_mesh.indices = shape.rect.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_cube:
@@ -194,13 +194,13 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
                 temp_mesh.vertices = shape.cube.positions;
                 temp_mesh.index_triplets_num = shape.cube.face_num;
                 temp_mesh.indices = shape.cube.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix, sizeof(float) * 12);
+                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::Custom, &temp_mesh));
                 break;
             case scene::EShapeType::_sphere:
                 temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
                 temp_sphere.radius = shape.sphere.radius;
-                std::memcpy(temp_sphere.transform, shape.transform.matrix, sizeof(float) * 12);
+                std::memcpy(temp_sphere.transform, shape.transform.matrix.e, sizeof(float) * 12);
                 m_ros.emplace_back(std::make_unique<optix_wrap::RenderObject>(this, optix_wrap::EMeshType::BuiltinSphere, &temp_sphere));
             default:
                 break;

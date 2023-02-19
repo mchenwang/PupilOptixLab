@@ -9,13 +9,7 @@ float SplitMesh(std::vector<optix_util::Emitter> &emitters,
                 uint32_t vertex_num, uint32_t face_num, uint32_t *indices,
                 const float *positions, const float *normals, const float *texcoords,
                 const util::Transform &transform, const cuda::Texture &radiance, const float select_wight) noexcept {
-    DirectX::XMMATRIX dx_transform(transform.matrix);
-    DirectX::XMFLOAT4X4 dx_tra_inv_t;
-    DirectX::XMStoreFloat4x4(
-        &dx_tra_inv_t,
-        DirectX::XMMatrixTranspose(
-            DirectX::XMMatrixInverse(nullptr, dx_transform)));
-    float *tra_inv_t = reinterpret_cast<float *>(dx_tra_inv_t.m);
+    auto normal_transform = transform.matrix.GetInverse().GetTranspose();
 
     float weight_sum = 0.f;
 
@@ -39,9 +33,9 @@ float SplitMesh(std::vector<optix_util::Emitter> &emitters,
         util::Float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
         util::Float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
 
-        n0 = util::Transform::TransformNormal(n0, tra_inv_t);
-        n1 = util::Transform::TransformNormal(n1, tra_inv_t);
-        n2 = util::Transform::TransformNormal(n2, tra_inv_t);
+        n0 = util::Transform::TransformNormal(n0, normal_transform);
+        n1 = util::Transform::TransformNormal(n1, normal_transform);
+        n2 = util::Transform::TransformNormal(n2, normal_transform);
 
         emitter.geo.triangle.v0.pos = make_float3(p0.x, p0.y, p0.z);
         emitter.geo.triangle.v0.normal = make_float3(n0.x, n0.y, n0.z);

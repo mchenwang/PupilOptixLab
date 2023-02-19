@@ -207,7 +207,7 @@ void InitLaunchParams(device::Optix *device) {
 
     float aspect = static_cast<float>(g_scene->sensor.film.w) / g_scene->sensor.film.h;
     g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
-    g_camera.SetWorldTransform(g_scene->sensor.transform.matrix);
+    g_camera.SetWorldTransform(g_scene->sensor.transform.matrix.e);
 
     g_camera_cuda_memory = cuda::CudaMemcpy(&g_camera, sizeof(g_camera));
     g_params.camera.SetData(g_camera_cuda_memory);
