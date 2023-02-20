@@ -57,6 +57,7 @@ struct Mat4 {
         : r0(m00, m01, m02, m03), r1(m10, m11, m12, m13), r2(m20, m21, m22, m23), r3(m30, m31, m32, m33) {}
 
     operator DirectX::XMMATRIX() const noexcept { return dx_mat; }
+    DirectX::XMMATRIX operator*(const Mat4 &t) const noexcept { return dx_mat * t.dx_mat; }
 
     Mat4 GetInverse() const noexcept {
         auto ret = DirectX::XMMatrixInverse(nullptr, dx_mat);
