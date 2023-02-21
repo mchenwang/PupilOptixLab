@@ -18,7 +18,7 @@ enum class GlobalMessage : unsigned int {
 class Window : public util::Singleton<Window> {
 public:
     void Init() noexcept;
-    void Show() noexcept;
+    GlobalMessage Show() noexcept;
     void Destroy() noexcept;
 
     void SetWindowMessageCallback(GlobalMessage, std::function<void()> &&) noexcept;

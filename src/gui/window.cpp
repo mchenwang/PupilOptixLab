@@ -31,6 +31,8 @@ uint32_t m_last_mouse_pos_delta_y = 0;
 
 short m_mouse_wheel_delta = 0;
 
+bool m_handling_imgui_flag = false;
+
 std::unordered_map<gui::GlobalMessage, std::function<void()>> m_message_callbacks;
 std::vector<std::pair<std::string, std::function<void()>>> m_gui_console_ops;
 }// namespace
@@ -113,7 +115,7 @@ void Window::AppendGuiConsoleOperations(std::string title, std::function<void()>
     m_gui_console_ops.emplace_back(title, op);
 }
 
-void Window::Show() noexcept {
+GlobalMessage Window::Show() noexcept {
     MSG msg = {};
     g_message = GlobalMessage::None;
     if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -126,6 +128,7 @@ void Window::Show() noexcept {
         g_message = GlobalMessage::Quit;
 
     InvokeGuiEventCallback(g_message);
+    return g_message;
 }
 
 void Window::Destroy() noexcept {
@@ -173,9 +176,13 @@ short Window::GetMouseWheelDelta() noexcept { return m_mouse_wheel_delta; }
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace {
+
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
-        return true;
+        return ::DefWindowProc(hWnd, msg, wParam, lParam);
+
+    if (m_handling_imgui_flag)
+        return ::DefWindowProc(hWnd, msg, wParam, lParam);
 
     LONG x, y;
     switch (msg) {
@@ -267,6 +274,8 @@ void DrawImGuiConsoleWindow() noexcept {
             }
         }
     }
+
+    m_handling_imgui_flag = ImGui::IsWindowFocused() && ImGui::IsWindowHovered();
 
     ImGui::End();
 }
