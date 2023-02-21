@@ -27,6 +27,8 @@ struct Film {
 /// @brief perspective and right-handed camera
 struct Sensor {
     float fov = 90.f;
+    float near_clip = 0.01f;
+    float far_clip = 10000.f;
     util::Transform transform{};
     Film film{};
 };
