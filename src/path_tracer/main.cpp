@@ -16,9 +16,12 @@
 #include "material/optix_material.h"
 
 #include "optix_util/emitter.h"
+#include "optix_util/camera.h"
 
 #include <memory>
 #include <iostream>
+
+std::unique_ptr<device::Optix> g_optix_device;
 
 std::unique_ptr<optix_wrap::Module> g_sphere_module;
 std::unique_ptr<optix_wrap::Module> g_pt_module;
@@ -27,8 +30,7 @@ std::unique_ptr<scene::Scene> g_scene;
 
 OptixLaunchParams g_params;
 
-CUdeviceptr g_camera_cuda_memory = 0;
-optix_util::Camera g_camera;
+std::unique_ptr<optix_util::CameraHelper> g_camera;
 
 CUdeviceptr g_emitters_cuda_memory = 0;
 std::vector<optix_util::Emitter> g_emitters;
@@ -41,69 +43,43 @@ struct SBTTypes {
 
 std::unique_ptr<optix_wrap::Pass<SBTTypes, OptixLaunchParams>> g_pt_pass;
 
-void ConfigOptix(device::Optix *device);
-void InitGuiEventCallback();
+void ConfigOptix();
+void InitGuiAndEventCallback();
 
 int main() {
     auto gui_window = util::Singleton<gui::Window>::instance();
     gui_window->Init();
 
-    bool exit_flag = true;
-    gui_window->SetWindowMessageCallback(
-        gui::GlobalMessage::Quit,
-        [&exit_flag]() { exit_flag = false; });
-
-    gui_window->AppendGuiConsoleOperations("Path Tracer Option",
-        []() {
-        ImGui::Text("test Text.");
-    });
+    InitGuiAndEventCallback();
 
     auto backend = gui_window->GetBackend();
-    std::unique_ptr<device::Optix> optix_device = std::make_unique<device::Optix>(backend->GetDevice());
 
-    g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(optix_device->context, optix_device->cuda_stream);
+    g_optix_device = std::make_unique<device::Optix>(backend->GetDevice());
+    g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(g_optix_device->context, g_optix_device->cuda_stream);
 
-    gui_window->SetWindowMessageCallback(
-        gui::GlobalMessage::Resize,
-        [&]() {
-            g_params.frame_cnt = 0;
-
-            unsigned int &w = g_params.config.frame.width;
-            unsigned int &h = g_params.config.frame.height;
-            gui_window->GetWindowSize(w, h);
-
-            CUDA_FREE(g_params.accum_buffer);
-
-            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&g_params.accum_buffer), w * h * sizeof(float4)));
-
-            optix_device->ClearSharedFrameResource();
-            backend->SetScreenResource(optix_device->GetSharedFrameResource());
-
-            float aspect = static_cast<float>(w) / h;
-            g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
-            cuda::CudaMemcpy(g_camera_cuda_memory, &g_camera, sizeof(g_camera));
-        });
-
-    ConfigOptix(optix_device.get());
+    ConfigOptix();
     gui_window->Resize(g_scene->sensor.film.w, g_scene->sensor.film.h, true);
 
-    backend->SetScreenResource(optix_device->GetSharedFrameResource());
+    backend->SetScreenResource(g_optix_device->GetSharedFrameResource());
 
     do {
         // TODO: handle minimize event
+        g_params.camera.SetData(g_camera->GetCudaMemory());
         g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
         g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
 
-        gui_window->Show();
+        auto msg = gui_window->Show();
+        if (msg == gui::GlobalMessage::Quit)
+            break;
 
         ++g_params.frame_cnt;
-    } while (exit_flag);
+    } while (true);
 
-    CUDA_FREE(g_camera_cuda_memory);
     CUDA_FREE(g_emitters_cuda_memory);
 
     g_pt_module.reset();
     g_sphere_module.reset();
+    g_optix_device.reset();
     gui_window->Destroy();
     return 0;
 }
@@ -140,13 +116,23 @@ void ConfigScene(device::Optix *device) {
     std::string scene_name = "staircase/scene_v3.xml";
     // scene_name = "veach-ajar/scene_v3.xml";
     // scene_name = "veach-mis/scene_v3.xml";
-    scene_name = "cornell-box/scene_v3.xml";
+    // scene_name = "cornell-box/scene_v3.xml";
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
     g_emitters = optix_util::GenerateEmitters(g_scene.get());
     g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
     g_params.emitters.SetData(g_emitters_cuda_memory, g_emitters.size());
+
+    auto &&sensor = g_scene->sensor;
+    optix_util::CameraDesc desc{
+        .fov_y = sensor.fov,
+        .aspect_ratio = static_cast<float>(sensor.film.w) / sensor.film.h,
+        .near_clip = sensor.near_clip,
+        .far_clip = sensor.far_clip,
+        .to_world = sensor.transform
+    };
+    g_camera = std::make_unique<optix_util::CameraHelper>(desc);
 }
 
 void ConfigSBT(device::Optix *device) {
@@ -204,24 +190,44 @@ void InitLaunchParams(device::Optix *device) {
 
     g_params.frame_buffer = nullptr;
     g_params.handle = device->ias_handle;
-
-    float aspect = static_cast<float>(g_scene->sensor.film.w) / g_scene->sensor.film.h;
-    g_camera.SetCameraTransform(g_scene->sensor.fov, aspect);
-    g_camera.SetWorldTransform(g_scene->sensor.transform.matrix.e);
-
-    g_camera_cuda_memory = cuda::CudaMemcpy(&g_camera, sizeof(g_camera));
-    g_params.camera.SetData(g_camera_cuda_memory);
 }
 
-void ConfigOptix(device::Optix *device) {
-    ConfigPipeline(device);
-    ConfigScene(device);
-    ConfigSBT(device);
-    InitLaunchParams(device);
+void ConfigOptix() {
+    ConfigPipeline(g_optix_device.get());
+    ConfigScene(g_optix_device.get());
+    ConfigSBT(g_optix_device.get());
+    InitLaunchParams(g_optix_device.get());
 }
 
-void InitGuiEventCallback() {
+void InitGuiAndEventCallback() {
     auto gui_window = util::Singleton<gui::Window>::instance();
+
+    gui_window->AppendGuiConsoleOperations(
+        "Path Tracer Option",
+        []() { ImGui::Text("test Text."); });
+
+    auto backend = gui_window->GetBackend();
+
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::Resize,
+        [&]() {
+            g_params.frame_cnt = 0;
+
+            unsigned int &w = g_params.config.frame.width;
+            unsigned int &h = g_params.config.frame.height;
+            gui_window->GetWindowSize(w, h);
+
+            CUDA_FREE(g_params.accum_buffer);
+
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&g_params.accum_buffer), w * h * sizeof(float4)));
+
+            g_optix_device->ClearSharedFrameResource();
+            backend->SetScreenResource(g_optix_device->GetSharedFrameResource());
+
+            float aspect = static_cast<float>(w) / h;
+            g_camera->SetAspectRatio(aspect);
+        });
+
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseLeftButtonMove,
         [&camera = g_params.camera, &gui_window]() {

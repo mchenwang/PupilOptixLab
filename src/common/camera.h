@@ -107,5 +107,12 @@ public:
         m_forward = Transform::TransformVector(m_forward, rotate.matrix);
         m_to_world_dirty = true;
     }
+
+    void Move(Float3 translation) {
+        Transform translate;
+        translate.Translate(translation.x, translation.y, translation.z);
+        m_position = Transform::TransformPoint(m_position, translate.matrix);
+        m_to_world_dirty = true;
+    }
 };
 }// namespace util
