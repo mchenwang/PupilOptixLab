@@ -196,6 +196,11 @@ Scene::Scene() noexcept {
             std::string value = obj->GetProperty("fov");
             if (!value.empty()) sensor->fov = std::stof(value);
 
+            value = obj->GetProperty("near_clip");
+            if (!value.empty()) sensor->near_clip = std::stof(value);
+            value = obj->GetProperty("far_clip");
+            if (!value.empty()) sensor->far_clip = std::stof(value);
+
             auto film_obj = obj->GetUniqueSubObject("film");
             InvokeXmlObjLoadCallBack(film_obj, &sensor->film);
 
