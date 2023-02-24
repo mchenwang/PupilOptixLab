@@ -68,15 +68,16 @@ int main() {
         g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
         g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
 
+        ++g_params.frame_cnt;
+
         auto msg = gui_window->Show();
         if (msg == gui::GlobalMessage::Quit)
             break;
-
-        ++g_params.frame_cnt;
     } while (true);
 
     CUDA_FREE(g_emitters_cuda_memory);
 
+    g_camera.reset();
     g_pt_module.reset();
     g_sphere_module.reset();
     g_optix_device.reset();
@@ -116,7 +117,7 @@ void ConfigScene(device::Optix *device) {
     std::string scene_name = "staircase/scene_v3.xml";
     // scene_name = "veach-ajar/scene_v3.xml";
     // scene_name = "veach-mis/scene_v3.xml";
-    // scene_name = "cornell-box/scene_v3.xml";
+    scene_name = "cornell-box/scene_v3.xml";
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
@@ -204,9 +205,13 @@ void InitGuiAndEventCallback() {
 
     gui_window->AppendGuiConsoleOperations(
         "Path Tracer Option",
-        []() { ImGui::Text("test Text."); });
+        []() {
+            int depth = g_params.config.max_depth;
+            ImGui::DragInt("trace depth", &depth, 1, 1, 128);
+            g_params.config.max_depth = (unsigned int)depth;
 
-    auto backend = gui_window->GetBackend();
+            ImGui::Text("test Text.");
+        });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Resize,
@@ -222,7 +227,7 @@ void InitGuiAndEventCallback() {
             CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&g_params.accum_buffer), w * h * sizeof(float4)));
 
             g_optix_device->ClearSharedFrameResource();
-            backend->SetScreenResource(g_optix_device->GetSharedFrameResource());
+            gui_window->GetBackend()->SetScreenResource(g_optix_device->GetSharedFrameResource());
 
             float aspect = static_cast<float>(w) / h;
             g_camera->SetAspectRatio(aspect);
@@ -230,9 +235,18 @@ void InitGuiAndEventCallback() {
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseLeftButtonMove,
-        [&camera = g_params.camera, &gui_window]() {
-            float dx = 0.25f * gui_window->GetMouseLastDeltaX();
-            float dy = 0.25f * gui_window->GetMouseLastDeltaY();
+        [&]() {
+            float dx = gui_window->GetMouseLastDeltaX();
+            float dy = -gui_window->GetMouseLastDeltaY();
             //camera
+            g_camera->RotateY(dx);
+            g_camera->Pitch(dy);
+
+            g_params.frame_cnt = 0;
+        });
+
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::KeyboardMove,
+        []() {
         });
 }
