@@ -40,9 +40,9 @@ public:
     Mat4 GetToWorldMatrix() noexcept {
         if (m_to_world_dirty) {
             Mat4 view_matrix =
-                Mat4(m_right.x, m_right.y, m_right.z, 0.f,
-                     m_up.x, m_up.y, m_up.z, 0.f,
-                     m_right.x, m_right.y, m_right.z, 0.f,
+                Mat4(m_right.x, m_up.x, m_forward.x, 0.f,
+                     m_right.y, m_up.y, m_forward.y, 0.f,
+                     m_right.z, m_up.z, m_forward.z, 0.f,
                      0.f, 0.f, 0.f, 1.f) *
                 Mat4(1.f, 0.f, 0.f, -m_position.x,
                      0.f, 1.f, 0.f, -m_position.y,
@@ -72,6 +72,21 @@ public:
         m_position.x = m_to_world.r0.w;
         m_position.y = m_to_world.r1.w;
         m_position.z = m_to_world.r2.w;
+
+        Mat4 view_matrix = m_to_world.GetInverse();
+
+        m_right.x = view_matrix.r0.x;
+        m_right.y = view_matrix.r1.x;
+        m_right.z = view_matrix.r2.x;
+
+        m_up.x = view_matrix.r0.y;
+        m_up.y = view_matrix.r1.y;
+        m_up.z = view_matrix.r2.y;
+
+        m_forward.x = view_matrix.r0.z;
+        m_forward.y = view_matrix.r1.z;
+        m_forward.z = view_matrix.r2.z;
+
         m_to_world_dirty = false;
     }
 
