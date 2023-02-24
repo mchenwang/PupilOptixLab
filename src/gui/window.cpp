@@ -25,9 +25,11 @@ HINSTANCE m_instance;
 
 Backend *m_backend = nullptr;
 
+constexpr float MOUSE_SENSITIVITY = 0.005f;
+float m_gui_sensitivity_scale = 1.f;
 POINT m_last_mouse_pos;
-uint32_t m_last_mouse_pos_delta_x = 0;
-uint32_t m_last_mouse_pos_delta_y = 0;
+int m_last_mouse_pos_delta_x = 0;
+int m_last_mouse_pos_delta_y = 0;
 
 short m_mouse_wheel_delta = 0;
 
@@ -51,6 +53,7 @@ void OnMouseDown(WPARAM, LONG, LONG) noexcept;
 void OnMouseUp(WPARAM, LONG, LONG) noexcept;
 void OnMouseMove(WPARAM, LONG, LONG) noexcept;
 void OnMouseWheel(short) noexcept;
+void OnKeyDown(WPARAM) noexcept;
 
 inline void InvokeGuiEventCallback(gui::GlobalMessage msg) noexcept {
     auto it = m_message_callbacks.find(msg);
@@ -169,9 +172,9 @@ void Window::Resize(uint32_t w, uint32_t h, bool reset_window) noexcept {
     }
 }
 
-uint32_t Window::GetMouseLastDeltaX() noexcept { return m_last_mouse_pos_delta_x; }
-uint32_t Window::GetMouseLastDeltaY() noexcept { return m_last_mouse_pos_delta_y; }
-short Window::GetMouseWheelDelta() noexcept { return m_mouse_wheel_delta; }
+float Window::GetMouseLastDeltaX() noexcept { return m_gui_sensitivity_scale * MOUSE_SENSITIVITY * m_last_mouse_pos_delta_x; }
+float Window::GetMouseLastDeltaY() noexcept { return m_gui_sensitivity_scale * MOUSE_SENSITIVITY * m_last_mouse_pos_delta_y; }
+float Window::GetMouseWheelDelta() noexcept { return m_mouse_wheel_delta; }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -184,7 +187,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (m_handling_imgui_flag)
         return ::DefWindowProc(hWnd, msg, wParam, lParam);
 
-    LONG x, y;
+    POINT cursor_pos;
     switch (msg) {
         case WM_SIZE:
             if (m_backend) {
@@ -200,29 +203,30 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if ((wParam & 0xfff0) == SC_KEYMENU)// Disable ALT application menu
                 return 0;
             break;
+        case WM_KEYDOWN:
+            OnKeyDown(wParam);
+            break;
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_RBUTTONDOWN:
-            x = static_cast<LONG>(LOWORD(lParam));
-            y = static_cast<LONG>(HIWORD(lParam));
-            OnMouseDown(wParam, x, y);
+            if (GetCursorPos(&cursor_pos)) {
+                OnMouseDown(wParam, cursor_pos.x, cursor_pos.y);
+            }
             break;
         case WM_LBUTTONUP:
         case WM_MBUTTONUP:
         case WM_RBUTTONUP:
-            x = static_cast<LONG>(LOWORD(lParam));
-            y = static_cast<LONG>(HIWORD(lParam));
-            OnMouseUp(wParam, x, y);
+            if (GetCursorPos(&cursor_pos)) {
+                OnMouseUp(wParam, cursor_pos.x, cursor_pos.y);
+            }
             break;
         case WM_MOUSEMOVE:
-            x = static_cast<LONG>(LOWORD(lParam));
-            y = static_cast<LONG>(HIWORD(lParam));
-            OnMouseMove(wParam, x, y);
-
-            m_last_mouse_pos.x = x;
-            m_last_mouse_pos.y = y;
+            if (GetCursorPos(&cursor_pos)) {
+                OnMouseMove(wParam, cursor_pos.x, cursor_pos.y);
+                m_last_mouse_pos.x = cursor_pos.x;
+                m_last_mouse_pos.y = cursor_pos.y;
+            }
             break;
-
         case WM_MOUSEWHEEL:
             OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
             break;
@@ -266,6 +270,7 @@ void DrawImGuiConsoleWindow() noexcept {
         if (ImGui::CollapsingHeader("Basic Information", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Text("Render Target Size(width x height): %d x %d", g_window_w, g_window_h);
+            ImGui::InputFloat("mouse sensitivity scale", &m_gui_sensitivity_scale, 0.1f, 1.0f, "%.3f");
         }
 
         for (auto &&[title, op] : m_gui_console_ops) {
@@ -313,12 +318,14 @@ void OnMouseUp(WPARAM btn_state, LONG x, LONG y) noexcept {
 }
 
 void OnMouseMove(WPARAM btn_state, LONG x, LONG y) noexcept {
-    m_last_mouse_pos_delta_x = static_cast<uint32_t>(x - m_last_mouse_pos.x);
-    m_last_mouse_pos_delta_y = static_cast<uint32_t>(y - m_last_mouse_pos.y);
     if ((btn_state & MK_LBUTTON) != 0) {
+        m_last_mouse_pos_delta_x = m_last_mouse_pos.x - x;
+        m_last_mouse_pos_delta_y = m_last_mouse_pos.y - y;
         InvokeGuiEventCallback(gui::GlobalMessage::MouseLeftButtonMove);
     }
     if ((btn_state & MK_RBUTTON) != 0) {
+        m_last_mouse_pos_delta_x = m_last_mouse_pos.x - x;
+        m_last_mouse_pos_delta_y = m_last_mouse_pos.y - y;
         InvokeGuiEventCallback(gui::GlobalMessage::MouseRightButtonMove);
     }
 }
@@ -326,6 +333,24 @@ void OnMouseMove(WPARAM btn_state, LONG x, LONG y) noexcept {
 void OnMouseWheel(short zDelta) noexcept {
     m_mouse_wheel_delta = zDelta;
     InvokeGuiEventCallback(gui::GlobalMessage::MouseWheel);
+}
+
+void OnKeyDown(WPARAM key) noexcept {
+    g_message = gui::GlobalMessage::KeyboardMove;
+    switch (key) {
+        case VK_UP:
+        case 'W':
+            break;
+        case VK_DOWN:
+        case 'S':
+            break;
+        case VK_LEFT:
+        case 'A':
+            break;
+        case VK_RIGHT:
+        case 'D':
+            break;
+    }
 }
 
 }// namespace
