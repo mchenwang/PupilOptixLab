@@ -17,6 +17,20 @@ struct Float3 {
 
     Float3(float xyz = 0.f) noexcept : x(xyz), y(xyz), z(xyz) {}
     Float3(float x_, float y_, float z_) noexcept : x(x_), y(y_), z(z_) {}
+
+    inline Float3 operator+(const Float3 &t) const noexcept { return { x + t.x, y + t.y, z + t.z }; }
+    inline Float3 operator-(const Float3 &t) const noexcept { return { x - t.x, y - t.y, z - t.z }; }
+    inline Float3 operator*(float t) const noexcept { return { x * t, y * t, z * t }; }
+    inline Float3 operator/(float t) const noexcept { return *this * (1.f / t); }
+
+    inline Float3 &operator+=(const Float3 &t) noexcept {
+        *this = *this + t;
+        return *this;
+    }
+    inline Float3 &operator-=(const Float3 &t) noexcept {
+        *this = *this - t;
+        return *this;
+    }
 };
 
 struct Float4 {
@@ -32,6 +46,20 @@ struct Float4 {
 
     Float4(float xyzw = 0.f) noexcept : x(xyzw), y(xyzw), z(xyzw), w(xyzw) {}
     Float4(float x_, float y_, float z_, float w_) noexcept : x(x_), y(y_), z(z_), w(w_) {}
+
+    inline Float4 operator+(const Float4 &t) const noexcept { return { x + t.x, y + t.y, z + t.z, w + t.w }; }
+    inline Float4 operator-(const Float4 &t) const noexcept { return { x - t.x, y - t.y, z - t.z, w - t.w }; }
+    inline Float4 operator*(float t) const noexcept { return { x * t, y * t, z * t, w * t }; }
+    inline Float4 operator/(float t) const noexcept { return *this * (1.f / t); }
+
+    inline Float4 &operator+=(const Float4 &t) noexcept {
+        *this = *this + t;
+        return *this;
+    }
+    inline Float4 &operator-=(const Float4 &t) noexcept {
+        *this = *this - t;
+        return *this;
+    }
 };
 
 struct Mat4 {
