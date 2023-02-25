@@ -14,11 +14,6 @@ struct Camera {
         float4 r2;
         float4 r3;
     } sample_to_camera, camera_to_world;
-
-    // #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-    //     void SetCameraTransform(float fov, float aspect_ratio, float near_clip = 0.01f, float far_clip = 10000.f) noexcept;
-    //     void SetWorldTransform(float matrix[16]) noexcept;
-    // #endif
 };
 
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
@@ -44,19 +39,21 @@ public:
     CameraHelper(const CameraDesc &desc) noexcept;
     ~CameraHelper() noexcept;
 
+    void Reset(const CameraDesc &desc) noexcept;
+
     void SetFov(float fov) noexcept;
+    void SetFovDelta(float fov_delta) noexcept;
     void SetAspectRatio(float aspect_ration) noexcept;
     void SetNearClip(float near_clip) noexcept;
     void SetFarClip(float far_clip) noexcept;
     void SetWorldTransform(util::Transform to_world) noexcept;
 
-    void Pitch(float angle) noexcept;
-    void Yaw(float angle) noexcept;
-    void Roll(float angle) noexcept;
-    void RotateY(float angle) noexcept;
+    void Rotate(float delta_x, float delta_y) noexcept;
     void Move(util::Float3 translation) noexcept;
 
     CUdeviceptr GetCudaMemory() noexcept;
+
+    std::tuple<util::Float3, util::Float3, util::Float3> GetCameraCoordinateSystem() const noexcept;
 };
 #endif
 }// namespace optix_util

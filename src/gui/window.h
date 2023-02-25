@@ -29,10 +29,11 @@ public:
 
     Backend *GetBackend() const noexcept;
 
-    void GetWindowSize(uint32_t &w, uint32_t &h) noexcept;
+    void GetWindowSize(uint32_t &w, uint32_t &h) const noexcept;
 
-    float GetMouseLastDeltaX() noexcept;
-    float GetMouseLastDeltaY() noexcept;
-    float GetMouseWheelDelta() noexcept;
+    int GetMouseLastDeltaX() const noexcept;
+    int GetMouseLastDeltaY() const noexcept;
+    short GetMouseWheelDelta() const noexcept;
+    bool IsKeyPressed(int key) const noexcept;
 };
 }// namespace gui
