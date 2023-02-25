@@ -16,6 +16,12 @@ struct Camera {
     } sample_to_camera, camera_to_world;
 };
 
+    // #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+    //     void SetCameraTransform(float fov, float aspect_ratio, float near_clip = 0.01f, float far_clip = 10000.f) noexcept;
+    //     void SetWorldTransform(float matrix[16]) noexcept;
+    // #endif
+};
+
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
 struct CameraDesc {
     float fov_y;

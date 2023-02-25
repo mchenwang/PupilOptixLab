@@ -95,5 +95,4 @@ struct Mat4 {
 
     Mat4 GetTranspose() const noexcept { return DirectX::XMMatrixTranspose(dx_mat); }
 };
-
 }// namespace util

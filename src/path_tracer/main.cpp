@@ -75,7 +75,6 @@ int main() {
         if (msg == gui::GlobalMessage::Quit)
             break;
     } while (true);
-
     CUDA_FREE(g_emitters_cuda_memory);
 
     g_camera.reset();
