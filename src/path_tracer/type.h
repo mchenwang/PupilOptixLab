@@ -13,6 +13,7 @@
 struct OptixLaunchParams {
     struct {
         unsigned int max_depth;
+        bool accumulated_flag;
 
         struct {
             unsigned int width;
