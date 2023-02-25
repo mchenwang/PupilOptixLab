@@ -30,6 +30,7 @@ std::unique_ptr<scene::Scene> g_scene;
 
 OptixLaunchParams g_params;
 
+optix_util::CameraDesc g_camera_init_desc;
 std::unique_ptr<optix_util::CameraHelper> g_camera;
 
 CUdeviceptr g_emitters_cuda_memory = 0;
@@ -68,15 +69,15 @@ int main() {
         g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
         g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
 
+        ++g_params.frame_cnt;
+
         auto msg = gui_window->Show();
         if (msg == gui::GlobalMessage::Quit)
             break;
-
-        ++g_params.frame_cnt;
     } while (true);
-
     CUDA_FREE(g_emitters_cuda_memory);
 
+    g_camera.reset();
     g_pt_module.reset();
     g_sphere_module.reset();
     g_optix_device.reset();
@@ -114,9 +115,10 @@ void ConfigPipeline(device::Optix *device) {
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
     std::string scene_name = "staircase/scene_v3.xml";
-    // scene_name = "veach-ajar/scene_v3.xml";
+    scene_name = "veach-ajar/scene_v3.xml";
     // scene_name = "veach-mis/scene_v3.xml";
     // scene_name = "cornell-box/scene_v3.xml";
+    // scene_name = "test.xml";
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
@@ -132,6 +134,7 @@ void ConfigScene(device::Optix *device) {
         .far_clip = sensor.far_clip,
         .to_world = sensor.transform
     };
+    g_camera_init_desc = desc;
     g_camera = std::make_unique<optix_util::CameraHelper>(desc);
 }
 
@@ -181,6 +184,7 @@ void InitLaunchParams(device::Optix *device) {
     g_params.config.frame.width = g_scene->sensor.film.w;
     g_params.config.frame.height = g_scene->sensor.film.h;
     g_params.config.max_depth = g_scene->integrator.max_depth;
+    g_params.config.accumulated_flag = true;
 
     g_params.frame_cnt = 0;
 
@@ -204,9 +208,20 @@ void InitGuiAndEventCallback() {
 
     gui_window->AppendGuiConsoleOperations(
         "Path Tracer Option",
-        []() { ImGui::Text("test Text."); });
+        []() {
+            if (ImGui::Button("Reset Camera")) {
+                g_camera->Reset(g_camera_init_desc);
+                g_params.frame_cnt = 0;
+            }
 
-    auto backend = gui_window->GetBackend();
+            int depth = g_params.config.max_depth;
+            ImGui::DragInt("trace depth", &depth, 1, 1, 128);
+            g_params.config.max_depth = (unsigned int)depth;
+
+            if (ImGui::Checkbox("accumulate radiance", &g_params.config.accumulated_flag)) {
+                g_params.frame_cnt = 0;
+            }
+        });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Resize,
@@ -222,7 +237,7 @@ void InitGuiAndEventCallback() {
             CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&g_params.accum_buffer), w * h * sizeof(float4)));
 
             g_optix_device->ClearSharedFrameResource();
-            backend->SetScreenResource(g_optix_device->GetSharedFrameResource());
+            gui_window->GetBackend()->SetScreenResource(g_optix_device->GetSharedFrameResource());
 
             float aspect = static_cast<float>(w) / h;
             g_camera->SetAspectRatio(aspect);
@@ -230,9 +245,57 @@ void InitGuiAndEventCallback() {
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseLeftButtonMove,
-        [&camera = g_params.camera, &gui_window]() {
-            float dx = 0.25f * gui_window->GetMouseLastDeltaX();
-            float dy = 0.25f * gui_window->GetMouseLastDeltaY();
-            //camera
+        [&]() {
+            float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
+            float dx = gui_window->GetMouseLastDeltaX() * scale;
+            float dy = gui_window->GetMouseLastDeltaY() * scale;
+
+            g_camera->Rotate(dx, dy);
+
+            g_params.frame_cnt = 0;
+        });
+
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::MouseWheel,
+        [&]() {
+            float fov_delta = 1.f / 120.f * gui_window->GetMouseWheelDelta();
+            g_camera->SetFovDelta(fov_delta);
+
+            g_params.frame_cnt = 0;
+        });
+
+    gui_window->SetWindowMessageCallback(
+        gui::GlobalMessage::KeyboardMove,
+        [&]() {
+            //auto [right, up, forward] = g_camera->GetCameraCoordinateSystem();
+            auto right = util::Camera::X;
+            auto up = util::Camera::Y;
+            auto forward = util::Camera::Z;
+
+            util::Float3 translation{ 0.f };
+            if (gui_window->IsKeyPressed('W') || gui_window->IsKeyPressed(VK_UP)) {
+                translation += forward;
+            }
+            if (gui_window->IsKeyPressed('S') || gui_window->IsKeyPressed(VK_DOWN)) {
+                translation -= forward;
+            }
+
+            if (gui_window->IsKeyPressed('A') || gui_window->IsKeyPressed(VK_LEFT)) {
+                translation += right;
+            }
+            if (gui_window->IsKeyPressed('D') || gui_window->IsKeyPressed(VK_RIGHT)) {
+                translation -= right;
+            }
+
+            if (gui_window->IsKeyPressed('Q')) {
+                translation += up;
+            }
+            if (gui_window->IsKeyPressed('E')) {
+                translation -= up;
+            }
+
+            g_camera->Move(translation * util::Camera::sensitivity * util::Camera::sensitivity_scale);
+
+            g_params.frame_cnt = 0;
         });
 }

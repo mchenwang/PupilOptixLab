@@ -106,7 +106,7 @@ extern "C" __global__ void __raygen__main() {
         record.throughput /= rr;
     }
 
-    if (optix_launch_params.frame_cnt > 0) {
+    if (optix_launch_params.config.accumulated_flag && optix_launch_params.frame_cnt > 0) {
         const float t = 1.f / (optix_launch_params.frame_cnt + 1.f);
         const float3 pre = make_float3(optix_launch_params.accum_buffer[pixel_index]);
         record.radiance = lerp(pre, record.radiance, t);

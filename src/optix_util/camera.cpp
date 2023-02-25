@@ -14,9 +14,26 @@ CameraHelper::~CameraHelper() noexcept {
     CUDA_FREE(m_camera_cuda_memory);
 }
 
+void CameraHelper::Reset(const CameraDesc &desc) noexcept {
+    m_camera.SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
+    m_camera.SetWorldTransform(desc.to_world);
+    m_desc = desc;
+    m_dirty = true;
+}
+
 void CameraHelper::SetFov(float fov) noexcept {
-    m_camera.UpdateFov(fov);
+    m_camera.SetFov(fov);
     m_desc.fov_y = fov;
+    m_dirty = true;
+}
+void CameraHelper::SetFovDelta(float fov_delta) noexcept {
+    m_desc.fov_y += fov_delta;
+    // Minimum angle is 0.00001 * 2 * 180 / pi (XMMatrixPerspectiveFovRH)
+    if (m_desc.fov_y < 0.012f)
+        m_desc.fov_y = 0.012f;
+    else if (m_desc.fov_y > 180.f)
+        m_desc.fov_y = 180.f;
+    m_camera.SetFov(m_desc.fov_y);
     m_dirty = true;
 }
 void CameraHelper::SetAspectRatio(float aspect_ration) noexcept {
@@ -43,20 +60,8 @@ void CameraHelper::SetWorldTransform(util::Transform to_world) noexcept {
     m_dirty = true;
 }
 
-void CameraHelper::Pitch(float angle) noexcept {
-    m_camera.Pitch(angle);
-    m_dirty = true;
-}
-void CameraHelper::Yaw(float angle) noexcept {
-    m_camera.Yaw(angle);
-    m_dirty = true;
-}
-void CameraHelper::Roll(float angle) noexcept {
-    m_camera.Roll(angle);
-    m_dirty = true;
-}
-void CameraHelper::RotateY(float angle) noexcept {
-    m_camera.RotateY(angle);
+void CameraHelper::Rotate(float delta_x, float delta_y) noexcept {
+    m_camera.Rotate(delta_x, delta_y);
     m_dirty = true;
 }
 void CameraHelper::Move(util::Float3 translation) noexcept {
@@ -90,4 +95,9 @@ CUdeviceptr CameraHelper::GetCudaMemory() noexcept {
 
     return m_camera_cuda_memory;
 }
+
+std::tuple<util::Float3, util::Float3, util::Float3> CameraHelper::GetCameraCoordinateSystem() const noexcept {
+    return m_camera.GetCameraCoordinateSystem();
+}
+
 }// namespace optix_util
