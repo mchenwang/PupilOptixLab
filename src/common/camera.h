@@ -22,6 +22,9 @@ private:
     Mat4 m_sample_to_camera;
 
 public:
+    static float sensitivity;
+    static float sensitivity_scale;
+
     Camera() noexcept = default;
 
     Mat4 GetSampleToCameraMatrix() noexcept {
@@ -52,6 +55,10 @@ public:
             m_to_world_dirty = false;
         }
         return m_to_world;
+    }
+
+    std::tuple<Float3, Float3, Float3> GetCameraCoordinateSystem() const noexcept {
+        return { m_right, m_up, m_forward };
     }
 
     void SetProjectionFactor(float fov_y, float aspect_ratio, float near_clip = 0.01f, float far_clip = 10000.f) noexcept {
