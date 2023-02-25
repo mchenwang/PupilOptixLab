@@ -76,13 +76,13 @@ struct Mat4 {
     };
 
     constexpr Mat4() noexcept : r0(0.f), r1(0.f), r2(0.f), r3(0.f) {}
-    constexpr Mat4(float e_[16]) noexcept { std::copy(e_, e_ + 16, e); }
     constexpr Mat4(float m00, float m01, float m02, float m03,
                    float m10, float m11, float m12, float m13,
                    float m20, float m21, float m22, float m23,
                    float m30, float m31, float m32, float m33) noexcept
         : r0(m00, m01, m02, m03), r1(m10, m11, m12, m13), r2(m20, m21, m22, m23), r3(m30, m31, m32, m33) {}
 
+    Mat4(float e_[16]) noexcept { std::copy(e_, e_ + 16, e); }
     Mat4(DirectX::XMMATRIX m) noexcept { dx_mat = m; }
     operator DirectX::XMMATRIX() const noexcept { return dx_mat; }
 
