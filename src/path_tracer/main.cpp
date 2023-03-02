@@ -115,10 +115,10 @@ void ConfigPipeline(device::Optix *device) {
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
     std::string scene_name = "staircase/scene_v3.xml";
-    scene_name = "veach-ajar/scene_v3.xml";
+    //scene_name = "veach-ajar/scene_v3.xml";
     // scene_name = "veach-mis/scene_v3.xml";
-    // scene_name = "cornell-box/scene_v3.xml";
-    // scene_name = "test.xml";
+    //scene_name = "cornell-box/scene_v3.xml";
+    scene_name = "mis.xml";
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
