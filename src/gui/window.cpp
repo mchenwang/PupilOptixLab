@@ -7,10 +7,16 @@
 
 #include "common/camera.h"
 
+#include "static.h"
+
+#include <wincodec.h>
+#include "ScreenGrab.h"
+
 #include <string>
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <filesystem>
 
 using namespace gui;
 
@@ -267,7 +273,15 @@ void DrawImGuiConsoleWindow() noexcept {
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("Menu")) {
                 if (ImGui::MenuItem("Save")) {
-                    printf("test save\n");
+                    static uint32_t save_file_cnt = 1;
+                    std::filesystem::path path{ ROOT_DIR };
+                    path /= std::to_string(save_file_cnt++) + ".jpg";
+                    StopIfFailed(
+                        DirectX::SaveWICTextureToFile(
+                            m_backend->GetDevice()->cmd_queue.Get(),
+                            m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
+                            GUID_ContainerFormatJpeg, path.wstring().data(),
+                            D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT));
                 }
                 ImGui::EndMenu();
             }
