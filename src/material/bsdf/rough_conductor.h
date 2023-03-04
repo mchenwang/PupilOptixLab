@@ -33,7 +33,7 @@ struct RoughConductor {
         float3 wh = wi + wo;
         if (optix_util::IsZero(wh)) return 0.f;
         wh = normalize(wh);
-        return ggx::Pdf(wh, alpha) / (4.f * dot(wo, wh));
+        return ggx::Pdf(wo, wh, alpha) / (4.f * dot(wo, wh));
     }
 
     CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 sampled_tex) const noexcept {
