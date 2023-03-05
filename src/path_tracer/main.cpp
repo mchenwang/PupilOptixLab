@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <iostream>
+#include <fstream>
 
 std::unique_ptr<device::Optix> g_optix_device;
 
@@ -114,11 +115,12 @@ void ConfigPipeline(device::Optix *device) {
 
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
-    std::string scene_name = "staircase/scene_v3.xml";
-    //scene_name = "veach-ajar/scene_v3.xml";
-    // scene_name = "veach-mis/scene_v3.xml";
-    //scene_name = "cornell-box/scene_v3.xml";
-    scene_name = "mis.xml";
+    std::string scene_name = "mis.xml";
+    std::ifstream scene_config_file(std::string{ ROOT_DIR } + "/pt_config.ini", std::ios::in);
+    if (scene_config_file.is_open()) {
+        std::getline(scene_config_file, scene_name);
+        scene_config_file.close();
+    }
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
@@ -215,8 +217,12 @@ void InitGuiAndEventCallback() {
             }
 
             int depth = g_params.config.max_depth;
-            ImGui::DragInt("trace depth", &depth, 1, 1, 128);
-            g_params.config.max_depth = (unsigned int)depth;
+            ImGui::InputInt("trace depth", &depth);
+            depth = clamp(depth, 1, 128);
+            if (g_params.config.max_depth != depth) {
+                g_params.config.max_depth = (unsigned int)depth;
+                g_params.frame_cnt = 0;
+            }
 
             if (ImGui::Checkbox("accumulate radiance", &g_params.config.accumulated_flag)) {
                 g_params.frame_cnt = 0;
