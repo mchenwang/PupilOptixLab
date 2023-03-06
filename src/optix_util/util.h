@@ -147,19 +147,23 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 GammaCorrection(float3 color, float gamma) {
     return make_float3(powf(color.x, 1.f / gamma), powf(color.y, 1.f / gamma), powf(color.z, 1.f / gamma));
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float GetLuminance(float3 color) noexcept {
+    return 0.2126f * color.x + 0.7152f * color.y + 0.0722f * color.z;
+}
+
 CUDA_INLINE CUDA_HOSTDEVICE float MISWeight(float x, float y) {
     return x / (x + y);
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float v) noexcept {
     return abs(v) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float2 v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float2 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float3 v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
 }
 }// namespace optix_util
