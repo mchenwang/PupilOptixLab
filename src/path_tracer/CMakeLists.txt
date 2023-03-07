@@ -8,9 +8,9 @@ set(path_tracer_source
 
 add_executable(${path_tracer_name})
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_options(${path_tracer_name} PRIVATE /Zc:preprocessor)
-endif ()
+endif()
 
 target_sources(${path_tracer_name} PRIVATE ${path_tracer_source})
 
@@ -28,7 +28,11 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx
     DEPENDS
         ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
-    COMMAND nvcc ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
+        ${pupil_optix_root}/optix_util/*.h
+        ${pupil_optix_root}/material/*.h
+        ${pupil_optix_root}/material/bsdf/*.h
+    COMMAND
+        nvcc ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         -ptx -o ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx -std=c++17
         -I ${OptiX_ROOT_DIR}/include
         -I ${CMAKE_CURRENT_SOURCE_DIR}
@@ -36,9 +40,7 @@ add_custom_command(
 )
 add_custom_target(path_tracer-ptx
     DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx
-        # ${CMAKE_CURRENT_SOURCE_DIR}/spatial.ptx
-        # ${CMAKE_CURRENT_SOURCE_DIR}/lighting.ptx
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx
 )
 
 add_dependencies(${path_tracer_name} path_tracer-ptx)
