@@ -57,17 +57,6 @@ struct Emitter {
         return emitters[i];
     }
 
-    // CUDA_HOSTDEVICE float4 Eval(LocalGeometry hit_geo, float3 ray_dir) const noexcept {
-    //     float3 emit_radiance = make_float3(0.f);
-    //     float pdf = 0.f;
-    //     float LNoL = dot(-ray_dir, hit_geo.normal);
-    //     if (LNoL > 0.f) {
-    //         emit_radiance = radiance.Sample(hit_geo.texcoord);
-    //         pdf = 1.f / (area * LNoL);
-    //     }
-    //     return make_float4(emit_radiance, pdf);
-    // }
-
     struct LocalRecord {
         float3 position;
         float3 normal;

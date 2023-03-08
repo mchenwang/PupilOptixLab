@@ -88,6 +88,8 @@ struct Geometry {
                 const auto center = optixTransformPointFromObjectToWorldSpace(sphere.center);
                 ret.normal = normalize(ret.position - center);
                 if (sphere.flip_normal) ret.normal *= -1.f;
+
+                ret.texcoord = make_float2(asin(ret.normal.x) * M_1_PIf + 0.5f, asin(ret.normal.y) * M_1_PIf + 0.5f);
             } break;
         }
         return ret;

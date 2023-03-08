@@ -12,9 +12,9 @@ struct RoughConductor {
     cuda::Texture k;
     cuda::Texture specular_reflectance;
 
-    CUDA_HOSTDEVICE float3 GetBsdf(float2 local_tex, float3 in, float3 out) const noexcept {
-        if (optix_util::IsZero(in.z) || optix_util::IsZero(out.z)) return make_float3(0.f);
-        float3 wh = in + out;
+    CUDA_HOSTDEVICE float3 GetBsdf(float2 local_tex, float3 wi, float3 wo) const noexcept {
+        if (optix_util::IsZero(wi.z) || optix_util::IsZero(wo.z)) return make_float3(0.f);
+        float3 wh = wi + wo;
         if (optix_util::IsZero(wh)) return make_float3(0.f);
         wh = normalize(wh);
 
@@ -22,9 +22,9 @@ struct RoughConductor {
         float3 local_k = k.Sample(local_tex);
         float3 local_albedo = specular_reflectance.Sample(local_tex);
 
-        float IoH = dot(in, wh);
+        float IoH = dot(wi, wh);
         float3 fresnel = fresnel::ConductorReflectance(local_eta, local_k, IoH);
-        float3 f = ggx::D(wh, alpha) * fresnel * ggx::G(in, out, alpha) / (4.f * in.z * out.z);
+        float3 f = ggx::D(wh, alpha) * fresnel * ggx::G(wi, wo, alpha) / (4.f * wi.z * wo.z);
         return local_albedo * f;
     }
 
@@ -41,6 +41,7 @@ struct RoughConductor {
         ret.wi = optix_util::Reflect(wo, ggx::Sample(wo, alpha, xi));
         ret.f = GetBsdf(sampled_tex, ret.wi, wo);
         ret.pdf = GetPdf(ret.wi, wo);
+        ret.lobe_type = EBsdfLobeType::DiffuseReflection;
         return ret;
     }
 };

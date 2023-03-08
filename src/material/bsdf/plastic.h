@@ -64,9 +64,11 @@ struct Plastic {
 
         if (xi.x < m_specular_sampling_weight) {
             ret.wi = optix_util::Reflect(wo);
+            ret.lobe_type = EBsdfLobeType::DeltaReflection;
         } else {
             xi.x = (xi.x - m_specular_sampling_weight) / (1.f - m_specular_sampling_weight);
             ret.wi = optix_util::CosineSampleHemisphere(xi.x, xi.y);
+            ret.lobe_type = EBsdfLobeType::DiffuseReflection;
         }
 
         ret.pdf = GetPdf(ret.wi, wo);

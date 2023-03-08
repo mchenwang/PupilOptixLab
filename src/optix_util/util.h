@@ -93,6 +93,11 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
     return -v + 2 * dot(v, normal) * normal;
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float3 Refract(float3 v, float cos_theta_t, float eta) noexcept {
+    float scale = -(cos_theta_t < 0.f ? 1.f / eta : eta);
+    return make_float3(scale * v.x, scale * v.y, cos_theta_t);
+}
+
 // https://graphics.pixar.com/library/OrthonormalB/paper.pdf
 CUDA_INLINE CUDA_HOSTDEVICE void BuildONB(float3 N, float3 &b1, float3 &b2) noexcept {
     float sign = copysignf(1.f, N.z);

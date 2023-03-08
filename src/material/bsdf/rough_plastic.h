@@ -63,9 +63,11 @@ struct RoughPlastic {
             xi.x = (m_specular_sampling_weight - xi.x) / m_specular_sampling_weight;
             float3 wh = ggx::Sample(wo, alpha, xi);
             ret.wi = optix_util::Reflect(wo, wh);
+            ret.lobe_type = EBsdfLobeType::GlossyReflection;
         } else {
             xi.x = (xi.x - m_specular_sampling_weight) / (1.f - m_specular_sampling_weight);
             ret.wi = optix_util::CosineSampleHemisphere(xi.x, xi.y);
+            ret.lobe_type = EBsdfLobeType::DiffuseReflection;
         }
 
         ret.pdf = GetPdf(ret.wi, wo);

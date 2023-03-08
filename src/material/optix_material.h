@@ -58,7 +58,7 @@ struct Material {
                 ret.pdf = diffuse.GetPdf(wi, wo);
                 break;
             case EMatType::_dielectric:
-                ret.f = dielectric.GetBsdf(tex);
+                ret.f = dielectric.GetBsdf(tex, wi, wo);
                 ret.pdf = dielectric.GetPdf(wi, wo);
                 break;
             case EMatType::_conductor:
