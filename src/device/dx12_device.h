@@ -36,7 +36,7 @@ public:
     DX12() = delete;
     DX12(uint32_t w, uint32_t h, HWND hWnd)
     noexcept;
-    ~DX12() noexcept = default;
+    ~DX12() noexcept;
 
     void Flush() noexcept;
     void Resize(uint32_t w, uint32_t h) noexcept;
@@ -46,7 +46,7 @@ public:
         D3D12_CPU_DESCRIPTOR_HANDLE handle;
     };
     [[nodiscard]] Frame GetCurrentFrame() noexcept {
-        return Frame{m_back_buffers[m_current_index], m_back_buffer_handles[m_current_index]};
+        return Frame{ m_back_buffers[m_current_index], m_back_buffer_handles[m_current_index] };
     }
     [[nodiscard]] uint32_t GetCurrentFrameIndex() noexcept { return m_current_index; }
     [[nodiscard]] uint64_t GetGlobalFenceValue() noexcept { return global_fence_value; }

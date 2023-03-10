@@ -29,6 +29,10 @@ DX12::DX12(uint32_t w, uint32_t h, HWND hWnd) noexcept {
     CreateSwapchain(hWnd);
 }
 
+DX12::~DX12() noexcept {
+    Flush();
+}
+
 void DX12::CreateDevice() noexcept {
     if (m_adapter == nullptr) CreateAdapter();
     assert(m_adapter);

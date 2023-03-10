@@ -272,26 +272,53 @@ void DrawImGuiConsoleWindow() noexcept {
     if (ImGui::Begin("Lab Console", nullptr, ImGuiWindowFlags_MenuBar)) {
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("Menu")) {
-                if (ImGui::MenuItem("Save")) {
-                    static uint32_t save_file_cnt = 1;
-                    std::filesystem::path path{ ROOT_DIR };
-                    path /= std::to_string(save_file_cnt++) + ".jpg";
-                    StopIfFailed(
-                        DirectX::SaveWICTextureToFile(
-                            m_backend->GetDevice()->cmd_queue.Get(),
-                            m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
-                            GUID_ContainerFormatJpeg, path.wstring().data(),
-                            D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT));
+                // if (ImGui::MenuItem("Save")) {
+                //     static uint32_t save_file_cnt = 1;
+                //     std::filesystem::path path{ ROOT_DIR };
+                //     path /= std::to_string(save_file_cnt++) + ".jpg";
+                //     StopIfFailed(
+                //         DirectX::SaveWICTextureToFile(
+                //             m_backend->GetDevice()->cmd_queue.Get(),
+                //             m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
+                //             GUID_ContainerFormatJpeg, path.wstring().data(),
+                //             D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT));
+                // }
+                if (ImGui::MenuItem("Test")) {
+                    printf("test menu item\n");
                 }
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
         }
 
-        if (ImGui::CollapsingHeader("Basic Information", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Common info & op", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::SeparatorText("info");
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Text("Render Target Size(width x height): %d x %d", g_window_w, g_window_h);
+            ImGui::SeparatorText("op");
             ImGui::InputFloat("camera sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.3f");
+
+            // save image
+            {
+                static char file_name[256]{};
+                ImGui::InputText("file name", file_name, 256);
+                constexpr auto image_file_format = std::array{ ".jpg", ".png", ".hdr" };
+                static int item_current = 0;
+                ImGui::Combo("combo", &item_current, image_file_format.data(), (int)image_file_format.size());
+                ImGui::SameLine();
+                if (ImGui::Button("Save")) {
+                    std::filesystem::path path{ ROOT_DIR };
+                    path /= std::string{ file_name } + image_file_format[item_current];
+                    StopIfFailed(
+                        DirectX::SaveWICTextureToFile(
+                            m_backend->GetDevice()->cmd_queue.Get(),
+                            m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
+                            GUID_ContainerFormatJpeg, path.wstring().data(),
+                            D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT,
+                            nullptr, nullptr, true));
+                    printf("image was saved successfully in [%ws].\n", path.wstring().data());
+                }
+            }
         }
 
         for (auto &&[title, op] : m_gui_console_ops) {
