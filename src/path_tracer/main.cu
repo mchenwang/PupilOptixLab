@@ -188,7 +188,8 @@ extern "C" __global__ void __raygen__main() {
     optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
 
     float3 color = optix_util::ACESToneMapping(record.radiance, 1.f);
-    color = optix_util::GammaCorrection(color, 2.2f);
+    if (optix_launch_params.config.use_tone_mapping)
+        color = optix_util::GammaCorrection(color, 2.2f);
     optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
 }
 

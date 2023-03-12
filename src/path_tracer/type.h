@@ -14,6 +14,7 @@ struct OptixLaunchParams {
     struct {
         unsigned int max_depth;
         bool accumulated_flag;
+        bool use_tone_mapping;
 
         struct {
             unsigned int width;

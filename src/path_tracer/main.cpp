@@ -187,6 +187,7 @@ void InitLaunchParams(device::Optix *device) {
     g_params.config.frame.height = g_scene->sensor.film.h;
     g_params.config.max_depth = g_scene->integrator.max_depth;
     g_params.config.accumulated_flag = true;
+    g_params.config.use_tone_mapping = true;
 
     g_params.frame_cnt = 0;
 
@@ -227,6 +228,7 @@ void InitGuiAndEventCallback() {
             if (ImGui::Checkbox("accumulate radiance", &g_params.config.accumulated_flag)) {
                 g_params.frame_cnt = 0;
             }
+            ImGui::Checkbox("ACES tone mapping", &g_params.config.use_tone_mapping);
         });
 
     gui_window->SetWindowMessageCallback(
