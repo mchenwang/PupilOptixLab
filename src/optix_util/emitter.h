@@ -75,7 +75,7 @@ struct Emitter {
             } break;
             case EEmitterType::Sphere: {
                 ret.normal = (p - geo.sphere.center) / geo.sphere.radius;
-                float2 tex = make_float2(asin(ret.normal.x) * M_1_PIf + 0.5f, asin(ret.normal.y) * M_1_PIf + 0.5f);
+                float2 tex = optix_util::GetSphereTexcoord(ret.normal);
                 ret.radiance = radiance.Sample(tex);
             } break;
         }
@@ -97,7 +97,7 @@ struct Emitter {
                 float3 t = optix_util::UniformSampleSphere(u1, u2);
                 ret.position = t * geo.sphere.radius + geo.sphere.center;
                 ret.normal = t;
-                float2 tex = make_float2(asin(t.x) * M_1_PIf + 0.5f, asin(t.y) * M_1_PIf + 0.5f);
+                float2 tex = optix_util::GetSphereTexcoord(t);
                 ret.radiance = radiance.Sample(tex);
             } break;
         }

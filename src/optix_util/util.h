@@ -121,6 +121,19 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 ToWorld(float3 v, float3 N) {
     return b1 * v.x + b2 * v.y + N * v.z;
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float2 GetSphereTexcoord(float3 local_p) noexcept {
+    float phi = atan2(local_p.y, local_p.x);
+    phi = phi < 0.f ? phi + M_PIf * 2.f : phi;
+    auto t = local_p;
+    t.z -= t.z >= 0.f ? 1.f : -1.f;
+    // float theta = asin(0.5f * length(t)) * 2.f;
+    // theta = local_p.z >= 0.f ? theta : M_PIf - theta;
+    float theta = acos(local_p.z);
+
+    // make_float2(asin(ret.normal.x) * M_1_PIf + 0.5f, asin(ret.normal.y) * M_1_PIf + 0.5f);
+    return make_float2(phi * M_1_PIf * 0.5f, theta * M_1_PIf);
+}
+
 // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
 CUDA_INLINE CUDA_HOSTDEVICE float3 GetBarycentricCoordinates(float3 P, float3 A, float3 B, float3 C) noexcept {
     float3 v0 = B - A, v1 = C - A, v2 = P - A;
