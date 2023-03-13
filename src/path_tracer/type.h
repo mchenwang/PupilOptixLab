@@ -22,6 +22,7 @@ struct OptixLaunchParams {
         } frame;
     } config;
     unsigned int frame_cnt;
+    unsigned int sample_cnt;
 
     cuda::ConstDataView<optix_util::Camera> camera;
     cuda::ConstDataView<cuda::Texture> env;
