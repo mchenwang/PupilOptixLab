@@ -93,6 +93,11 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
     return -v + 2 * dot(v, normal) * normal;
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float3 Refract(float3 v, float cos_theta_t, float eta) noexcept {
+    float scale = -(cos_theta_t < 0.f ? 1.f / eta : eta);
+    return make_float3(scale * v.x, scale * v.y, cos_theta_t);
+}
+
 // https://graphics.pixar.com/library/OrthonormalB/paper.pdf
 CUDA_INLINE CUDA_HOSTDEVICE void BuildONB(float3 N, float3 &b1, float3 &b2) noexcept {
     float sign = copysignf(1.f, N.z);
@@ -114,6 +119,19 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 ToWorld(float3 v, float3 N) {
     float3 b2;
     BuildONB(N, b1, b2);
     return b1 * v.x + b2 * v.y + N * v.z;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float2 GetSphereTexcoord(float3 local_p) noexcept {
+    float phi = atan2(local_p.y, local_p.x);
+    phi = phi < 0.f ? phi + M_PIf * 2.f : phi;
+    auto t = local_p;
+    t.z -= t.z >= 0.f ? 1.f : -1.f;
+    // float theta = asin(0.5f * length(t)) * 2.f;
+    // theta = local_p.z >= 0.f ? theta : M_PIf - theta;
+    float theta = acos(local_p.z);
+
+    // make_float2(asin(ret.normal.x) * M_1_PIf + 0.5f, asin(ret.normal.y) * M_1_PIf + 0.5f);
+    return make_float2(phi * M_1_PIf * 0.5f, theta * M_1_PIf);
 }
 
 // https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
@@ -147,19 +165,23 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 GammaCorrection(float3 color, float gamma) {
     return make_float3(powf(color.x, 1.f / gamma), powf(color.y, 1.f / gamma), powf(color.z, 1.f / gamma));
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float GetLuminance(float3 color) noexcept {
+    return 0.2126f * color.x + 0.7152f * color.y + 0.0722f * color.z;
+}
+
 CUDA_INLINE CUDA_HOSTDEVICE float MISWeight(float x, float y) {
     return x / (x + y);
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float v) noexcept {
     return abs(v) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float2 v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float2 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS;
 }
 
-CUDA_INLINE CUDA_DEVICE bool IsZero(float3 v) noexcept {
+CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
 }
 }// namespace optix_util

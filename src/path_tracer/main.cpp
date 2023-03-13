@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <iostream>
+#include <fstream>
 
 std::unique_ptr<device::Optix> g_optix_device;
 
@@ -35,6 +36,8 @@ std::unique_ptr<optix_util::CameraHelper> g_camera;
 
 CUdeviceptr g_emitters_cuda_memory = 0;
 std::vector<optix_util::Emitter> g_emitters;
+
+bool g_render_flag = true;
 
 struct SBTTypes {
     using RayGenDataType = RayGenData;
@@ -65,15 +68,21 @@ int main() {
 
     do {
         // TODO: handle minimize event
-        g_params.camera.SetData(g_camera->GetCudaMemory());
-        g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
-        g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
+        if (g_render_flag) {
+            g_params.camera.SetData(g_camera->GetCudaMemory());
+            g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
+            g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
 
-        ++g_params.frame_cnt;
+            g_params.sample_cnt += g_params.config.accumulated_flag;
+            ++g_params.frame_cnt;
+        }
 
         auto msg = gui_window->Show();
         if (msg == gui::GlobalMessage::Quit)
             break;
+        else if (msg == gui::GlobalMessage::Minimized)
+            g_render_flag = false;
+
     } while (true);
     CUDA_FREE(g_emitters_cuda_memory);
 
@@ -114,11 +123,12 @@ void ConfigPipeline(device::Optix *device) {
 
 void ConfigScene(device::Optix *device) {
     g_scene = std::make_unique<scene::Scene>();
-    std::string scene_name = "staircase/scene_v3.xml";
-    //scene_name = "veach-ajar/scene_v3.xml";
-    // scene_name = "veach-mis/scene_v3.xml";
-    //scene_name = "cornell-box/scene_v3.xml";
-    scene_name = "mis.xml";
+    std::string scene_name = "mis.xml";
+    std::ifstream scene_config_file(std::string{ ROOT_DIR } + "/pt_config.ini", std::ios::in);
+    if (scene_config_file.is_open()) {
+        std::getline(scene_config_file, scene_name);
+        scene_config_file.close();
+    }
     g_scene->LoadFromXML(scene_name, DATA_DIR);
     device->InitScene(g_scene.get());
 
@@ -185,8 +195,10 @@ void InitLaunchParams(device::Optix *device) {
     g_params.config.frame.height = g_scene->sensor.film.h;
     g_params.config.max_depth = g_scene->integrator.max_depth;
     g_params.config.accumulated_flag = true;
+    g_params.config.use_tone_mapping = true;
 
     g_params.frame_cnt = 0;
+    g_params.sample_cnt = 0;
 
     CUDA_CHECK(cudaMalloc(
         reinterpret_cast<void **>(&g_params.accum_buffer),
@@ -209,24 +221,44 @@ void InitGuiAndEventCallback() {
     gui_window->AppendGuiConsoleOperations(
         "Path Tracer Option",
         []() {
+            ImGui::Text("sample count: %d", g_params.sample_cnt + 1);
+            ImGui::SameLine();
+            if (ImGui::Button(g_render_flag ? "Stop" : "Continue")) {
+                g_render_flag ^= 1;
+                if (g_render_flag == false) {
+                    util::Singleton<gui::Backend>::instance()->SynchronizeFrameResource();
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reset")) {
+                g_params.sample_cnt = 0;
+            }
             if (ImGui::Button("Reset Camera")) {
                 g_camera->Reset(g_camera_init_desc);
                 g_params.frame_cnt = 0;
+                g_params.sample_cnt = 0;
             }
 
             int depth = g_params.config.max_depth;
-            ImGui::DragInt("trace depth", &depth, 1, 1, 128);
-            g_params.config.max_depth = (unsigned int)depth;
+            ImGui::InputInt("trace depth", &depth);
+            depth = clamp(depth, 1, 128);
+            if (g_params.config.max_depth != depth) {
+                g_params.config.max_depth = (unsigned int)depth;
+                g_params.frame_cnt = 0;
+                g_params.sample_cnt = 0;
+            }
 
             if (ImGui::Checkbox("accumulate radiance", &g_params.config.accumulated_flag)) {
-                g_params.frame_cnt = 0;
+                g_params.sample_cnt = 0;
             }
+            ImGui::Checkbox("ACES tone mapping", &g_params.config.use_tone_mapping);
         });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::Resize,
         [&]() {
             g_params.frame_cnt = 0;
+            g_params.sample_cnt = 0;
 
             unsigned int &w = g_params.config.frame.width;
             unsigned int &h = g_params.config.frame.height;
@@ -246,6 +278,7 @@ void InitGuiAndEventCallback() {
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseLeftButtonMove,
         [&]() {
+            if (!g_render_flag) return;
             float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
             float dx = gui_window->GetMouseLastDeltaX() * scale;
             float dy = gui_window->GetMouseLastDeltaY() * scale;
@@ -253,21 +286,25 @@ void InitGuiAndEventCallback() {
             g_camera->Rotate(dx, dy);
 
             g_params.frame_cnt = 0;
+            g_params.sample_cnt = 0;
         });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseWheel,
         [&]() {
+            if (!g_render_flag) return;
             float fov_delta = 1.f / 120.f * gui_window->GetMouseWheelDelta();
             g_camera->SetFovDelta(fov_delta);
 
             g_params.frame_cnt = 0;
+            g_params.sample_cnt = 0;
         });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::KeyboardMove,
         [&]() {
-            //auto [right, up, forward] = g_camera->GetCameraCoordinateSystem();
+            if (!g_render_flag) return;
+
             auto right = util::Camera::X;
             auto up = util::Camera::Y;
             auto forward = util::Camera::Z;
@@ -297,5 +334,6 @@ void InitGuiAndEventCallback() {
             g_camera->Move(translation * util::Camera::sensitivity * util::Camera::sensitivity_scale);
 
             g_params.frame_cnt = 0;
+            g_params.sample_cnt = 0;
         });
 }

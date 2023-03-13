@@ -10,6 +10,7 @@ enum class GlobalMessage : unsigned int {
     None,
     Quit,
     Resize,
+    Minimized,
     MouseLeftButtonMove,
     MouseRightButtonMove,
     MouseWheel,

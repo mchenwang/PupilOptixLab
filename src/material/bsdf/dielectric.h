@@ -12,7 +12,7 @@ struct Dielectric {
     cuda::Texture specular_reflectance;
     cuda::Texture specular_transmittance;
 
-    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex) const noexcept {
+    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
         return make_float3(0.f);
     }
 
@@ -23,19 +23,25 @@ struct Dielectric {
     CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 sampled_tex) const noexcept {
         BsdfSampleRecord ret;
 
-        float eta = wo.z > 0.f ? int_ior / ext_ior : ext_ior / int_ior;
-        float3 local_albedo = specular_reflectance.Sample(sampled_tex);
-        float3 local_transmittance = specular_transmittance.Sample(sampled_tex);
+        // float eta = wo.z > 0.f ? int_ior / ext_ior : ext_ior / int_ior;
+        float eta = int_ior / ext_ior;
         float cos_theta_t;
-        float fresnel = fresnel::DielectricReflectance(eta, abs(wo.z), cos_theta_t);
+        float fresnel = fresnel::DielectricReflectance(eta, wo.z, cos_theta_t);
         if (xi.x < fresnel) {
             ret.wi = optix_util::Reflect(wo);
             ret.pdf = fresnel;
-            ret.f = local_albedo * local_transmittance * fresnel / abs(ret.wi.z);
+            float3 local_specular = specular_reflectance.Sample(sampled_tex);
+            ret.f = local_specular * fresnel / abs(ret.wi.z);
+            ret.lobe_type = EBsdfLobeType::DeltaReflection;
         } else {
-            ret.wi = make_float3(-eta * wo.x, -eta * wo.y, -copysignf(cos_theta_t, wo.z));
+            // ret.wi = make_float3(-eta * wo.x, -eta * wo.y, -copysignf(cos_theta_t, wo.z));
+            ret.wi = optix_util::Refract(wo, cos_theta_t, eta);
             ret.pdf = 1.f - fresnel;
-            ret.f = local_albedo * local_transmittance * (1.f - fresnel) / abs(ret.wi.z);
+            // ret.f = local_transmittance * (1.f - fresnel);
+            float factor = cos_theta_t < 0.f ? 1.f / eta : eta;
+            float3 local_transmittance = specular_transmittance.Sample(sampled_tex);
+            ret.f = local_transmittance * (1.f - fresnel) * factor * factor / abs(ret.wi.z);
+            ret.lobe_type = EBsdfLobeType::DeltaTransmission;
         }
 
         return ret;

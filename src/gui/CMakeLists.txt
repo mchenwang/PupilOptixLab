@@ -12,5 +12,6 @@ target_include_directories(gui PRIVATE ../)
 target_link_libraries(gui PUBLIC imgui)
 target_link_libraries(gui PRIVATE device_api)
 target_link_libraries(gui PRIVATE common)
+target_link_libraries(gui PRIVATE DirectXTK12)
 
 set_target_properties(gui PROPERTIES FOLDER ${source_folder})

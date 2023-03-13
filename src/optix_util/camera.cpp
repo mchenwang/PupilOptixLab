@@ -79,9 +79,9 @@ CUdeviceptr CameraHelper::GetCudaMemory() noexcept {
         m_optix_camera.sample_to_camera.r2 = make_float4(sample_to_camera.r2.x, sample_to_camera.r2.y, sample_to_camera.r2.z, sample_to_camera.r2.w);
         m_optix_camera.sample_to_camera.r3 = make_float4(sample_to_camera.r3.x, sample_to_camera.r3.y, sample_to_camera.r3.z, sample_to_camera.r3.w);
 
-        m_optix_camera.camera_to_world.r0 = make_float4(-camera_to_world.r0.x, -camera_to_world.r0.y, -camera_to_world.r0.z, camera_to_world.r0.w);
-        m_optix_camera.camera_to_world.r1 = make_float4(camera_to_world.r1.x, camera_to_world.r1.y, camera_to_world.r1.z, camera_to_world.r1.w);
-        m_optix_camera.camera_to_world.r2 = make_float4(-camera_to_world.r2.x, -camera_to_world.r2.y, -camera_to_world.r2.z, camera_to_world.r2.w);
+        m_optix_camera.camera_to_world.r0 = make_float4(-camera_to_world.r0.x, camera_to_world.r0.y, -camera_to_world.r0.z, camera_to_world.r0.w);
+        m_optix_camera.camera_to_world.r1 = make_float4(-camera_to_world.r1.x, camera_to_world.r1.y, -camera_to_world.r1.z, camera_to_world.r1.w);
+        m_optix_camera.camera_to_world.r2 = make_float4(-camera_to_world.r2.x, camera_to_world.r2.y, -camera_to_world.r2.z, camera_to_world.r2.w);
         m_optix_camera.camera_to_world.r3 = make_float4(camera_to_world.r3.x, camera_to_world.r3.y, camera_to_world.r3.z, camera_to_world.r3.w);
     }
 

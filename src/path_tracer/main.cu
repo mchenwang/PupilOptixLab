@@ -10,15 +10,19 @@ extern "C" {
 __constant__ OptixLaunchParams optix_launch_params;
 }
 
+struct HitInfo {
+    optix_util::LocalGeometry geo;
+    optix_util::material::Material mat;
+    int emitter_index;
+};
+
 struct PathPayloadRecord {
     float3 radiance;
     cuda::Random random;
 
     float3 throughput;
 
-    float3 hit_p;
-    float3 wi;
-    float bsdf_sampled_pdf;
+    HitInfo hit;
 
     unsigned int depth;
     bool done;
@@ -45,7 +49,6 @@ extern "C" __global__ void __raygen__main() {
     record.depth = 0u;
     record.throughput = make_float3(1.f);
     record.radiance = make_float3(0.f);
-    record.bsdf_sampled_pdf = 0.f;
     record.random.Init(4, pixel_index, optix_launch_params.frame_cnt);
 
     const float2 subpixel_jitter = make_float2(record.random.Next(), record.random.Next());
@@ -84,37 +87,109 @@ extern "C" __global__ void __raygen__main() {
                0, 2, 0,
                u0, u1);
 
-    while (record.depth < optix_launch_params.config.max_depth - 1) {
-        // while (record.depth < 0) {
+    int depth = 0;
+    auto local_hit = record.hit;
+
+    while (true) {
         if (record.done)
             break;
 
-        ray_origin = record.hit_p;
-        ray_direction = record.wi;
-        ++record.depth;
+        if (depth == 0) {
+            if (record.hit.emitter_index >= 0) {
+                auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
+                auto emission = emitter.radiance.Sample(local_hit.geo.texcoord);
+                record.radiance += emission;
+            }
+        }
 
-        optixTrace(optix_launch_params.handle,
-                   ray_origin, ray_direction,
-                   0.001f, 1e16f, 0.f,
-                   255, OPTIX_RAY_FLAG_NONE,
-                   0, 2, 0,
-                   u0, u1);
-
-        double rr = record.depth > 2 ? 0.95 : 1.0;
-        if (record.random.Next() > rr)
+        ++depth;
+        if (depth >= optix_launch_params.config.max_depth)
             break;
-        record.throughput /= rr;
+
+        // direct light sampling
+        {
+            auto &emitter = optix_util::Emitter::SelectOneEmiiter(record.random.Next(), optix_launch_params.emitters);
+            auto emitter_local = emitter.SampleDirect(record.random.Next(), record.random.Next());
+            float distance = length(emitter_local.position - local_hit.geo.position);
+            float3 L = normalize(emitter_local.position - local_hit.geo.position);
+            float NoL = dot(local_hit.geo.normal, L);
+            float LNoL = dot(emitter_local.normal, -L);
+
+            if (NoL > 0.f && LNoL > 0.f) {
+                // shadow ray
+                unsigned int occluded = 0u;
+                optixTrace(optix_launch_params.handle,
+                           local_hit.geo.position, L,
+                           0.001f, distance - 0.001f, 0.f,
+                           255, OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
+                           1, 2, 1, occluded);
+                if (occluded == 0u) {
+                    float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
+                    float3 wi = optix_util::ToLocal(L, local_hit.geo.normal);
+                    float3 wo = optix_util::ToLocal(-ray_direction, local_hit.geo.normal);
+                    auto [f, pdf] = record.hit.mat.Eval(wi, wo, local_hit.geo.texcoord);
+                    if (!optix_util::IsZero(f)) {
+                        float mis = optix_util::MISWeight(light_pdf, pdf);
+                        record.radiance += record.throughput * emitter_local.radiance * f * NoL * mis / light_pdf;
+                    }
+                }
+            }
+        }
+        // bsdf sampling
+        {
+            float2 xi = make_float2(record.random.Next(), record.random.Next());
+            float3 wo = optix_util::ToLocal(-ray_direction, local_hit.geo.normal);
+            auto bsdf_sampled_record = record.hit.mat.Sample(xi, wo, local_hit.geo.texcoord);
+            if (optix_util::IsZero(bsdf_sampled_record.f * abs(bsdf_sampled_record.wi.z)) || optix_util::IsZero(bsdf_sampled_record.pdf))
+                break;
+
+            record.throughput *= bsdf_sampled_record.f * abs(bsdf_sampled_record.wi.z) / bsdf_sampled_record.pdf;
+            float3 sampled_wi = optix_util::ToWorld(bsdf_sampled_record.wi, local_hit.geo.normal);
+
+            double rr = depth > 2 ? 0.95 : 1.0;
+            if (record.random.Next() > rr)
+                break;
+            record.throughput /= rr;
+            ray_origin = record.hit.geo.position;
+            ray_direction = sampled_wi;
+
+            optixTrace(optix_launch_params.handle,
+                       ray_origin, ray_direction,
+                       0.001f, 1e16f, 0.f,
+                       255, OPTIX_RAY_FLAG_NONE,
+                       0, 2, 0,
+                       u0, u1);
+
+            local_hit = record.hit;
+            float distance = length(ray_origin - local_hit.geo.position);
+            if (local_hit.emitter_index >= 0) {
+                auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
+                optix_util::Emitter::LocalRecord emitter_local = emitter.GetLocalInfo(local_hit.geo.position);
+                float LNoL = dot(emitter_local.normal, -ray_direction);
+                if (LNoL > 0.f) {
+                    float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
+                    float mis = optix_util::MISWeight(bsdf_sampled_record.pdf, light_pdf);
+                    if (bsdf_sampled_record.lobe_type & optix_util::EBsdfLobeType::DeltaReflection)
+                        mis = 1.f;
+
+                    auto emission = emitter.radiance.Sample(local_hit.geo.texcoord);
+
+                    record.radiance += record.throughput * emission * mis;
+                }
+            }
+        }
     }
 
-    if (optix_launch_params.config.accumulated_flag && optix_launch_params.frame_cnt > 0) {
-        const float t = 1.f / (optix_launch_params.frame_cnt + 1.f);
+    if (optix_launch_params.config.accumulated_flag && optix_launch_params.sample_cnt > 0) {
+        const float t = 1.f / (optix_launch_params.sample_cnt + 1.f);
         const float3 pre = make_float3(optix_launch_params.accum_buffer[pixel_index]);
         record.radiance = lerp(pre, record.radiance, t);
     }
     optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
 
     float3 color = optix_util::ACESToneMapping(record.radiance, 1.f);
-    color = optix_util::GammaCorrection(color, 2.2f);
+    if (optix_launch_params.config.use_tone_mapping)
+        color = optix_util::GammaCorrection(color, 2.2f);
     optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
 }
 
@@ -137,63 +212,14 @@ extern "C" __global__ void __closesthit__default() {
     const auto ray_dir = optixGetWorldRayDirection();
     const auto ray_o = optixGetWorldRayOrigin();
 
-    auto hit_geo = sbt_data->geo.GetHitLocalGeometry(ray_dir, sbt_data->mat.twosided);
-    record->hit_p = hit_geo.position;
-
+    record->hit.geo = sbt_data->geo.GetHitLocalGeometry(ray_dir, sbt_data->mat.twosided);
     if (sbt_data->emitter_index_offset >= 0) {
-        unsigned int emitter_index = sbt_data->emitter_index_offset + optixGetPrimitiveIndex();
-        auto &emitter = optix_launch_params.emitters[emitter_index];
-        auto emission = emitter.radiance.Sample(hit_geo.texcoord);
-        if (record->depth == 0) {
-            record->radiance += emission;
-        } else {
-            float distance = length(ray_o - hit_geo.position);
-            optix_util::Emitter::LocalRecord emitter_local = emitter.GetLocalInfo(hit_geo.position);
-            float LNoL = dot(emitter_local.normal, -ray_dir);
-            if (LNoL > 0.f) {
-                float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
-                float mis = optix_util::MISWeight(record->bsdf_sampled_pdf, light_pdf);
-                record->radiance += record->throughput * emission * mis;
-            }
-        }
+        record->hit.emitter_index = sbt_data->emitter_index_offset + optixGetPrimitiveIndex();
+    } else {
+        record->hit.emitter_index = -1;
     }
 
-    auto &emitter = optix_util::Emitter::SelectOneEmiiter(record->random.Next(), optix_launch_params.emitters);
-    auto emitter_local = emitter.SampleDirect(record->random.Next(), record->random.Next());
-    float distance = length(emitter_local.position - hit_geo.position);
-    float3 L = normalize(emitter_local.position - hit_geo.position);
-    float NoL = dot(hit_geo.normal, L);
-    float LNoL = dot(emitter_local.normal, -L);
-
-    if (NoL > 0.f && LNoL > 0.f) {
-        unsigned int occluded = 0u;
-        optixTrace(optix_launch_params.handle,
-                   hit_geo.position, L,
-                   0.001f, distance - 0.001f, 0.f,
-                   255, OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
-                   1, 2, 1, occluded);
-        if (occluded == 0u) {
-            float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
-            float3 wi = optix_util::ToLocal(L, hit_geo.normal);
-            float3 wo = optix_util::ToLocal(-ray_dir, hit_geo.normal);
-            auto [f, pdf] = sbt_data->mat.Eval(wi, wo, hit_geo.texcoord);
-            if (!optix_util::IsZero(f) && pdf > 0.f) {
-                float mis = optix_util::MISWeight(light_pdf, pdf);
-                record->radiance += record->throughput * emitter_local.radiance * f * NoL * mis / light_pdf;
-            }
-        }
-    }
-
-    float2 xi = make_float2(record->random.Next(), record->random.Next());
-    float3 wo = optix_util::ToLocal(-ray_dir, hit_geo.normal);
-    auto [f, wi, pdf] = sbt_data->mat.Sample(xi, wo, hit_geo.texcoord);
-    if (optix_util::IsZero(f * abs(wi.z)) || optix_util::IsZero(pdf))
-        record->done = true;
-    else {
-        record->throughput *= f * abs(wi.z) / pdf;
-        record->bsdf_sampled_pdf = pdf;
-        record->wi = optix_util::ToWorld(wi, hit_geo.normal);
-    }
+    record->hit.mat = sbt_data->mat;
 }
 extern "C" __global__ void __closesthit__shadow() {
     optixSetPayload_0(1u);

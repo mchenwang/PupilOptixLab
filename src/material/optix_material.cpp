@@ -1,5 +1,37 @@
 #include "optix_material.h"
 #include "device/cuda_texture.h"
+#include "optix_util/util.h"
+
+namespace {
+float3 GetPixelAverage(util::Texture texture) {
+    switch (texture.type) {
+        case util::ETextureType::RGB:
+            return make_float3(texture.rgb.color.r, texture.rgb.color.g, texture.rgb.color.b);
+            break;
+        case util::ETextureType::Checkerboard: {
+            float r = texture.checkerboard.patch1.r + texture.checkerboard.patch2.r;
+            float g = texture.checkerboard.patch1.g + texture.checkerboard.patch2.g;
+            float b = texture.checkerboard.patch1.b + texture.checkerboard.patch2.b;
+            return make_float3(r, g, b) * 0.5f;
+        } break;
+        case util::ETextureType::Bitmap: {
+            float r = 0.f;
+            float g = 0.f;
+            float b = 0.f;
+            for (int i = 0, idx = 0; i < texture.bitmap.h; ++i) {
+                for (int j = 0; j < texture.bitmap.w; ++j) {
+                    r += texture.bitmap.data[idx++];
+                    g += texture.bitmap.data[idx++];
+                    b += texture.bitmap.data[idx++];
+                    idx++;// a
+                }
+            }
+            return make_float3(r, g, b) / (1.f * texture.bitmap.h * texture.bitmap.w);
+        } break;
+    }
+    return make_float3(0.f);
+}
+}// namespace
 
 #define MATERIAL_LOAD_FUNC(type) optix_util::material::##type LoadMaterial(const ::material::##type &mat) noexcept
 
@@ -47,6 +79,10 @@ MATERIAL_LOAD_FUNC(Plastic) {
     ret.nonlinear = mat.nonlinear;
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+
+    float diffuse_luminance = optix_util::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
+    float specular_luminance = optix_util::GetLuminance(GetPixelAverage(mat.specular_reflectance));
+    ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
     return ret;
 }
 
@@ -59,6 +95,10 @@ MATERIAL_LOAD_FUNC(RoughPlastic) {
     ret.alpha = mat.alpha;
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+
+    float diffuse_luminance = optix_util::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
+    float specular_luminance = optix_util::GetLuminance(GetPixelAverage(mat.specular_reflectance));
+    ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
     return ret;
 }
 

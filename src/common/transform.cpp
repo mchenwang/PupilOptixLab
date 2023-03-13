@@ -116,10 +116,10 @@ void Transform::LookAt(const Float3 &origin, const Float3 &target, const Float3 
     // Mitsuba 3: +X points left, +Y points up, +Z points view
     // Pupil Transform: +X points right, +Y points up, +Z points -view
     this->matrix.re[0][0] *= -1;
-    this->matrix.re[0][1] *= -1;
-    this->matrix.re[0][2] *= -1;
+    this->matrix.re[1][0] *= -1;
     this->matrix.re[2][0] *= -1;
-    this->matrix.re[2][1] *= -1;
+    this->matrix.re[0][2] *= -1;
+    this->matrix.re[1][2] *= -1;
     this->matrix.re[2][2] *= -1;
 }
 

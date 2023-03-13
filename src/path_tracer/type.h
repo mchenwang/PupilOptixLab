@@ -14,6 +14,7 @@ struct OptixLaunchParams {
     struct {
         unsigned int max_depth;
         bool accumulated_flag;
+        bool use_tone_mapping;
 
         struct {
             unsigned int width;
@@ -21,6 +22,7 @@ struct OptixLaunchParams {
         } frame;
     } config;
     unsigned int frame_cnt;
+    unsigned int sample_cnt;
 
     cuda::ConstDataView<optix_util::Camera> camera;
     cuda::ConstDataView<cuda::Texture> env;

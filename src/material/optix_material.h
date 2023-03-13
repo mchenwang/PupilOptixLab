@@ -25,31 +25,6 @@ struct Material {
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
     void LoadMaterial(::material::Material mat) noexcept;
 #else
-    CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
-        float3 color;
-        switch (type) {
-            case EMatType::_diffuse:
-                color = diffuse.reflectance.Sample(tex);
-                break;
-            case EMatType::_dielectric:
-                color = dielectric.specular_reflectance.Sample(tex);
-                break;
-            case EMatType::_conductor:
-                color = conductor.specular_reflectance.Sample(tex);
-                break;
-            case EMatType::_roughconductor:
-                color = rough_conductor.specular_reflectance.Sample(tex);
-                break;
-            case EMatType::_plastic:
-                color = plastic.diffuse_reflectance.Sample(tex);
-                break;
-            case EMatType::_roughplastic:
-                color = rough_plastic.diffuse_reflectance.Sample(tex);
-                break;
-        }
-        return color;
-    }
-
     CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 tex) const noexcept {
         BsdfSampleRecord ret;
         switch (type) {
@@ -83,7 +58,7 @@ struct Material {
                 ret.pdf = diffuse.GetPdf(wi, wo);
                 break;
             case EMatType::_dielectric:
-                ret.f = dielectric.GetBsdf(tex);
+                ret.f = dielectric.GetBsdf(tex, wi, wo);
                 ret.pdf = dielectric.GetPdf(wi, wo);
                 break;
             case EMatType::_conductor:

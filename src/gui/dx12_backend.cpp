@@ -126,6 +126,20 @@ void Backend::Present(ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept {
     m_backend->MoveToNextFrame();
 }
 
+void Backend::SynchronizeFrameResource() noexcept {
+    auto cmd_list = m_backend->GetCmdList();
+    auto cur_index = m_backend->GetCurrentFrameIndex();
+    for (auto i = 0u; i < device::DX12::NUM_OF_FRAMES; i++) {
+        if (i == cur_index) continue;
+
+        cmd_list->CopyResource(
+            frames[i].screen_texture.Get(),
+            frames[cur_index].screen_texture.Get());
+    }
+    m_backend->ExecuteCommandLists(cmd_list);
+    m_backend->Flush();
+}
+
 void Backend::Destroy() noexcept {
     if (m_frame_constant_buffer_mapped_ptr) {
         m_frame_constant_buffer->Unmap(0, nullptr);

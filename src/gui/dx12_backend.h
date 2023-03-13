@@ -34,6 +34,8 @@ public:
     auto GetDevice() noexcept { return m_backend.get(); }
     void Flush() noexcept { m_backend->Flush(); }
 
+    void SynchronizeFrameResource() noexcept;
+
     void Init() noexcept;
     void Destroy() noexcept;
 
@@ -41,7 +43,7 @@ public:
 
     [[nodiscard]] Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetCmdList() noexcept { return m_backend->GetCmdList(); }
     [[nodiscard]] auto GetCurrentFrameResource() const noexcept { return frames[m_backend->GetCurrentFrameIndex()]; }
-    
+
     void RenderScreen(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>) noexcept;
     void Present(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>) noexcept;
 };

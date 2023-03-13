@@ -30,6 +30,7 @@ struct Conductor {
 
         float3 fresnel = fresnel::ConductorReflectance(local_eta, local_k, wo.z);
         ret.f = local_albedo * fresnel / abs(ret.wi.z);
+        ret.lobe_type = EBsdfLobeType::DeltaReflection;
         return ret;
     }
 };

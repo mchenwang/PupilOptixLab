@@ -24,6 +24,7 @@ struct Diffuse {
         ret.wi = optix_util::CosineSampleHemisphere(xi.x, xi.y);
         ret.pdf = GetPdf(ret.wi, wo);
         ret.f = GetBsdf(sampled_tex, ret.wi, wo);
+        ret.lobe_type = EBsdfLobeType::DiffuseReflection;
 
         return ret;
     }
