@@ -202,9 +202,13 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_SIZE:
             if (m_backend) {
-                uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
-                uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
-                util::Singleton<Window>::instance()->Resize(w, h);
+                if (wParam == SIZE_MINIMIZED) {
+                    g_message = gui::GlobalMessage::Minimized;
+                } else {
+                    uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
+                    uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
+                    util::Singleton<Window>::instance()->Resize(w, h);
+                }
             }
             return 0;
         case WM_EXITSIZEMOVE:

@@ -80,6 +80,9 @@ int main() {
         auto msg = gui_window->Show();
         if (msg == gui::GlobalMessage::Quit)
             break;
+        else if (msg == gui::GlobalMessage::Minimized)
+            g_render_flag = false;
+
     } while (true);
     CUDA_FREE(g_emitters_cuda_memory);
 
@@ -225,6 +228,10 @@ void InitGuiAndEventCallback() {
                 if (g_render_flag == false) {
                     util::Singleton<gui::Backend>::instance()->SynchronizeFrameResource();
                 }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reset")) {
+                g_params.sample_cnt = 0;
             }
             if (ImGui::Button("Reset Camera")) {
                 g_camera->Reset(g_camera_init_desc);
