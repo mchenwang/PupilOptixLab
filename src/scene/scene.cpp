@@ -238,7 +238,6 @@ Scene::Scene() noexcept {
 
                 auto value = obj->GetProperty("filename");
                 auto path = (scene_root_path / value).make_preferred();
-                util::Singleton<scene::TextureManager>::instance()->LoadTextureFromFile(path.string());
                 *texture = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
 
                 value = obj->GetProperty("filter_type");
@@ -339,13 +338,19 @@ Scene::Scene() noexcept {
         });
 }
 
-void Scene::LoadFromXML(std::string_view path, std::string_view root) noexcept {
-    xml::Parser parser;
-    std::filesystem::path src_root(root);
-    std::filesystem::path file = src_root / path;
+void Scene::Reset() noexcept {
+    emitters.clear();
+    shapes.clear();
 
+    integrator = Integrator{};
+    sensor = Sensor{};
+}
+
+void Scene::LoadFromXML(std::filesystem::path file) noexcept {
+    Reset();
     scene_root_path = file.parent_path().make_preferred();
 
+    xml::Parser parser;
     auto scene_xml_root_obj = parser.LoadFromFile(file);
     for (auto &xml_obj : scene_xml_root_obj->sub_object) {
         switch (xml_obj->tag) {
@@ -369,5 +374,11 @@ void Scene::LoadFromXML(std::string_view path, std::string_view root) noexcept {
                 break;
         }
     }
+}
+
+void Scene::LoadFromXML(std::string_view file_name, std::string_view root) noexcept {
+    std::filesystem::path src_root(root);
+    std::filesystem::path file = src_root / file_name;
+    LoadFromXML(file);
 }
 }// namespace scene

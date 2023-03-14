@@ -8,7 +8,7 @@
 #include <iostream>
 
 namespace scene {
-// TODO: use dxtk for sRGB
+// TODO: use dxtk for sRGB; exr
 void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
     if (m_image_datas.find(file_path) != m_image_datas.end()) return;
 
@@ -77,7 +77,11 @@ util::Texture TextureManager::GetCheckerboardTexture(util::Float3 patch1, util::
 util::Texture TextureManager::GetTexture(std::string_view id) noexcept {
     auto it = m_image_datas.find(id);
     if (it == m_image_datas.end()) {
-        return GetColorTexture(0.f, 0.f, 0.f);
+        this->LoadTextureFromFile(id);
+        it = m_image_datas.find(id);
+        [[unlikely]] if (it == m_image_datas.end()) {
+            return GetColorTexture(0.f, 0.f, 0.f);
+        }
     }
 
     util::Texture texture{};

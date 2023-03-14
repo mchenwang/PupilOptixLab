@@ -90,10 +90,7 @@ extern "C" __global__ void __raygen__main() {
     int depth = 0;
     auto local_hit = record.hit;
 
-    while (true) {
-        if (record.done)
-            break;
-
+    while (!record.done) {
         if (depth == 0) {
             if (record.hit.emitter_index >= 0) {
                 auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
@@ -159,6 +156,9 @@ extern "C" __global__ void __raygen__main() {
                        255, OPTIX_RAY_FLAG_NONE,
                        0, 2, 0,
                        u0, u1);
+
+            if (record.done)
+                break;
 
             local_hit = record.hit;
             float distance = length(ray_origin - local_hit.geo.position);

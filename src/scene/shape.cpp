@@ -132,7 +132,6 @@ struct ShapeLoader<EShapeType::_obj> {
 
         auto value = obj->GetProperty("filename");
         auto path = (scene->scene_root_path / value).make_preferred();
-        util::Singleton<scene::ShapeDataManager>::instance()->LoadShapeFromFile(path.string());
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetShape(path.string());
 
         LoadBoolParameter(obj, "face_normals", shape.obj.face_normals, false);
@@ -186,6 +185,9 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
 }
 
 void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
+    auto it = m_shape_datas.find(file_path);
+    if (it != m_shape_datas.end()) return;
+
     Assimp::Importer importer;
     const auto scene = importer.ReadFile(file_path.data(), aiProcess_Triangulate);
 
@@ -240,7 +242,11 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
 Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     auto it = m_shape_datas.find(id);
     if (it == m_shape_datas.end()) {
-        return GetSphere(1.f, util::Float3{ 0.f, 0.f, 0.f }, false);
+        this->LoadShapeFromFile(id);
+        it = m_shape_datas.find(id);
+        [[unlikely]] if (it == m_shape_datas.end()) {
+            return GetSphere(1.f, util::Float3{ 0.f, 0.f, 0.f }, false);
+        }
     }
 
     Shape shape;

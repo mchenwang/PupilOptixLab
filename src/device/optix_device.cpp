@@ -211,12 +211,6 @@ void Optix::InitScene(scene::Scene *scene) noexcept {
 }
 
 void Optix::CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderObject>> &ros) noexcept {
-    //float transform[12] = {
-    //    1.f, 0.f, 0.f, 0.f,
-    //    0.f, 1.f, 0.f, 0.f,
-    //    0.f, 0.f, 1.f, 0.f
-    //};
-
     const auto num_instances = ros.size();
     std::vector<OptixInstance> instances(num_instances);
 
@@ -290,6 +284,7 @@ void Optix::CreateTopLevelAccel(std::vector<std::unique_ptr<optix_wrap::RenderOb
     CUDA_CHECK(cudaMemcpy(&compacted_ias_size, (void *)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost));
 
     if (compacted_ias_size < ias_buffer_sizes.outputSizeInBytes) {
+        CUDA_FREE(ias_buffer);
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ias_buffer), compacted_ias_size));
 
         // use handle as input and output

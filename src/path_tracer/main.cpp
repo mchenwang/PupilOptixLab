@@ -8,11 +8,13 @@
 
 #include "device/optix_device.h"
 #include "device/dx12_device.h"
+#include "device/cuda_texture.h"
 #include "device/optix_wrap/module.h"
 #include "device/optix_wrap/pipeline.h"
 #include "device/optix_wrap/pass.h"
 
 #include "scene/scene.h"
+#include "scene/texture.h"
 #include "material/optix_material.h"
 
 #include "optix_util/emitter.h"
@@ -47,8 +49,9 @@ struct SBTTypes {
 
 std::unique_ptr<optix_wrap::Pass<SBTTypes, OptixLaunchParams>> g_pt_pass;
 
-void ConfigOptix();
-void InitGuiAndEventCallback();
+void ConfigOptixPipeline() noexcept;
+void LoadScene(std::string_view, std::string_view default_scene = "default.xml") noexcept;
+void InitGuiAndEventCallback() noexcept;
 
 int main() {
     auto gui_window = util::Singleton<gui::Window>::instance();
@@ -61,10 +64,8 @@ int main() {
     g_optix_device = std::make_unique<device::Optix>(backend->GetDevice());
     g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(g_optix_device->context, g_optix_device->cuda_stream);
 
-    ConfigOptix();
-    gui_window->Resize(g_scene->sensor.film.w, g_scene->sensor.film.h, true);
-
-    backend->SetScreenResource(g_optix_device->GetSharedFrameResource());
+    ConfigOptixPipeline();
+    LoadScene("default.xml");
 
     do {
         // TODO: handle minimize event
@@ -94,9 +95,9 @@ int main() {
     return 0;
 }
 
-void ConfigPipeline(device::Optix *device) {
-    g_sphere_module = std::make_unique<optix_wrap::Module>(device->context, OPTIX_PRIMITIVE_TYPE_SPHERE);
-    g_pt_module = std::make_unique<optix_wrap::Module>(device->context, "path_tracer/main.ptx");
+void ConfigOptixPipeline() noexcept {
+    g_sphere_module = std::make_unique<optix_wrap::Module>(g_optix_device->context, OPTIX_PRIMITIVE_TYPE_SPHERE);
+    g_pt_module = std::make_unique<optix_wrap::Module>(g_optix_device->context, "path_tracer/main.ptx");
     optix_wrap::PipelineDesc pipeline_desc;
     {
         optix_wrap::ProgramDesc desc{
@@ -121,34 +122,7 @@ void ConfigPipeline(device::Optix *device) {
     g_pt_pass->InitPipeline(pipeline_desc);
 }
 
-void ConfigScene(device::Optix *device) {
-    g_scene = std::make_unique<scene::Scene>();
-    std::string scene_name = "mis.xml";
-    std::ifstream scene_config_file(std::string{ ROOT_DIR } + "/pt_config.ini", std::ios::in);
-    if (scene_config_file.is_open()) {
-        std::getline(scene_config_file, scene_name);
-        scene_config_file.close();
-    }
-    g_scene->LoadFromXML(scene_name, DATA_DIR);
-    device->InitScene(g_scene.get());
-
-    g_emitters = optix_util::GenerateEmitters(g_scene.get());
-    g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
-    g_params.emitters.SetData(g_emitters_cuda_memory, g_emitters.size());
-
-    auto &&sensor = g_scene->sensor;
-    optix_util::CameraDesc desc{
-        .fov_y = sensor.fov,
-        .aspect_ratio = static_cast<float>(sensor.film.w) / sensor.film.h,
-        .near_clip = sensor.near_clip,
-        .far_clip = sensor.far_clip,
-        .to_world = sensor.transform
-    };
-    g_camera_init_desc = desc;
-    g_camera = std::make_unique<optix_util::CameraHelper>(desc);
-}
-
-void ConfigSBT(device::Optix *device) {
+void ConfigSBT() {
     optix_wrap::SBTDesc<SBTTypes> desc{};
     desc.ray_gen_data = {
         .program_name = "__raygen__main",
@@ -190,7 +164,7 @@ void ConfigSBT(device::Optix *device) {
     g_pt_pass->InitSBT(desc);
 }
 
-void InitLaunchParams(device::Optix *device) {
+void InitLaunchParams() {
     g_params.config.frame.width = g_scene->sensor.film.w;
     g_params.config.frame.height = g_scene->sensor.film.h;
     g_params.config.max_depth = g_scene->integrator.max_depth;
@@ -205,22 +179,84 @@ void InitLaunchParams(device::Optix *device) {
         g_params.config.frame.height * g_params.config.frame.width * sizeof(float4)));
 
     g_params.frame_buffer = nullptr;
-    g_params.handle = device->ias_handle;
+    g_params.handle = g_optix_device->ias_handle;
 }
 
-void ConfigOptix() {
-    ConfigPipeline(g_optix_device.get());
-    ConfigScene(g_optix_device.get());
-    ConfigSBT(g_optix_device.get());
-    InitLaunchParams(g_optix_device.get());
+void LoadScene(std::string_view scene_file, std::string_view default_scene) noexcept {
+
+    std::filesystem::path scene_file_path{ DATA_DIR };
+    scene_file_path /= scene_file;
+    if (!std::filesystem::exists(scene_file_path)) {
+        std::cout << std::format("warning: scene file [%s] does not exist.\n", scene_file_path.string());
+        if (default_scene.empty()) return;
+
+        scene_file_path = scene_file_path.parent_path() / "default.xml";
+    }
+
+    if (g_scene == nullptr)
+        g_scene = std::make_unique<scene::Scene>();
+
+    util::Singleton<device::CudaTextureManager>::instance()->Clear();
+
+    g_scene->LoadFromXML(scene_file_path);
+    g_optix_device->InitScene(g_scene.get());
+
+    g_emitters = optix_util::GenerateEmitters(g_scene.get());
+    g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
+    g_params.emitters.SetData(g_emitters_cuda_memory, g_emitters.size());
+
+    auto &&sensor = g_scene->sensor;
+    optix_util::CameraDesc desc{
+        .fov_y = sensor.fov,
+        .aspect_ratio = static_cast<float>(sensor.film.w) / sensor.film.h,
+        .near_clip = sensor.near_clip,
+        .far_clip = sensor.far_clip,
+        .to_world = sensor.transform
+    };
+    g_camera_init_desc = desc;
+    g_camera = std::make_unique<optix_util::CameraHelper>(desc);
+
+    ConfigSBT();
+    InitLaunchParams();
+
+    util::Singleton<scene::ShapeDataManager>::instance()->Clear();
+    util::Singleton<scene::TextureManager>::instance()->Clear();
+
+    auto gui_window = util::Singleton<gui::Window>::instance();
+    gui_window->Resize(g_scene->sensor.film.w, g_scene->sensor.film.h, true);
+    g_optix_device->ClearSharedFrameResource();
+    gui_window->GetBackend()->SetScreenResource(g_optix_device->GetSharedFrameResource());
 }
 
-void InitGuiAndEventCallback() {
+void InitGuiAndEventCallback() noexcept {
     auto gui_window = util::Singleton<gui::Window>::instance();
 
     gui_window->AppendGuiConsoleOperations(
         "Path Tracer Option",
         []() {
+            ImGui::SeparatorText("scene");
+            {
+                ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.5f);
+                static char scene_file_name[256]{ "default.xml" };
+
+                ImGui::InputText("scene file", scene_file_name, 256);
+                ImGui::SameLine();
+                if (ImGui::Button("Load")) {
+                    LoadScene(scene_file_name, "");
+                    g_params.frame_cnt = 0;
+                    g_params.sample_cnt = 0;
+                    g_render_flag = true;
+                }
+                ImGui::PopItemWidth();
+
+                if (ImGui::Button("Reset Camera")) {
+                    g_camera->Reset(g_camera_init_desc);
+                    g_params.frame_cnt = 0;
+                    g_params.sample_cnt = 0;
+                }
+            }
+
+            ImGui::SeparatorText("render options");
             ImGui::Text("sample count: %d", g_params.sample_cnt + 1);
             ImGui::SameLine();
             if (ImGui::Button(g_render_flag ? "Stop" : "Continue")) {
@@ -231,11 +267,6 @@ void InitGuiAndEventCallback() {
             }
             ImGui::SameLine();
             if (ImGui::Button("Reset")) {
-                g_params.sample_cnt = 0;
-            }
-            if (ImGui::Button("Reset Camera")) {
-                g_camera->Reset(g_camera_init_desc);
-                g_params.frame_cnt = 0;
                 g_params.sample_cnt = 0;
             }
 
