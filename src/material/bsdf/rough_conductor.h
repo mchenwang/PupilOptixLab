@@ -29,7 +29,7 @@ struct RoughConductor {
     }
 
     CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
-        if (wi.z * wo.z < 0.f) return 0.f;
+        if (wi.z * wo.z <= 0.f) return 0.f;
         float3 wh = wi + wo;
         if (optix_util::IsZero(wh)) return 0.f;
         wh = normalize(wh);
