@@ -29,6 +29,7 @@ std::unique_ptr<device::Optix> g_optix_device;
 std::unique_ptr<optix_wrap::Module> g_sphere_module;
 std::unique_ptr<optix_wrap::Module> g_pt_module;
 
+static char s_scene_name[256];
 std::unique_ptr<scene::Scene> g_scene;
 
 OptixLaunchParams g_params;
@@ -65,10 +66,15 @@ int main() {
     g_pt_pass = std::make_unique<optix_wrap::Pass<SBTTypes, OptixLaunchParams>>(g_optix_device->context, g_optix_device->cuda_stream);
 
     ConfigOptixPipeline();
-    LoadScene("default.xml");
+    std::string scene_name;
+    std::ifstream scene_config_file(std::string{ ROOT_DIR } + "/pt_config.ini", std::ios::in);
+    if (scene_config_file.is_open()) {
+        std::getline(scene_config_file, scene_name);
+        scene_config_file.close();
+    }
+    LoadScene(scene_name, "default.xml");
 
     do {
-        // TODO: handle minimize event
         if (g_render_flag) {
             g_params.camera.SetData(g_camera->GetCudaMemory());
             g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
@@ -183,15 +189,15 @@ void InitLaunchParams() {
 }
 
 void LoadScene(std::string_view scene_file, std::string_view default_scene) noexcept {
-
     std::filesystem::path scene_file_path{ DATA_DIR };
     scene_file_path /= scene_file;
     if (!std::filesystem::exists(scene_file_path)) {
-        std::cout << std::format("warning: scene file [%s] does not exist.\n", scene_file_path.string());
+        std::cout << std::format("warning: scene file [{}] does not exist.\n", scene_file_path.string());
         if (default_scene.empty()) return;
-
+        scene_file = "default.xml";
         scene_file_path = scene_file_path.parent_path() / "default.xml";
     }
+    memcpy(s_scene_name, scene_file.data(), scene_file.size() * sizeof(char));
 
     if (g_scene == nullptr)
         g_scene = std::make_unique<scene::Scene>();
@@ -237,12 +243,10 @@ void InitGuiAndEventCallback() noexcept {
             ImGui::SeparatorText("scene");
             {
                 ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.5f);
-                static char scene_file_name[256]{ "default.xml" };
-
-                ImGui::InputText("scene file", scene_file_name, 256);
+                ImGui::InputText("scene file", s_scene_name, 256);
                 ImGui::SameLine();
                 if (ImGui::Button("Load")) {
-                    LoadScene(scene_file_name, "");
+                    LoadScene(s_scene_name, "");
                     g_params.frame_cnt = 0;
                     g_params.sample_cnt = 0;
                     g_render_flag = true;
