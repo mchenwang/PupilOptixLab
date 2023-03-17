@@ -15,7 +15,7 @@ float SplitMesh(std::vector<optix_util::Emitter> &emitters,
 
     for (auto i = 0u; i < face_num; ++i) {
         optix_util::Emitter emitter;
-        emitter.type = optix_util::EEmitterType::Triangle;
+        emitter.type = optix_util::EEmitterType::TriArea;
 
         auto idx0 = indices[i * 3 + 0];
         auto idx1 = indices[i * 3 + 1];
@@ -37,24 +37,24 @@ float SplitMesh(std::vector<optix_util::Emitter> &emitters,
         n1 = util::Transform::TransformNormal(n1, normal_transform);
         n2 = util::Transform::TransformNormal(n2, normal_transform);
 
-        emitter.geo.triangle.v0.pos = make_float3(p0.x, p0.y, p0.z);
-        emitter.geo.triangle.v0.normal = make_float3(n0.x, n0.y, n0.z);
-        emitter.geo.triangle.v0.tex = make_float2(texcoords[idx0 * 2 + 0], texcoords[idx0 * 2 + 1]);
+        emitter.area.geo.v0.pos = make_float3(p0.x, p0.y, p0.z);
+        emitter.area.geo.v0.normal = make_float3(n0.x, n0.y, n0.z);
+        emitter.area.geo.v0.tex = make_float2(texcoords[idx0 * 2 + 0], texcoords[idx0 * 2 + 1]);
 
-        emitter.geo.triangle.v1.pos = make_float3(p1.x, p1.y, p1.z);
-        emitter.geo.triangle.v1.normal = make_float3(n1.x, n1.y, n1.z);
-        emitter.geo.triangle.v1.tex = make_float2(texcoords[idx1 * 2 + 0], texcoords[idx1 * 2 + 1]);
+        emitter.area.geo.v1.pos = make_float3(p1.x, p1.y, p1.z);
+        emitter.area.geo.v1.normal = make_float3(n1.x, n1.y, n1.z);
+        emitter.area.geo.v1.tex = make_float2(texcoords[idx1 * 2 + 0], texcoords[idx1 * 2 + 1]);
 
-        emitter.geo.triangle.v2.pos = make_float3(p2.x, p2.y, p2.z);
-        emitter.geo.triangle.v2.normal = make_float3(n2.x, n2.y, n2.z);
-        emitter.geo.triangle.v2.tex = make_float2(texcoords[idx2 * 2 + 0], texcoords[idx2 * 2 + 1]);
+        emitter.area.geo.v2.pos = make_float3(p2.x, p2.y, p2.z);
+        emitter.area.geo.v2.normal = make_float3(n2.x, n2.y, n2.z);
+        emitter.area.geo.v2.tex = make_float2(texcoords[idx2 * 2 + 0], texcoords[idx2 * 2 + 1]);
 
-        auto v1 = emitter.geo.triangle.v1.pos - emitter.geo.triangle.v0.pos;
-        auto v2 = emitter.geo.triangle.v2.pos - emitter.geo.triangle.v0.pos;
-        emitter.area = length(cross(v1, v2)) * 0.5f;
+        auto v1 = emitter.area.geo.v1.pos - emitter.area.geo.v0.pos;
+        auto v2 = emitter.area.geo.v2.pos - emitter.area.geo.v0.pos;
+        emitter.area.area = length(cross(v1, v2)) * 0.5f;
 
-        emitter.radiance = radiance;
-        emitter.select_probability = select_wight * emitter.area;
+        emitter.area.radiance = radiance;
+        emitter.select_probability = select_wight * emitter.area.area;
 
         weight_sum += emitter.select_probability;
 
@@ -133,11 +133,11 @@ std::vector<Emitter> GenerateEmitters(scene::Scene *scene) noexcept {
                 o = util::Transform::TransformPoint(o, shape.transform.matrix);
                 p = util::Transform::TransformPoint(p, shape.transform.matrix);
 
-                emitter.geo.sphere.center = make_float3(o.x, o.y, o.z);
-                emitter.geo.sphere.radius = length(emitter.geo.sphere.center - make_float3(p.x, p.y, p.z));
-                emitter.area = 4 * 3.14159265358979323846f * emitter.geo.sphere.radius * emitter.geo.sphere.radius;
-                emitter.radiance = radiance;
-                emitter.select_probability = select_weight * emitter.area;
+                emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
+                emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
+                emitter.sphere.area = 4 * 3.14159265358979323846f * emitter.sphere.geo.radius * emitter.sphere.geo.radius;
+                emitter.sphere.radiance = radiance;
+                emitter.select_probability = select_weight * emitter.sphere.area;
 
                 select_weight_sum += emitter.select_probability;
 
@@ -159,4 +159,5 @@ std::vector<Emitter> GenerateEmitters(scene::Scene *scene) noexcept {
 
     return emitters;
 }
+
 }// namespace optix_util

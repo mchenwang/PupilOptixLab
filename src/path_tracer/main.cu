@@ -3,6 +3,7 @@
 
 #include "optix_util/util.h"
 #include "optix_util/geometry.h"
+#include "optix_util/emitter.h"
 
 #include "cuda_util/random.h"
 
@@ -18,6 +19,7 @@ struct HitInfo {
 
 struct PathPayloadRecord {
     float3 radiance;
+    float3 env_radiance;
     cuda::Random random;
 
     float3 throughput;
@@ -49,6 +51,7 @@ extern "C" __global__ void __raygen__main() {
     record.depth = 0u;
     record.throughput = make_float3(1.f);
     record.radiance = make_float3(0.f);
+    record.env_radiance = make_float3(0.f);
     record.random.Init(4, pixel_index, optix_launch_params.frame_cnt);
 
     const float2 subpixel_jitter = make_float2(record.random.Next(), record.random.Next());
@@ -94,7 +97,7 @@ extern "C" __global__ void __raygen__main() {
         if (depth == 0) {
             if (record.hit.emitter_index >= 0) {
                 auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
-                auto emission = emitter.radiance.Sample(local_hit.geo.texcoord);
+                auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
                 record.radiance += emission;
             }
         }
@@ -106,28 +109,23 @@ extern "C" __global__ void __raygen__main() {
         // direct light sampling
         {
             auto &emitter = optix_util::Emitter::SelectOneEmiiter(record.random.Next(), optix_launch_params.emitters);
-            auto emitter_local = emitter.SampleDirect(record.random.Next(), record.random.Next());
-            float distance = length(emitter_local.position - local_hit.geo.position);
-            float3 L = normalize(emitter_local.position - local_hit.geo.position);
-            float NoL = dot(local_hit.geo.normal, L);
-            float LNoL = dot(emitter_local.normal, -L);
+            auto emitter_sample_record = emitter.SampleDirect(local_hit.geo, record.random.Next2());
 
-            if (NoL > 0.f && LNoL > 0.f) {
-                // shadow ray
-                unsigned int occluded = 0u;
-                optixTrace(optix_launch_params.handle,
-                           local_hit.geo.position, L,
-                           0.001f, distance - 0.001f, 0.f,
-                           255, OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
-                           1, 2, 1, occluded);
-                if (occluded == 0u) {
-                    float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
-                    float3 wi = optix_util::ToLocal(L, local_hit.geo.normal);
+            if (!optix_util::IsZero(emitter_sample_record.pdf)) {
+                bool occluded =
+                    optix_util::Emitter::TraceShadowRay(
+                        optix_launch_params.handle,
+                        local_hit.geo.position, emitter_sample_record.wi,
+                        0.001f, emitter_sample_record.distance - 0.001f);
+                if (!occluded) {
+                    float3 wi = optix_util::ToLocal(emitter_sample_record.wi, local_hit.geo.normal);
                     float3 wo = optix_util::ToLocal(-ray_direction, local_hit.geo.normal);
                     auto [f, pdf] = record.hit.mat.Eval(wi, wo, local_hit.geo.texcoord);
                     if (!optix_util::IsZero(f)) {
-                        float mis = optix_util::MISWeight(light_pdf, pdf);
-                        record.radiance += record.throughput * emitter_local.radiance * f * NoL * mis / light_pdf;
+                        float NoL = dot(local_hit.geo.normal, emitter_sample_record.wi);
+                        float mis = emitter_sample_record.is_delta ? 1.f : optix_util::MISWeight(emitter_sample_record.pdf, pdf);
+                        emitter_sample_record.pdf *= emitter.select_probability;
+                        record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
                     }
                 }
             }
@@ -136,14 +134,14 @@ extern "C" __global__ void __raygen__main() {
         {
             float2 xi = make_float2(record.random.Next(), record.random.Next());
             float3 wo = optix_util::ToLocal(-ray_direction, local_hit.geo.normal);
-            auto bsdf_sampled_record = record.hit.mat.Sample(xi, wo, local_hit.geo.texcoord);
-            if (optix_util::IsZero(bsdf_sampled_record.f * abs(bsdf_sampled_record.wi.z)) || optix_util::IsZero(bsdf_sampled_record.pdf))
+            auto bsdf_sample_record = record.hit.mat.Sample(xi, wo, local_hit.geo.texcoord);
+            if (optix_util::IsZero(bsdf_sample_record.f * abs(bsdf_sample_record.wi.z)) || optix_util::IsZero(bsdf_sample_record.pdf))
                 break;
 
-            record.throughput *= bsdf_sampled_record.f * abs(bsdf_sampled_record.wi.z) / bsdf_sampled_record.pdf;
-            float3 sampled_wi = optix_util::ToWorld(bsdf_sampled_record.wi, local_hit.geo.normal);
+            record.throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
+            float3 sampled_wi = optix_util::ToWorld(bsdf_sample_record.wi, local_hit.geo.normal);
 
-            double rr = depth > 2 ? 0.95 : 1.0;
+            float rr = depth > 2 ? 0.95 : 1.0;
             if (record.random.Next() > rr)
                 break;
             record.throughput /= rr;
@@ -157,28 +155,27 @@ extern "C" __global__ void __raygen__main() {
                        0, 2, 0,
                        u0, u1);
 
-            if (record.done)
+            if (record.done) {
+                // TODO:
                 break;
+            }
 
             local_hit = record.hit;
-            float distance = length(ray_origin - local_hit.geo.position);
-            if (local_hit.emitter_index >= 0) {
-                auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
-                optix_util::Emitter::LocalRecord emitter_local = emitter.GetLocalInfo(local_hit.geo.position);
-                float LNoL = dot(emitter_local.normal, -ray_direction);
-                if (LNoL > 0.f) {
-                    float light_pdf = distance * distance / (LNoL * emitter.area) * emitter.select_probability;
-                    float mis = optix_util::MISWeight(bsdf_sampled_record.pdf, light_pdf);
-                    if (bsdf_sampled_record.lobe_type & optix_util::EBsdfLobeType::DeltaReflection)
-                        mis = 1.f;
+            if (record.hit.emitter_index >= 0) {
+                auto &emitter = optix_launch_params.emitters[record.hit.emitter_index];
+                auto emit_record = emitter.Eval(record.hit.geo, ray_origin);
 
-                    auto emission = emitter.radiance.Sample(local_hit.geo.texcoord);
+                if (!optix_util::IsZero(emit_record.pdf)) {
+                    float mis = bsdf_sample_record.lobe_type & optix_util::EBsdfLobeType::DeltaReflection ?
+                                    1.f :
+                                    optix_util::MISWeight(bsdf_sample_record.pdf, emit_record.pdf * emitter.select_probability);
 
-                    record.radiance += record.throughput * emission * mis;
+                    record.radiance += record.throughput * emit_record.radiance * mis;
                 }
             }
         }
     }
+    record.radiance += record.env_radiance;
 
     if (optix_launch_params.config.accumulated_flag && optix_launch_params.sample_cnt > 0) {
         const float t = 1.f / (optix_launch_params.sample_cnt + 1.f);
@@ -195,11 +192,11 @@ extern "C" __global__ void __raygen__main() {
 
 extern "C" __global__ void __miss__default() {
     auto record = optix_util::GetPRD<PathPayloadRecord>();
-    // if (optix_launch_params.env) {
-    //     // TODO: environment texture
-    //     float2 tex = make_float2(0.f, 0.f);
-    //     record->radiance += record->throughput * optix_launch_params.env->Sample(tex);
-    // }
+    if (optix_launch_params.env) {
+        float3 ray_dir = optixGetWorldRayDirection();
+        float2 tex = optix_util::GetSphereTexcoord(make_float3(ray_dir.x, ray_dir.z, ray_dir.y));
+        record->env_radiance = optix_launch_params.env->Sample(tex);
+    }
     record->done = true;
 }
 extern "C" __global__ void __miss__shadow() {
