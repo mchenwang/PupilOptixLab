@@ -97,7 +97,7 @@ extern "C" __global__ void __raygen__main() {
     while (!record.done) {
         if (depth == 0) {
             if (record.hit.emitter_index >= 0) {
-                auto &emitter = optix_launch_params.emitters[local_hit.emitter_index];
+                auto &emitter = optix_launch_params.emitters.areas[local_hit.emitter_index];
                 auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
                 record.radiance += emission;
             }
@@ -109,7 +109,7 @@ extern "C" __global__ void __raygen__main() {
 
         // direct light sampling
         {
-            auto &emitter = optix_util::Emitter::SelectOneEmiiter(record.random.Next(), optix_launch_params.emitters);
+            auto &emitter = optix_launch_params.emitters.SelectOneEmiiter(record.random.Next());
             auto emitter_sample_record = emitter.SampleDirect(local_hit.geo, record.random.Next2());
 
             if (!optix_util::IsZero(emitter_sample_record.pdf)) {
@@ -164,7 +164,7 @@ extern "C" __global__ void __raygen__main() {
 
             local_hit = record.hit;
             if (record.hit.emitter_index >= 0) {
-                auto &emitter = optix_launch_params.emitters[record.hit.emitter_index];
+                auto &emitter = optix_launch_params.emitters.areas[record.hit.emitter_index];
                 auto emit_record = emitter.Eval(record.hit.geo, ray_origin);
 
                 if (!optix_util::IsZero(emit_record.pdf)) {
@@ -194,11 +194,11 @@ extern "C" __global__ void __raygen__main() {
 
 extern "C" __global__ void __miss__default() {
     auto record = optix_util::GetPRD<PathPayloadRecord>();
-    if (optix_launch_params.env) {
+    if (optix_launch_params.emitters.env) {
         optix_util::LocalGeometry temp;
         temp.position = optixGetWorldRayDirection();
         float3 scatter_pos = make_float3(0.f);
-        auto env_emit_record = optix_launch_params.env->Eval(temp, scatter_pos);
+        auto env_emit_record = optix_launch_params.emitters.env->Eval(temp, scatter_pos);
         record->env_radiance = env_emit_record.radiance;
         record->env_pdf = env_emit_record.pdf;
     }

@@ -37,8 +37,7 @@ OptixLaunchParams g_params;
 optix_util::CameraDesc g_camera_init_desc;
 std::unique_ptr<optix_util::CameraHelper> g_camera;
 
-CUdeviceptr g_emitters_cuda_memory = 0;
-std::vector<optix_util::Emitter> g_emitters;
+std::unique_ptr<optix_util::EmitterHelper> g_emitters;
 
 bool g_render_flag = true;
 
@@ -91,8 +90,8 @@ int main() {
             g_render_flag = false;
 
     } while (true);
-    CUDA_FREE(g_emitters_cuda_memory);
 
+    g_emitters.reset();
     g_camera.reset();
     g_pt_module.reset();
     g_sphere_module.reset();
@@ -207,9 +206,12 @@ void LoadScene(std::string_view scene_file, std::string_view default_scene) noex
     g_scene->LoadFromXML(scene_file_path);
     g_optix_device->InitScene(g_scene.get());
 
-    g_emitters = optix_util::GenerateEmitters(g_scene.get());
-    g_emitters_cuda_memory = cuda::CudaMemcpy(g_emitters.data(), g_emitters.size() * sizeof(optix_util::Emitter));
-    g_params.emitters.SetData(g_emitters_cuda_memory, g_emitters.size());
+    if (!g_emitters) {
+        g_emitters = std::make_unique<optix_util::EmitterHelper>(g_scene.get());
+    } else {
+        g_emitters->Reset(g_scene.get());
+    }
+    g_params.emitters = g_emitters->GetEmitterGroup();
 
     auto &&sensor = g_scene->sensor;
     optix_util::CameraDesc desc{

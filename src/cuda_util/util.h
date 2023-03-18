@@ -49,6 +49,7 @@ inline void CudaSyncCheck(const char *file, unsigned int line) {
     do {                                                         \
         if (var)                                                 \
             CUDA_CHECK(cudaFree(reinterpret_cast<void *>(var))); \
+        var = 0;                                                 \
     } while (false)
 
 namespace cuda {

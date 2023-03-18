@@ -25,21 +25,11 @@ struct Emitter {
     union {
         TriAreaEmitter area;
         SphereEmitter sphere;
+        ConstEnvEmitter const_env;
+        EnvMapEmitter env_map;
     };
 
     CUDA_HOSTDEVICE Emitter() noexcept {}
-
-    CUDA_HOSTDEVICE static const Emitter &SelectOneEmiiter(float p, const cuda::ConstArrayView<Emitter> &emitters) noexcept {
-        unsigned int i = 0;
-        float sum_p = 0.f;
-        for (; i < emitters.GetNum() - 1; ++i) {
-            if (p > sum_p && p < sum_p + emitters[i].select_probability) {
-                break;
-            }
-            sum_p += emitters[i].select_probability;
-        }
-        return emitters[i];
-    }
 
     CUDA_HOSTDEVICE EmitEvalRecord Eval(LocalGeometry emit_local_geo, float3 scatter_pos) const noexcept {
         EmitEvalRecord ret;
@@ -49,6 +39,9 @@ struct Emitter {
                 break;
             case EEmitterType::Sphere:
                 ret = sphere.Eval(emit_local_geo, scatter_pos);
+                break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.Eval(emit_local_geo, scatter_pos);
                 break;
         }
         return ret;
@@ -63,6 +56,9 @@ struct Emitter {
             case EEmitterType::Sphere:
                 ret = sphere.radiance.Sample(tex);
                 break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.color;
+                break;
         }
         return ret;
     }
@@ -75,6 +71,9 @@ struct Emitter {
                 break;
             case EEmitterType::Sphere:
                 ret = sphere.SampleDirect(hit_geo, xi);
+                break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.SampleDirect(hit_geo, xi);
                 break;
         }
         return ret;
@@ -94,7 +93,65 @@ struct Emitter {
     }
 };
 
+struct EmitterGroup {
+    cuda::ConstArrayView<Emitter> areas;
+    cuda::ConstArrayView<Emitter> points;
+    cuda::ConstArrayView<Emitter> directionals;
+    cuda::ConstDataView<Emitter> env;
+
+    CUDA_HOSTDEVICE const Emitter &SelectOneEmiiter(float p) noexcept {
+        unsigned int i = 0;
+        float sum_p = 0.f;
+        const Emitter &cb_emitter =
+            env ? *env.operator->() :
+                  (areas ? areas[0] :
+                           (points ? points[0] : directionals[0]));
+        for (; i < areas.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + areas[i].select_probability) {
+                return areas[i];
+            }
+            sum_p += areas[i].select_probability;
+        }
+        for (i = 0; i < points.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + points[i].select_probability) {
+                return points[i];
+            }
+            sum_p += points[i].select_probability;
+        }
+        for (i = 0; i < directionals.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + directionals[i].select_probability) {
+                return directionals[i];
+            }
+            sum_p += directionals[i].select_probability;
+        }
+        return cb_emitter;
+    }
+};
+
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-std::vector<Emitter> GenerateEmitters(scene::Scene *) noexcept;
+
+class EmitterHelper {
+private:
+    std::vector<Emitter> m_areas;
+    std::vector<Emitter> m_points;
+    std::vector<Emitter> m_directionals;
+    Emitter m_env;
+
+    CUdeviceptr m_areas_cuda_memory;
+    CUdeviceptr m_points_cuda_memory;
+    CUdeviceptr m_directionals_cuda_memory;
+    CUdeviceptr m_env_cuda_memory;
+
+    void GenerateEmitters(scene::Scene *) noexcept;
+
+public:
+    EmitterHelper(scene::Scene *) noexcept;
+    ~EmitterHelper() noexcept;
+
+    void Clear() noexcept;
+    void Reset(scene::Scene *) noexcept;
+    EmitterGroup GetEmitterGroup() noexcept;
+};
+
 #endif
 }// namespace optix_util
