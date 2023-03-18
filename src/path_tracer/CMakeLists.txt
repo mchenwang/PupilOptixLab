@@ -30,7 +30,6 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         ${pupil_optix_root}/optix_util/*.h
         ${pupil_optix_root}/material/*.h
-        ${pupil_optix_root}/material/bsdf/*.h
     COMMAND
         nvcc ${CMAKE_CURRENT_SOURCE_DIR}/main.cu
         -ptx -o ${CMAKE_CURRENT_SOURCE_DIR}/main.ptx -std=c++17

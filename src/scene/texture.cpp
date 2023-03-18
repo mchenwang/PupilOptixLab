@@ -61,6 +61,14 @@ util::Texture TextureManager::GetColorTexture(float r, float g, float b) noexcep
     return texture;
 }
 
+util::Texture TextureManager::GetColorTexture(util::Float3 color) noexcept {
+    util::Texture texture{};
+    texture.type = util::ETextureType::RGB;
+    texture.rgb.color = color;
+
+    return texture;
+}
+
 util::Texture TextureManager::GetCheckerboardTexture(util::Float3 patch1, util::Float3 patch2) noexcept {
     util::Texture texture{};
     texture.type = util::ETextureType::Checkerboard;
