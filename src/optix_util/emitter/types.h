@@ -9,13 +9,11 @@ enum class EEmitterType {
     TriArea,
     Sphere,
     // Point,
-    // EnvMap,
-    // ConstEnv
+    EnvMap,
+    ConstEnv
 };
 
 struct EmitterSampleRecord {
-    float3 position;
-    float3 normal;
     float3 radiance;
     float3 wi;
 
@@ -25,10 +23,10 @@ struct EmitterSampleRecord {
 };
 struct EmitEvalRecord {
     float3 radiance;
-    float distance;
     float pdf;
 };
 }// namespace optix_util
 
 #include "area.h"
 #include "sphere.h"
+#include "env.h"

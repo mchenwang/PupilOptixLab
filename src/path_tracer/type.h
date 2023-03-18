@@ -25,7 +25,8 @@ struct OptixLaunchParams {
     unsigned int sample_cnt;
 
     cuda::ConstDataView<optix_util::Camera> camera;
-    cuda::ConstDataView<cuda::Texture> env;
+    // cuda::ConstDataView<cuda::Texture> env;
+    cuda::ConstDataView<optix_util::Emitter> env;
     cuda::ConstArrayView<optix_util::Emitter> emitters;
 
     float4 *accum_buffer;

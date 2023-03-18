@@ -6,6 +6,7 @@
 
 namespace optix_util {
 CUDA_DEVICE static const float EPS = 0.000001f;
+CUDA_DEVICE static const float MAX_DISTANCE = 1e16f;
 
 CUDA_INLINE CUDA_DEVICE void PackPointer(void *target, uint32_t &u0, uint32_t &u1) noexcept {
     const uint64_t ptr = reinterpret_cast<uint64_t>(target);
@@ -39,19 +40,6 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 UniformSampleSphere(const float u1, const flo
     const float sin_theta = sqrtf(max(0.f, 1.f - z * z));
     const float phi = 2.f * M_PIf * u2;
     return make_float3(sin_theta * cos(phi), sin_theta * sin(phi), z);
-}
-
-CUDA_INLINE CUDA_HOSTDEVICE float3 Onb(const float3 normal, const float3 p) noexcept {
-    float3 binormal;
-    if (fabs(normal.x) > fabs(normal.z))
-        binormal = make_float3(-normal.y, normal.x, 0.f);
-    else
-        binormal = make_float3(0.f, -normal.z, normal.y);
-
-    binormal = normalize(binormal);
-    float3 tangent = cross(binormal, normal);
-
-    return p.x * tangent + p.y * binormal + p.z * normal;
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float3 CosineSampleHemisphere(const float u1, const float u2) noexcept {

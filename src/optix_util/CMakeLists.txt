@@ -9,6 +9,7 @@ set(optix_util_source
     emitter/types.h
     emitter/area.h
     emitter/sphere.h
+    emitter/env.h
 )
 
 add_library(optix_util STATIC ${optix_util_source})

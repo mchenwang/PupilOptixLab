@@ -20,6 +20,7 @@ struct HitInfo {
 struct PathPayloadRecord {
     float3 radiance;
     float3 env_radiance;
+    float env_pdf;
     cuda::Random random;
 
     float3 throughput;
@@ -156,7 +157,8 @@ extern "C" __global__ void __raygen__main() {
                        u0, u1);
 
             if (record.done) {
-                // TODO:
+                float mis = optix_util::MISWeight(bsdf_sample_record.pdf, record.env_pdf);
+                record.env_radiance *= record.throughput * mis;
                 break;
             }
 
@@ -193,9 +195,12 @@ extern "C" __global__ void __raygen__main() {
 extern "C" __global__ void __miss__default() {
     auto record = optix_util::GetPRD<PathPayloadRecord>();
     if (optix_launch_params.env) {
-        float3 ray_dir = optixGetWorldRayDirection();
-        float2 tex = optix_util::GetSphereTexcoord(make_float3(ray_dir.x, ray_dir.z, ray_dir.y));
-        record->env_radiance = optix_launch_params.env->Sample(tex);
+        optix_util::LocalGeometry temp;
+        temp.position = optixGetWorldRayDirection();
+        float3 scatter_pos = make_float3(0.f);
+        auto env_emit_record = optix_launch_params.env->Eval(temp, scatter_pos);
+        record->env_radiance = env_emit_record.radiance;
+        record->env_pdf = env_emit_record.pdf;
     }
     record->done = true;
 }
