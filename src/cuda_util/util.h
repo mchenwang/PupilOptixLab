@@ -53,13 +53,17 @@ inline void CudaSyncCheck(const char *file, unsigned int line) {
     } while (false)
 
 namespace cuda {
-inline CUdeviceptr CudaMemcpy(void *src, size_t size) {
+inline CUdeviceptr CudaMemcpyToDevice(void *src, size_t size) {
     CUdeviceptr device_memory = 0;
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&device_memory), size));
     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(device_memory), src, size, cudaMemcpyHostToDevice));
     return device_memory;
 }
-inline void CudaMemcpy(CUdeviceptr dst, void *src, size_t size) {
+inline void CudaMemcpyToDevice(CUdeviceptr dst, void *src, size_t size) {
     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(dst), src, size, cudaMemcpyHostToDevice));
+}
+
+inline CudaMemcpyToHost(void *dst, CUdeviceptr src, size_t size) {
+    CUDA_CHECK(cudaMemcpy(dst, reinterpret_cast<const void *>(src), size, cudaMemcpyDeviceToHost));
 }
 }// namespace cuda

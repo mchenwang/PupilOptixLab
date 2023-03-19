@@ -115,19 +115,19 @@ EmitterGroup EmitterHelper::GetEmitterGroup() noexcept {
     EmitterGroup ret;
 
     if (!m_areas_cuda_memory && m_areas.size() > 0) {
-        m_areas_cuda_memory = cuda::CudaMemcpy(m_areas.data(), m_areas.size() * sizeof(Emitter));
+        m_areas_cuda_memory = cuda::CudaMemcpyToDevice(m_areas.data(), m_areas.size() * sizeof(Emitter));
     }
     ret.areas.SetData(m_areas_cuda_memory, m_areas.size());
     if (!m_points_cuda_memory && m_points.size() > 0) {
-        m_points_cuda_memory = cuda::CudaMemcpy(m_points.data(), m_points.size() * sizeof(Emitter));
+        m_points_cuda_memory = cuda::CudaMemcpyToDevice(m_points.data(), m_points.size() * sizeof(Emitter));
     }
     ret.points.SetData(m_points_cuda_memory, m_points.size());
     if (!m_directionals_cuda_memory && m_directionals.size() > 0) {
-        m_directionals_cuda_memory = cuda::CudaMemcpy(m_directionals.data(), m_directionals.size() * sizeof(Emitter));
+        m_directionals_cuda_memory = cuda::CudaMemcpyToDevice(m_directionals.data(), m_directionals.size() * sizeof(Emitter));
     }
     ret.directionals.SetData(m_directionals_cuda_memory, m_directionals.size());
     if (!m_env_cuda_memory && m_env.type != optix_util::EEmitterType::None) {
-        m_env_cuda_memory = cuda::CudaMemcpy(&m_env, sizeof(Emitter));
+        m_env_cuda_memory = cuda::CudaMemcpyToDevice(&m_env, sizeof(Emitter));
     }
     ret.env.SetData(m_env_cuda_memory);
     return ret;
