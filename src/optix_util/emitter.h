@@ -5,6 +5,7 @@
 #include "scene/emitter.h"
 #include "geometry.h"
 #include "util.h"
+#include "emitter/types.h"
 
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
 #include <vector>
@@ -12,101 +13,145 @@
 namespace scene {
 class Scene;
 }
+#else
+#include <optix.h>
 #endif
 
 namespace optix_util {
-enum class EEmitterType {
-    None,
-    Triangle,
-    Sphere
-};
-
 struct Emitter {
     EEmitterType type CONST_STATIC_INIT(EEmitterType::None);
-
-    cuda::Texture radiance;
-
-    float area;
     float select_probability;
 
     union {
-        struct {
-            struct {
-                float3 pos;
-                float3 normal;
-                float2 tex;
-            } v0, v1, v2;
-        } triangle;
-        struct {
-            float3 center;
-            float radius;
-        } sphere;
-    } geo;
+        TriAreaEmitter area;
+        SphereEmitter sphere;
+        ConstEnvEmitter const_env;
+        EnvMapEmitter env_map;
+    };
 
     CUDA_HOSTDEVICE Emitter() noexcept {}
 
-    CUDA_HOSTDEVICE static const Emitter &SelectOneEmiiter(float p, const cuda::ConstArrayView<Emitter> &emitters) noexcept {
+    CUDA_HOSTDEVICE EmitEvalRecord Eval(LocalGeometry emit_local_geo, float3 scatter_pos) const noexcept {
+        EmitEvalRecord ret;
+        switch (type) {
+            case EEmitterType::TriArea:
+                ret = area.Eval(emit_local_geo, scatter_pos);
+                break;
+            case EEmitterType::Sphere:
+                ret = sphere.Eval(emit_local_geo, scatter_pos);
+                break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.Eval(emit_local_geo, scatter_pos);
+                break;
+        }
+        return ret;
+    }
+
+    CUDA_HOSTDEVICE float3 GetRadiance(float2 tex) const noexcept {
+        float3 ret;
+        switch (type) {
+            case EEmitterType::TriArea:
+                ret = area.radiance.Sample(tex);
+                break;
+            case EEmitterType::Sphere:
+                ret = sphere.radiance.Sample(tex);
+                break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.color;
+                break;
+        }
+        return ret;
+    }
+
+    CUDA_HOSTDEVICE EmitterSampleRecord SampleDirect(LocalGeometry hit_geo, float2 xi) const noexcept {
+        EmitterSampleRecord ret;
+        switch (type) {
+            case EEmitterType::TriArea:
+                ret = area.SampleDirect(hit_geo, xi);
+                break;
+            case EEmitterType::Sphere:
+                ret = sphere.SampleDirect(hit_geo, xi);
+                break;
+            case EEmitterType::ConstEnv:
+                ret = const_env.SampleDirect(hit_geo, xi);
+                break;
+        }
+        return ret;
+    }
+
+    CUDA_HOSTDEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
+                                               float3 ray_o, float3 ray_dir,
+                                               float t_min, float t_max) noexcept {
+        unsigned int occluded = 0u;
+#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+        optixTrace(ias, ray_o, ray_dir,
+                   t_min, t_max, 0.f,
+                   255, OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
+                   1, 2, 1, occluded);
+#endif
+        return occluded;
+    }
+};
+
+struct EmitterGroup {
+    cuda::ConstArrayView<Emitter> areas;
+    cuda::ConstArrayView<Emitter> points;
+    cuda::ConstArrayView<Emitter> directionals;
+    cuda::ConstDataView<Emitter> env;
+
+    CUDA_HOSTDEVICE const Emitter &SelectOneEmiiter(float p) noexcept {
         unsigned int i = 0;
         float sum_p = 0.f;
-        for (; i < emitters.GetNum() - 1; ++i) {
-            if (p > sum_p && p < sum_p + emitters[i].select_probability) {
-                break;
+        const Emitter &cb_emitter =
+            env ? *env.operator->() :
+                  (areas ? areas[0] :
+                           (points ? points[0] : directionals[0]));
+        for (; i < areas.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + areas[i].select_probability) {
+                return areas[i];
             }
-            sum_p += emitters[i].select_probability;
+            sum_p += areas[i].select_probability;
         }
-        return emitters[i];
-    }
-
-    struct LocalRecord {
-        float3 position;
-        float3 normal;
-        float3 radiance;
-    };
-
-    CUDA_HOSTDEVICE LocalRecord GetLocalInfo(const float3 p) const noexcept {
-        LocalRecord ret;
-        ret.position = p;
-        switch (type) {
-            case EEmitterType::Triangle: {
-                float3 t = optix_util::GetBarycentricCoordinates(p, geo.triangle.v0.pos, geo.triangle.v1.pos, geo.triangle.v2.pos);
-                ret.normal = geo.triangle.v0.normal * t.x + geo.triangle.v1.normal * t.y + geo.triangle.v2.normal * t.z;
-                auto tex = geo.triangle.v0.tex * t.x + geo.triangle.v1.tex * t.y + geo.triangle.v2.tex * t.z;
-                ret.radiance = radiance.Sample(tex);
-            } break;
-            case EEmitterType::Sphere: {
-                ret.normal = (p - geo.sphere.center) / geo.sphere.radius;
-                float2 tex = optix_util::GetSphereTexcoord(ret.normal);
-                ret.radiance = radiance.Sample(tex);
-            } break;
+        for (i = 0; i < points.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + points[i].select_probability) {
+                return points[i];
+            }
+            sum_p += points[i].select_probability;
         }
-        ret.normal = normalize(ret.normal);
-        return ret;
-    }
-
-    CUDA_HOSTDEVICE LocalRecord SampleDirect(const float u1, const float u2) const noexcept {
-        LocalRecord ret;
-        switch (type) {
-            case EEmitterType::Triangle: {
-                float3 t = optix_util::UniformSampleTriangle(u1, u2);
-                ret.position = geo.triangle.v0.pos * t.x + geo.triangle.v1.pos * t.y + geo.triangle.v2.pos * t.z;
-                ret.normal = geo.triangle.v0.normal * t.x + geo.triangle.v1.normal * t.y + geo.triangle.v2.normal * t.z;
-                auto tex = geo.triangle.v0.tex * t.x + geo.triangle.v1.tex * t.y + geo.triangle.v2.tex * t.z;
-                ret.radiance = radiance.Sample(tex);
-            } break;
-            case EEmitterType::Sphere: {
-                float3 t = optix_util::UniformSampleSphere(u1, u2);
-                ret.position = t * geo.sphere.radius + geo.sphere.center;
-                ret.normal = t;
-                float2 tex = optix_util::GetSphereTexcoord(t);
-                ret.radiance = radiance.Sample(tex);
-            } break;
+        for (i = 0; i < directionals.GetNum(); ++i) {
+            if (p > sum_p && p < sum_p + directionals[i].select_probability) {
+                return directionals[i];
+            }
+            sum_p += directionals[i].select_probability;
         }
-        ret.normal = normalize(ret.normal);
-        return ret;
+        return cb_emitter;
     }
 };
 
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-std::vector<Emitter> GenerateEmitters(scene::Scene *) noexcept;
+
+class EmitterHelper {
+private:
+    std::vector<Emitter> m_areas;
+    std::vector<Emitter> m_points;
+    std::vector<Emitter> m_directionals;
+    Emitter m_env;
+
+    CUdeviceptr m_areas_cuda_memory;
+    CUdeviceptr m_points_cuda_memory;
+    CUdeviceptr m_directionals_cuda_memory;
+    CUdeviceptr m_env_cuda_memory;
+
+    void GenerateEmitters(scene::Scene *) noexcept;
+
+public:
+    EmitterHelper(scene::Scene *) noexcept;
+    ~EmitterHelper() noexcept;
+
+    void Clear() noexcept;
+    void Reset(scene::Scene *) noexcept;
+    EmitterGroup GetEmitterGroup() noexcept;
+};
+
 #endif
 }// namespace optix_util

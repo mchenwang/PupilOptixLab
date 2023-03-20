@@ -30,5 +30,9 @@ public:
         seed = (LCG_A * seed + LCG_C);
         return static_cast<float>(seed & 0x00FFFFFF) / 0x01000000;
     }
+
+    CUDA_HOSTDEVICE float2 Next2() noexcept {
+        return make_float2(Next(), Next());
+    }
 };
 }// namespace cuda

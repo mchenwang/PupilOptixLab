@@ -1,6 +1,7 @@
 #include "shape.h"
 
 #include "scene.h"
+#include "xml/util_loader.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -68,20 +69,6 @@ namespace {
 using scene::EShapeType;
 using scene::Shape;
 
-inline void LoadBoolParameter(const scene::xml::Object *obj, std::string_view param_name, bool &param, bool default_value = false) noexcept {
-    std::string value = obj->GetProperty(param_name);
-    if (value.empty())
-        param = default_value;
-    else {
-        if (value.compare("true") == 0)
-            param = true;
-        else if (value.compare("false") == 0)
-            param = false;
-        else
-            param = default_value;
-    }
-}
-
 template<EShapeType Tag>
 struct ShapeLoader {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
@@ -94,7 +81,7 @@ template<>
 struct ShapeLoader<EShapeType::_cube> {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetCube();
-        LoadBoolParameter(obj, "flip_normals", shape.cube.flip_normals, false);
+        scene::xml::LoadBool(obj, "flip_normals", shape.cube.flip_normals, false);
 
         return shape;
     }
@@ -104,7 +91,7 @@ template<>
 struct ShapeLoader<EShapeType::_rectangle> {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetRectangle();
-        LoadBoolParameter(obj, "flip_normals", shape.rect.flip_normals, false);
+        scene::xml::LoadBool(obj, "flip_normals", shape.rect.flip_normals, false);
 
         return shape;
     }
@@ -120,7 +107,7 @@ struct ShapeLoader<EShapeType::_sphere> {
         if (!value.empty()) radius = std::stof(value);
 
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetSphere(radius, center);
-        LoadBoolParameter(obj, "flip_normals", shape.sphere.flip_normals, false);
+        scene::xml::LoadBool(obj, "flip_normals", shape.sphere.flip_normals, false);
 
         return shape;
     }
@@ -132,12 +119,11 @@ struct ShapeLoader<EShapeType::_obj> {
 
         auto value = obj->GetProperty("filename");
         auto path = (scene->scene_root_path / value).make_preferred();
-        util::Singleton<scene::ShapeDataManager>::instance()->LoadShapeFromFile(path.string());
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetShape(path.string());
 
-        LoadBoolParameter(obj, "face_normals", shape.obj.face_normals, false);
-        LoadBoolParameter(obj, "flip_tex_coords", shape.obj.flip_tex_coords, true);
-        LoadBoolParameter(obj, "flip_normals", shape.obj.flip_normals, false);
+        scene::xml::LoadBool(obj, "face_normals", shape.obj.face_normals, false);
+        scene::xml::LoadBool(obj, "flip_tex_coords", shape.obj.flip_tex_coords, true);
+        scene::xml::LoadBool(obj, "flip_normals", shape.obj.flip_normals, false);
 
         return shape;
     }
@@ -186,6 +172,9 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
 }
 
 void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
+    auto it = m_shape_datas.find(file_path);
+    if (it != m_shape_datas.end()) return;
+
     Assimp::Importer importer;
     const auto scene = importer.ReadFile(file_path.data(), aiProcess_Triangulate);
 
@@ -240,7 +229,11 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
 Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     auto it = m_shape_datas.find(id);
     if (it == m_shape_datas.end()) {
-        return GetSphere(1.f, util::Float3{ 0.f, 0.f, 0.f }, false);
+        this->LoadShapeFromFile(id);
+        it = m_shape_datas.find(id);
+        [[unlikely]] if (it == m_shape_datas.end()) {
+            return GetSphere(1.f, util::Float3{ 0.f, 0.f, 0.f }, false);
+        }
     }
 
     Shape shape;

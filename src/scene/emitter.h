@@ -1,26 +1,34 @@
 #pragma once
 
 #include "common/texture.h"
+#include "common/type.h"
 
 namespace scene {
 enum class EEmitterType {
+    Unknown,
     Area,
-    Constant
+    ConstEnv,
+    EnvMap
 };
 
 struct AreaEmitter {
     util::Texture radiance;
 };
 
-struct Constant {
+struct ConstEnv {
+    util::Float3 radiance;
+};
+
+struct EnvMap {
     util::Texture radiance;
 };
 
 struct Emitter {
-    EEmitterType type = EEmitterType::Constant;
+    EEmitterType type = EEmitterType::Unknown;
     union {
         AreaEmitter area;
-        Constant constant;
+        ConstEnv const_env;
+        EnvMap env_map;
     };
 
     Emitter() noexcept {}

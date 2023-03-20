@@ -10,12 +10,12 @@ struct Diffuse {
     cuda::Texture reflectance;
 
     CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
-        if (wi.z < 0.f || wo.z < 0.f) return make_float3(0.f);
+        if (wi.z <= 0.f || wo.z <= 0.f) return make_float3(0.f);
         return reflectance.Sample(tex) * M_1_PIf;
     }
 
     CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
-        if (wi.z < 0.f || wo.z < 0.f) return 0.f;
+        if (wi.z <= 0.f || wo.z <= 0.f) return 0.f;
         return optix_util::CosineSampleHemispherePdf(wi);
     }
 

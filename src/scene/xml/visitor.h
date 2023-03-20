@@ -168,34 +168,30 @@ IMPL_VISITOR(ETag::_rotate,
 // <scale value="5"/>
 // <scale value="2, 1, -1"/>
 // <scale x="4" y="2"/>
-IMPL_VISITOR(ETag::_scale,      return XYZValuePropertyVisitor(ETag::_scale, global_manager, node, "1", "1", "1");)
+IMPL_VISITOR(ETag::_scale,      return XYZValuePropertyVisitor(ETag::_scale,     global_manager, node, "1", "1", "1");)
 
 // <point name="center" value="1,1,1"/>
 // <point name="center" x="1" y="0" z="0"/>
-IMPL_VISITOR(ETag::_point,      return XYZValuePropertyVisitor(ETag::_point, global_manager, node, "0", "0", "0");)
+IMPL_VISITOR(ETag::_point,      return XYZValuePropertyVisitor(ETag::_point,     global_manager, node, "0", "0", "0");)
 
 // <translate x="1" y="0" z="0"/>
 IMPL_VISITOR(ETag::_translate,  return XYZValuePropertyVisitor(ETag::_translate, global_manager, node, "0", "0", "0");)
 
-IMPL_VISITOR(ETag::_integer,    return PropertyVisitor(ETag::_integer, global_manager, node);)
-IMPL_VISITOR(ETag::_string,     return PropertyVisitor(ETag::_string, global_manager, node);)
-IMPL_VISITOR(ETag::_float,      return PropertyVisitor(ETag::_float, global_manager, node);)
-IMPL_VISITOR(ETag::_rgb,        return PropertyVisitor(ETag::_rgb, global_manager, node);)
-IMPL_VISITOR(ETag::_boolean,    return PropertyVisitor(ETag::_boolean, global_manager, node);)
+IMPL_VISITOR(ETag::_integer,    return PropertyVisitor(ETag::_integer,  global_manager, node);)
+IMPL_VISITOR(ETag::_string,     return PropertyVisitor(ETag::_string,   global_manager, node);)
+IMPL_VISITOR(ETag::_float,      return PropertyVisitor(ETag::_float,    global_manager, node);)
+IMPL_VISITOR(ETag::_rgb,        return PropertyVisitor(ETag::_rgb,      global_manager, node);)
+IMPL_VISITOR(ETag::_boolean,    return PropertyVisitor(ETag::_boolean,  global_manager, node);)
+IMPL_VISITOR(ETag::_matrix,     return PropertyVisitor(ETag::_matrix,   global_manager, node);)
 
-IMPL_VISITOR(ETag::_matrix,     return PropertyVisitor(ETag::_matrix, global_manager, node);)
-// IMPL_VISITOR(ETag::_scale,      return TransformVisitor(ETag::_scale, global_manager, node);)
-// IMPL_VISITOR(ETag::_rotate,     return TransformVisitor(ETag::_rotate, global_manager, node);)
-// IMPL_VISITOR(ETag::_translate,  return TransformVisitor(ETag::_translate, global_manager, node);)
-
-IMPL_VISITOR(ETag::_bsdf,       return ObjectVisitor(ETag::_bsdf, global_manager, node);)
-IMPL_VISITOR(ETag::_emitter,    return ObjectVisitor(ETag::_emitter, global_manager, node);)
-IMPL_VISITOR(ETag::_film,       return ObjectVisitor(ETag::_film, global_manager, node);)
+IMPL_VISITOR(ETag::_bsdf,       return ObjectVisitor(ETag::_bsdf,       global_manager, node);)
+IMPL_VISITOR(ETag::_emitter,    return ObjectVisitor(ETag::_emitter,    global_manager, node);)
+IMPL_VISITOR(ETag::_film,       return ObjectVisitor(ETag::_film,       global_manager, node);)
 IMPL_VISITOR(ETag::_integrator, return ObjectVisitor(ETag::_integrator, global_manager, node);)
-IMPL_VISITOR(ETag::_sensor,     return ObjectVisitor(ETag::_sensor, global_manager, node);)
-IMPL_VISITOR(ETag::_shape,      return ObjectVisitor(ETag::_shape, global_manager, node);)
-IMPL_VISITOR(ETag::_texture,    return ObjectVisitor(ETag::_texture, global_manager, node);)
-IMPL_VISITOR(ETag::_transform,  return ObjectVisitor(ETag::_transform, global_manager, node);)
+IMPL_VISITOR(ETag::_sensor,     return ObjectVisitor(ETag::_sensor,     global_manager, node);)
+IMPL_VISITOR(ETag::_shape,      return ObjectVisitor(ETag::_shape,      global_manager, node);)
+IMPL_VISITOR(ETag::_texture,    return ObjectVisitor(ETag::_texture,    global_manager, node);)
+IMPL_VISITOR(ETag::_transform,  return ObjectVisitor(ETag::_transform,  global_manager, node);)
 
 // clang-format on
 

@@ -86,9 +86,9 @@ CUdeviceptr CameraHelper::GetCudaMemory() noexcept {
     }
 
     if (m_camera_cuda_memory == 0) {
-        m_camera_cuda_memory = cuda::CudaMemcpy(&m_optix_camera, sizeof(m_optix_camera));
+        m_camera_cuda_memory = cuda::CudaMemcpyToDevice(&m_optix_camera, sizeof(m_optix_camera));
     } else if (m_dirty) {
-        cuda::CudaMemcpy(m_camera_cuda_memory, &m_optix_camera, sizeof(m_optix_camera));
+        cuda::CudaMemcpyToDevice(m_camera_cuda_memory, &m_optix_camera, sizeof(m_optix_camera));
     }
 
     m_dirty = false;

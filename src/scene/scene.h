@@ -51,6 +51,8 @@ public:
 
     Scene() noexcept;
 
+    void Reset() noexcept;
+    void LoadFromXML(std::filesystem::path) noexcept;
     void LoadFromXML(std::string_view, std::string_view root = DATA_DIR) noexcept;
 
     template<typename Func>

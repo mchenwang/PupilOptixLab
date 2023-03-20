@@ -276,7 +276,7 @@ void DrawImGuiConsoleWindow() noexcept {
     if (ImGui::Begin("Lab Console", nullptr, ImGuiWindowFlags_MenuBar)) {
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("Menu")) {
-                if (ImGui::MenuItem("Test")) {
+                if (ImGui::MenuItem("Clear Resource Cache")) {
                     printf("test menu item\n");
                 }
                 ImGui::EndMenu();
@@ -286,8 +286,10 @@ void DrawImGuiConsoleWindow() noexcept {
 
         if (ImGui::CollapsingHeader("Common info & op", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::SeparatorText("info");
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::Text("Render Target Size(width x height): %d x %d", g_window_w, g_window_h);
+            {
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                ImGui::Text("Render Target Size(width x height): %d x %d", g_window_w, g_window_h);
+            }
 
             ImGui::SeparatorText("op");
             ImGui::Text("Camera:");

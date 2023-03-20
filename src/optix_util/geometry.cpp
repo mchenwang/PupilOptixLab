@@ -10,7 +10,7 @@ inline CUdeviceptr GetCudaMemory(void *data, size_t size) noexcept {
     if (data == nullptr || size == 0) return 0;
     auto it = m_cuda_geometry_map.find(data);
     if (it == m_cuda_geometry_map.end()) {
-        m_cuda_geometry_map[data] = cuda::CudaMemcpy(data, size);
+        m_cuda_geometry_map[data] = cuda::CudaMemcpyToDevice(data, size);
     }
     return m_cuda_geometry_map[data];
 }
