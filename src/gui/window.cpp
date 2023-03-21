@@ -12,6 +12,11 @@
 #include <wincodec.h>
 #include "ScreenGrab.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
+#include "cuda_util/util.h"
+#include "device/optix_device.h"
+
 #include <string>
 #include <vector>
 #include <array>
@@ -304,20 +309,31 @@ void DrawImGuiConsoleWindow() noexcept {
                 static char file_name[256]{};
                 ImGui::InputText("file name", file_name, 256);
                 ImGui::SameLine();
-                constexpr auto image_file_format = std::array{ "jpg", "png" };
+                // constexpr auto image_file_format = std::array{ "hdr", "jpg", "png" };
+                constexpr auto image_file_format = std::array{ "hdr" };
                 static int item_current = 0;
                 ImGui::Combo("format", &item_current, image_file_format.data(), (int)image_file_format.size());
                 ImGui::SameLine();
                 if (ImGui::Button("Save")) {
                     std::filesystem::path path{ ROOT_DIR };
                     path /= std::string{ file_name } + "." + image_file_format[item_current];
-                    StopIfFailed(
-                        DirectX::SaveWICTextureToFile(
-                            m_backend->GetDevice()->cmd_queue.Get(),
-                            m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
-                            GUID_ContainerFormatJpeg, path.wstring().data(),
-                            D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT,
-                            nullptr, nullptr, true));
+                    // StopIfFailed(
+                    //     DirectX::SaveWICTextureToFile(
+                    //         m_backend->GetDevice()->cmd_queue.Get(),
+                    //         m_backend->GetDevice()->GetCurrentFrame().buffer.Get(),
+                    //         GUID_ContainerFormatJpeg, path.wstring().data(),
+                    //         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_PRESENT,
+                    //         nullptr, nullptr, true));
+
+                    size_t size = g_window_h * g_window_w * 4;
+                    auto image = new float[size];
+                    memset(image, 0, size);
+                    cuda::CudaMemcpyToHost(image, m_backend->GetCurrentFrameResource().src->cuda_buffer_ptr, size * sizeof(float));
+
+                    stbi_flip_vertically_on_write(true);
+                    stbi_write_hdr(path.string().c_str(), g_window_w, g_window_h, 4, image);
+                    delete[] image;
+
                     printf("image was saved successfully in [%ws].\n", path.wstring().data());
                 }
                 ImGui::PopItemWidth();
