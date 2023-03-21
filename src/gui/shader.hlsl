@@ -12,6 +12,7 @@ struct FrameInfo
 {
     uint w;
     uint h;
+    uint tone_mapping_type;
 };
 ConstantBuffer<FrameInfo> frame : register(b0);
 
@@ -25,6 +26,15 @@ PSInput VSMain(VSInput input) {
     return result;
 }
 
+float4 GammaCorrection(float4 color, float gamma) {
+    float4 ret;
+    ret.x = pow(color.x, 1.f / gamma);
+    ret.y = pow(color.y, 1.f / gamma);
+    ret.z = pow(color.z, 1.f / gamma);
+    ret.w = color.w;
+    return ret;
+}
+
 float4 PSMain(PSInput input) : SV_TARGET {
     // texcoord:
     // [-1, 1]-----------------[1, 1]
@@ -32,8 +42,8 @@ float4 PSMain(PSInput input) : SV_TARGET {
     //    |                      |
     //    |                      |
     // [-1,-1]-----------------[1,-1]
-    uint tex_x = (input.texcoord.x + 1.f) / 2.f * frame.w;
-    uint tex_y = (input.texcoord.y + 1.f) / 2.f * frame.h;
+    int tex_x = (int)((input.texcoord.x + 1.f) / 2.f * frame.w);
+    int tex_y = (int)((input.texcoord.y + 1.f) / 2.f * frame.h);
 
-    return render_result.Load(tex_x + tex_y * frame.w);
+    return GammaCorrection(render_result.Load(tex_x + tex_y * (int)frame.w), 2.2f);
 }
