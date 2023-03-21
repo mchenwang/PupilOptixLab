@@ -81,6 +81,8 @@ int main() {
 
             g_params.sample_cnt += g_params.config.accumulated_flag;
             ++g_params.frame_cnt;
+
+            // if (g_params.sample_cnt == 30) g_render_flag = false;
         }
 
         auto msg = gui_window->Show();
@@ -174,7 +176,7 @@ void InitLaunchParams() {
     g_params.config.frame.height = g_scene->sensor.film.h;
     g_params.config.max_depth = g_scene->integrator.max_depth;
     g_params.config.accumulated_flag = true;
-    g_params.config.use_tone_mapping = true;
+    g_params.config.use_tone_mapping = false;
 
     g_params.frame_cnt = 0;
     g_params.sample_cnt = 0;

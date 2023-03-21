@@ -133,21 +133,20 @@ extern "C" __global__ void __raygen__main() {
         }
         // bsdf sampling
         {
-            float2 xi = make_float2(record.random.Next(), record.random.Next());
             float3 wo = optix_util::ToLocal(-ray_direction, local_hit.geo.normal);
-            auto bsdf_sample_record = record.hit.mat.Sample(xi, wo, local_hit.geo.texcoord);
+            auto bsdf_sample_record = record.hit.mat.Sample(record.random.Next2(), wo, local_hit.geo.texcoord);
             if (optix_util::IsZero(bsdf_sample_record.f * abs(bsdf_sample_record.wi.z)) || optix_util::IsZero(bsdf_sample_record.pdf))
                 break;
 
             record.throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
-            float3 sampled_wi = optix_util::ToWorld(bsdf_sample_record.wi, local_hit.geo.normal);
 
             float rr = depth > 2 ? 0.95 : 1.0;
             if (record.random.Next() > rr)
                 break;
             record.throughput /= rr;
+
             ray_origin = record.hit.geo.position;
-            ray_direction = sampled_wi;
+            ray_direction = optix_util::ToWorld(bsdf_sample_record.wi, local_hit.geo.normal);
 
             optixTrace(optix_launch_params.handle,
                        ray_origin, ray_direction,
@@ -186,9 +185,10 @@ extern "C" __global__ void __raygen__main() {
     }
     optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
 
-    float3 color = optix_util::ACESToneMapping(record.radiance, 1.f);
+    float3 color = record.radiance;
     if (optix_launch_params.config.use_tone_mapping)
-        color = optix_util::GammaCorrection(color, 2.2f);
+        color = optix_util::ACESToneMapping(color, 1.f);
+
     optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
 }
 
