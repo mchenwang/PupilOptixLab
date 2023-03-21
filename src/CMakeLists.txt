@@ -3,10 +3,10 @@ find_package(OptiX REQUIRED)
 configure_file(static.h.in ${CMAKE_CURRENT_LIST_DIR}/static.h)
 set(STATIC_DATA_FILE ${CMAKE_CURRENT_LIST_DIR}/static.h)
 
-if (WIN32)
+if(WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
     add_definitions(-DNOMINMAX)
-endif ()
+endif()
 
 set(source_folder src)
 
@@ -26,3 +26,4 @@ set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
 
 # executable target
 add_subdirectory(path_tracer)
+add_subdirectory(ddgi)
