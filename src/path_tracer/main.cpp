@@ -39,6 +39,7 @@ std::unique_ptr<optix_util::CameraHelper> g_camera;
 
 std::unique_ptr<optix_util::EmitterHelper> g_emitters;
 
+int g_max_samples = 32;
 bool g_render_flag = true;
 
 struct SBTTypes {
@@ -75,14 +76,21 @@ int main() {
 
     do {
         if (g_render_flag) {
-            g_params.camera.SetData(g_camera->GetCudaMemory());
-            g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
-            g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
+            if ((int)g_params.sample_cnt >= g_max_samples) {
+                g_render_flag = false;
+            } else {
 
-            g_params.sample_cnt += g_params.config.accumulated_flag;
-            ++g_params.frame_cnt;
+                g_params.camera.SetData(g_camera->GetCudaMemory());
+                g_params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
+                g_pt_pass->Run(g_params, g_params.config.frame.width, g_params.config.frame.height);
 
-            // if (g_params.sample_cnt == 30) g_render_flag = false;
+                if (g_params.config.accumulated_flag)
+                    ++g_params.sample_cnt;
+                else
+                    g_params.sample_cnt = 1;
+
+                ++g_params.frame_cnt;
+            }
         }
 
         auto msg = gui_window->Show();
@@ -265,7 +273,10 @@ void InitGuiAndEventCallback() noexcept {
             }
 
             ImGui::SeparatorText("render options");
-            ImGui::Text("sample count: %d", g_params.sample_cnt + 1);
+            ImGui::InputInt("max samples", &g_max_samples, 1, 32);
+            if (g_max_samples <= 0) g_max_samples = 1;
+
+            ImGui::Text("sample count: %d", g_params.sample_cnt);
             ImGui::SameLine();
             if (ImGui::Button(g_render_flag ? "Stop" : "Continue")) {
                 g_render_flag ^= 1;
@@ -298,6 +309,7 @@ void InitGuiAndEventCallback() noexcept {
         [&]() {
             g_params.frame_cnt = 0;
             g_params.sample_cnt = 0;
+            g_render_flag = true;
 
             unsigned int &w = g_params.config.frame.width;
             unsigned int &h = g_params.config.frame.height;
@@ -317,7 +329,6 @@ void InitGuiAndEventCallback() noexcept {
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseLeftButtonMove,
         [&]() {
-            if (!g_render_flag) return;
             float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
             float dx = gui_window->GetMouseLastDeltaX() * scale;
             float dy = gui_window->GetMouseLastDeltaY() * scale;
@@ -326,24 +337,23 @@ void InitGuiAndEventCallback() noexcept {
 
             g_params.frame_cnt = 0;
             g_params.sample_cnt = 0;
+            g_render_flag = true;
         });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::MouseWheel,
         [&]() {
-            if (!g_render_flag) return;
             float fov_delta = 1.f / 120.f * gui_window->GetMouseWheelDelta();
             g_camera->SetFovDelta(fov_delta);
 
             g_params.frame_cnt = 0;
             g_params.sample_cnt = 0;
+            g_render_flag = true;
         });
 
     gui_window->SetWindowMessageCallback(
         gui::GlobalMessage::KeyboardMove,
         [&]() {
-            if (!g_render_flag) return;
-
             auto right = util::Camera::X;
             auto up = util::Camera::Y;
             auto forward = util::Camera::Z;
@@ -374,5 +384,6 @@ void InitGuiAndEventCallback() noexcept {
 
             g_params.frame_cnt = 0;
             g_params.sample_cnt = 0;
+            g_render_flag = true;
         });
 }
