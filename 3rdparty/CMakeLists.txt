@@ -50,6 +50,7 @@ target_include_directories(${3rdparty_target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 add_sub_target(stb stb ${3rdparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 add_sub_target(imgui imgui ${3rdparty_folder} ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui)
 
+set(BUILD_TESTING OFF CACHE INTERNAL "" FORCE)
 add_sub_target(DirectXTK12 DirectXTK12 ${3rdparty_folder} "")
 
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
