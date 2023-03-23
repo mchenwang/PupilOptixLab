@@ -4,11 +4,12 @@ project(PupilOptixLab LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (MSVC)
+if(MSVC)
     add_compile_options("/MP")
+    add_compile_options("/await") # for WinRT
     add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
-endif (MSVC)
+endif(MSVC)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -19,5 +20,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
+set(3rdparty_target third-party-targets)
+
 add_subdirectory(3dparty)
-add_subdirectory(src)
+add_subdirectory(framework)
