@@ -1,15 +1,15 @@
-[submodule "3rdparty/stb/stb"]
-	path = 3rdparty/stb/stb
-	url = https://github.com/nothings/stb.git
-[submodule "3rdparty/imgui/imgui"]
-	path = 3rdparty/imgui/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "3rdparty/assimp"]
-	path = 3rdparty/assimp
-	url = https://github.com/assimp/assimp.git
 [submodule "3rdparty/DirectXTK12"]
 	path = 3rdparty/DirectXTK12
 	url = https://github.com/microsoft/DirectXTK12.git
 [submodule "3rdparty/pugixml"]
 	path = 3rdparty/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "3rdparty/assimp"]
+	path = 3rdparty/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule "3rdparty/stb/stb"]
+	path = 3rdparty/stb/stb
+	url = https://github.com/nothings/stb.git
+[submodule "3rdparty/imgui/imgui"]
+	path = 3rdparty/imgui/imgui
+	url = https://github.com/ocornut/imgui.git
