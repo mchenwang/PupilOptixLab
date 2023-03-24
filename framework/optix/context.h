@@ -4,7 +4,7 @@
 #include <optix.h>
 
 namespace Pupil::optix {
-class Context : Pupil::util::Singleton<Context> {
+class Context : public Pupil::util::Singleton<Context> {
 public:
     OptixDeviceContext context = nullptr;
 

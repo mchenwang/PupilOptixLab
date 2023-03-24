@@ -12,7 +12,7 @@ class Context;
 };
 
 namespace Pupil::cuda {
-class Context : Pupil::util::Singleton<Context> {
+class Context : public Pupil::util::Singleton<Context> {
 public:
     constexpr static std::string_view DEFAULT_STREAM = "_default";
     constexpr static std::string_view ASYN_STREAM = "_asyn";

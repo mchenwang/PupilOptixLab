@@ -16,7 +16,7 @@ struct Module {
     OptixModule module = nullptr;
 };
 
-class ModuleManager : Pupil::util::Singleton<ModuleManager> {
+class ModuleManager : public Pupil::util::Singleton<ModuleManager> {
 private:
     std::unordered_map<std::string, std::unique_ptr<Module>, util::StringHash, std::equal_to<>> m_modules;
 

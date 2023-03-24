@@ -18,7 +18,7 @@ inline void StopIfFailed(HRESULT hr) {
     }
 }
 
-class Context : Pupil::util::Singleton<Context> {
+class Context : public Pupil::util::Singleton<Context> {
 public:
     constexpr static uint32_t FRAMES_NUM = 3;
 
