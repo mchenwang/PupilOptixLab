@@ -54,9 +54,13 @@ public:
     void SetCurrentFrameFenceValue(uint64_t fence_value) noexcept { m_frame_fence_values[m_current_index] = fence_value; }
     void MoveToNextFrame() noexcept;
 
+    [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
+
 private:
     uint32_t m_frame_w = 1;
     uint32_t m_frame_h = 1;
+
+    bool m_init_flag = false;
 
     bool m_use_warp = false;
     bool m_v_sync = false;

@@ -25,11 +25,14 @@ void Context::Init(uint32_t w, uint32_t h, HWND hWnd) noexcept {
     CreateDescHeap();
     CreateCmdContext();
     CreateSwapchain(hWnd);
+
+    m_init_flag = true;
 }
 
 void Context::Destroy() noexcept {
     Flush();
     ::CloseHandle(m_fence_event);
+    m_init_flag = false;
 }
 
 void Context::CreateDevice() noexcept {

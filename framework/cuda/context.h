@@ -24,7 +24,6 @@ public:
     operator CUcontext() const noexcept { return context; }
 
     void Init() noexcept;
-    void Init(DirectX::Context *) noexcept;
     void Destroy() noexcept;
 
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
