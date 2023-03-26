@@ -31,10 +31,10 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
                 OptixProgramGroupDesc desc{};
                 desc.kind = kind;
                 if (kind == OPTIX_PROGRAM_GROUP_KIND_RAYGEN) {
-                    desc.raygen.module = module->module;
+                    desc.raygen.module = module->optix_module;
                     desc.raygen.entryFunctionName = entry;
                 } else if (kind == OPTIX_PROGRAM_GROUP_KIND_MISS) {
-                    desc.miss.module = module->module;
+                    desc.miss.module = module->optix_module;
                     desc.miss.entryFunctionName = entry;
                 }
 
@@ -55,12 +55,12 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
 
             if (hit_group.ah_entry) {
                 desc.hitgroup.entryFunctionNameAH = hit_group.ah_entry;
-                desc.hitgroup.moduleAH = module->module;
+                desc.hitgroup.moduleAH = module->optix_module;
                 create_flag = true;
             }
             if (hit_group.ch_entry) {
                 desc.hitgroup.entryFunctionNameCH = hit_group.ch_entry;
-                desc.hitgroup.moduleCH = module->module;
+                desc.hitgroup.moduleCH = module->optix_module;
                 create_flag = true;
             } else {
                 assert("empty entry cannot be used as the program id" && false);
@@ -68,11 +68,11 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
             if (hit_group.is_entry) {
                 desc.hitgroup.entryFunctionNameIS = hit_group.is_entry;
                 create_flag = true;
-                desc.hitgroup.moduleIS = module->module;
+                desc.hitgroup.moduleIS = module->optix_module;
             }
             if (hit_group.intersect_module) {
                 create_flag = true;
-                desc.hitgroup.moduleIS = hit_group.intersect_module->module;
+                desc.hitgroup.moduleIS = hit_group.intersect_module->optix_module;
             }
 
             if (create_flag) {
@@ -86,13 +86,13 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
         };
 
         for (auto &program_desc : desc.programs) {
-            assert(program_desc.module);
-            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_RAYGEN, program_desc.module, program_desc.ray_gen_entry);
-            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_MISS, program_desc.module, program_desc.hit_miss);
-            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_MISS, program_desc.module, program_desc.shadow_miss);
+            assert(program_desc.module_ptr);
+            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_RAYGEN, program_desc.module_ptr, program_desc.ray_gen_entry);
+            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_MISS, program_desc.module_ptr, program_desc.hit_miss);
+            CreateProgramGroup(OPTIX_PROGRAM_GROUP_KIND_MISS, program_desc.module_ptr, program_desc.shadow_miss);
 
-            CreateHitGroup(program_desc.module, program_desc.hit_group);
-            CreateHitGroup(program_desc.module, program_desc.shadow_grop);
+            CreateHitGroup(program_desc.module_ptr, program_desc.hit_group);
+            CreateHitGroup(program_desc.module_ptr, program_desc.shadow_grop);
         }
     }
 

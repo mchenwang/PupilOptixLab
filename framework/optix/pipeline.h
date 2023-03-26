@@ -9,7 +9,7 @@ namespace Pupil::optix {
 struct Module;
 
 struct ProgramDesc {
-    Module *module = nullptr;
+    Module *module_ptr = nullptr;
     const char *ray_gen_entry = nullptr;
     const char *hit_miss = nullptr;
     const char *shadow_miss = nullptr;

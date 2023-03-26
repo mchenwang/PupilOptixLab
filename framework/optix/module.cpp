@@ -76,7 +76,7 @@ namespace Pupil::optix {
 [[nodiscard]] Module *ModuleManager::GetModule(std::string_view file_relative_path) noexcept {
     std::filesystem::path path = std::filesystem::path{ ROOT_DIR } / file_relative_path;
     path.make_preferred();
-    
+
     std::string id = path.string();
 
     auto it = m_modules.find(id);
@@ -110,7 +110,7 @@ Module::Module(OptixDeviceContext context, OptixPrimitiveType builtin_type) noex
         &module_compile_options,
         &Pipeline::pipeline_compile_options,
         &options,
-        &module));
+        &optix_module));
 }
 
 Module::Module(OptixDeviceContext context, std::string_view file_id) noexcept {
@@ -135,10 +135,10 @@ Module::Module(OptixDeviceContext context, std::string_view file_id) noexcept {
         ptx_source.size(),
         LOG,
         &LOG_SIZE,
-        &module));
+        &optix_module));
 }
 
 Module::~Module() noexcept {
-    if (module) OPTIX_CHECK(optixModuleDestroy(module));
+    if (optix_module) OPTIX_CHECK(optixModuleDestroy(optix_module));
 }
 }// namespace Pupil::optix

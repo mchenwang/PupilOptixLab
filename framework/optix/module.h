@@ -13,7 +13,7 @@ struct Module {
     Module(OptixDeviceContext context, std::string_view) noexcept;
     ~Module() noexcept;
 
-    OptixModule module = nullptr;
+    OptixModule optix_module = nullptr;
 };
 
 class ModuleManager : public Pupil::util::Singleton<ModuleManager> {
