@@ -100,6 +100,6 @@ void BufferManager::AddBuffer(std::string_view id, std::unique_ptr<Buffer> &buff
     if (it != m_buffers.end()) {
         printf("warning: buffer[%s] is reset.\n", id.data());
     }
-    m_buffers.emplace(id, buffer);
+    m_buffers[std::string{ id }] = std::move(buffer);
 }
 }// namespace Pupil

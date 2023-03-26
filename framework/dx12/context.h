@@ -25,8 +25,19 @@ public:
     winrt::com_ptr<ID3D12Device> device;
     winrt::com_ptr<IDXGIAdapter4> adapter;
 
+    // 0    ----    imgui font
+    // 1    ----    render result for imgui
+    // 2    ----    cbv(buffer from optix) for rendering post processing
+    // 3... ----    for custom
     winrt::com_ptr<ID3D12DescriptorHeap> srv_heap;
+    constexpr static uint32_t SRV_NUM = 20;
+    // 0    ----    swapchain back buffer 0
+    // 1    ----    swapchain back buffer 1
+    // 2    ----    swapchain back buffer 2
+    // 3    ----    for post processing target
+    // 4... ----    for custom
     winrt::com_ptr<ID3D12DescriptorHeap> rtv_heap;
+    constexpr static uint32_t RTV_NUM = 20;
 
     winrt::com_ptr<ID3D12CommandQueue> cmd_queue;
     uint64_t global_fence_value = 0;
@@ -50,9 +61,8 @@ public:
     [[nodiscard]] winrt::com_ptr<ID3D12GraphicsCommandList> GetCmdList() noexcept;
     uint64_t ExecuteCommandLists(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 
-    [[nodiscard]] uint64_t Present(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
-    void SetCurrentFrameFenceValue(uint64_t fence_value) noexcept { m_frame_fence_values[m_current_index] = fence_value; }
-    void MoveToNextFrame() noexcept;
+    void StartRenderScreen(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
+    void Present(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
 

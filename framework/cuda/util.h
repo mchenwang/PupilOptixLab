@@ -11,20 +11,20 @@
 
 inline void CudaCheck(cudaError_t error, const char *call, const char *file, unsigned int line) {
     if (error != cudaSuccess) {
-        std::wstringstream ss;
+        std::stringstream ss;
         ss << "CUDA call (" << call << " ) failed with error: '"
            << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
-        std::wcerr << ss.str().c_str();
+        std::cerr << ss.str().c_str();
         assert(false);
     }
 }
 inline void CudaCheck(CUresult error, const char *call, const char *file, unsigned int line) {
     if (error != cudaSuccess) {
-        std::wstringstream ss;
+        std::stringstream ss;
         ss << "CUDA call (" << call << " ) failed with error: '"
            << error << "' (" << file << ":" << line << ")\n";
 
-        std::wcerr << ss.str().c_str();
+        std::cerr << ss.str().c_str();
         assert(false);
     }
 }
@@ -36,7 +36,7 @@ inline void CudaSyncCheck(const char *file, unsigned int line) {
         ss << "CUDA error on synchronize with error '"
            << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
 
-        std::wcerr << ss.str().c_str();
+        std::cerr << ss.str().c_str();
         assert(false);
     }
 }

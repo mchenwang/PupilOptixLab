@@ -18,6 +18,7 @@ void ContextLogCB(unsigned int level, const char *tag, const char *message, void
 
 namespace Pupil::optix {
 void Context::Init() noexcept {
+    if (IsInitialized()) return;
     auto cuda_ctx = util::Singleton<Pupil::cuda::Context>::instance();
     assert(cuda_ctx->IsInitialized() && "cuda should be initialized before optix.");
 
@@ -26,9 +27,13 @@ void Context::Init() noexcept {
     options.logCallbackFunction = &ContextLogCB;
     options.logCallbackLevel = 4;
     OPTIX_CHECK(optixDeviceContextCreate(*cuda_ctx, &options, &context));
+    m_init_flag = true;
 }
 
 void Context::Destroy() noexcept {
-    CUDA_SYNC_CHECK();
+    if (IsInitialized()) {
+        CUDA_SYNC_CHECK();
+        m_init_flag = false;
+    }
 }
 }// namespace Pupil::optix

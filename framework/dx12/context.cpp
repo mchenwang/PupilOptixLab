@@ -30,16 +30,20 @@ void Context::Init(uint32_t w, uint32_t h, HWND hWnd) noexcept {
 }
 
 void Context::Destroy() noexcept {
-    Flush();
-    ::CloseHandle(m_fence_event);
-    m_init_flag = false;
+    if (IsInitialized()) {
+        Flush();
+        ::CloseHandle(m_fence_event);
+        m_init_flag = false;
+    }
 }
 
 void Context::CreateDevice() noexcept {
     if (adapter == nullptr) CreateAdapter();
     assert(adapter);
 
-    StopIfFailed(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_12_1, winrt::guid_of<ID3D12Device>(), device.put_void()));
+    winrt::com_ptr<ID3D12Device> t_device;
+    StopIfFailed(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_12_1, winrt::guid_of<ID3D12Device>(), t_device.put_void()));
+    device = t_device;
     // Enable debug messages in debug mode.
 #ifdef _DEBUG
     winrt::com_ptr<ID3D12InfoQueue> info_queue;
@@ -128,10 +132,12 @@ void Context::CreateDescHeap() noexcept {
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        desc.NumDescriptors = Context::FRAMES_NUM;
+        desc.NumDescriptors = RTV_NUM;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         desc.NodeMask = 0;
-        StopIfFailed(device->CreateDescriptorHeap(&desc, winrt::guid_of<ID3D12DescriptorHeap>(), rtv_heap.put_void()));
+        winrt::com_ptr<ID3D12DescriptorHeap> t_rtv_heap;
+        StopIfFailed(device->CreateDescriptorHeap(&desc, winrt::guid_of<ID3D12DescriptorHeap>(), t_rtv_heap.put_void()));
+        rtv_heap = t_rtv_heap;
 
         auto size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         auto rtv_handle = rtv_heap->GetCPUDescriptorHandleForHeapStart();
@@ -145,9 +151,10 @@ void Context::CreateDescHeap() noexcept {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        // one is used for imgui, and the other is used for rendering results
-        desc.NumDescriptors = 1 + Context::FRAMES_NUM;
-        StopIfFailed(device->CreateDescriptorHeap(&desc, winrt::guid_of<ID3D12DescriptorHeap>(), srv_heap.put_void()));
+        desc.NumDescriptors = SRV_NUM;
+        winrt::com_ptr<ID3D12DescriptorHeap> t_srv_heap;
+        StopIfFailed(device->CreateDescriptorHeap(&desc, winrt::guid_of<ID3D12DescriptorHeap>(), t_srv_heap.put_void()));
+        srv_heap = t_srv_heap;
     }
 }
 
@@ -184,7 +191,9 @@ void Context::CreateSwapchain(HWND hWnd) noexcept {
         swapchain.put()));
 
     StopIfFailed(dxgi_factory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-    StopIfFailed(swapchain.as(winrt::guid_of<IDXGISwapChain4>(), m_swapchain.put_void()));
+    winrt::com_ptr<IDXGISwapChain4> t_swapchain4;
+    StopIfFailed(swapchain.as(winrt::guid_of<IDXGISwapChain4>(), t_swapchain4.put_void()));
+    m_swapchain = t_swapchain4;
 
     m_current_index = m_swapchain->GetCurrentBackBufferIndex();
     UpdateRenderTarget();
@@ -230,14 +239,18 @@ winrt::com_ptr<ID3D12GraphicsCommandList> Context::GetCmdList() noexcept {
 void Context::CreateCmdContext() noexcept {
     D3D12_COMMAND_QUEUE_DESC desc{};
     desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    StopIfFailed(device->CreateCommandQueue(&desc, winrt::guid_of<ID3D12CommandQueue>(), cmd_queue.put_void()));
+    winrt::com_ptr<ID3D12CommandQueue> t_cmd_queue;
+    StopIfFailed(device->CreateCommandQueue(&desc, winrt::guid_of<ID3D12CommandQueue>(), t_cmd_queue.put_void()));
+    cmd_queue = t_cmd_queue;
 
     global_fence_value = 0;
+    winrt::com_ptr<ID3D12Fence> t_fence;
     StopIfFailed(device->CreateFence(
         global_fence_value,
         D3D12_FENCE_FLAG_SHARED,// semaphore for cuda
         winrt::guid_of<ID3D12Fence>(),
-        m_fence.put_void()));
+        t_fence.put_void()));
+    m_fence = t_fence;
     m_fence_event = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 }
 
@@ -254,10 +267,6 @@ void Context::Flush() noexcept {
 uint64_t Context::ExecuteCommandLists(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
     cmd_list->Close();
 
-    /*ID3D12CommandAllocator *allocator;
-    UINT dataSize = sizeof(allocator);
-    StopIfFailed(cmd_list->GetPrivateData(__uuidof(ID3D12CommandAllocator), &dataSize, &allocator));*/
-
     winrt::com_ptr<ID3D12CommandAllocator> allocator;
     UINT data_size = sizeof(ID3D12CommandAllocator *);
     StopIfFailed(cmd_list->GetPrivateData(__uuidof(ID3D12CommandAllocator), &data_size, allocator.put_void()));
@@ -269,12 +278,26 @@ uint64_t Context::ExecuteCommandLists(winrt::com_ptr<ID3D12GraphicsCommandList> 
     cmd_queue->Signal(m_fence.get(), fence_value);
     m_context_pool.emplace(allocator, fence_value);
     m_command_lists.emplace(cmd_list);
-    allocator->Release();
 
     return fence_value;
 }
 
-uint64_t Context::Present(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
+void Context::StartRenderScreen(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
+    auto [back_buffer, back_buffer_rtv] = GetCurrentFrame();
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = back_buffer.get();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmd_list->ResourceBarrier(1, &barrier);
+
+    cmd_list->OMSetRenderTargets(1, &back_buffer_rtv, TRUE, nullptr);
+    const FLOAT clear_color[4]{ 0.f, 0.f, 0.f, 1.f };
+    cmd_list->ClearRenderTargetView(back_buffer_rtv, clear_color, 0, nullptr);
+}
+
+void Context::Present(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
     auto &back_buffer = m_back_buffers[m_current_index];
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -291,10 +314,7 @@ uint64_t Context::Present(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) no
     uint32_t present_flags = (m_tearing_supported && !m_v_sync) ? DXGI_PRESENT_ALLOW_TEARING : 0;
     StopIfFailed(m_swapchain->Present(sync_interval, present_flags));
 
-    return fence_value;
-}
-
-void Context::MoveToNextFrame() noexcept {
+    m_frame_fence_values[m_current_index] = fence_value;
     m_current_index = m_swapchain->GetCurrentBackBufferIndex();
     if (m_fence->GetCompletedValue() < m_frame_fence_values[m_current_index]) {
         m_fence->SetEventOnCompletion(m_frame_fence_values[m_current_index], m_fence_event);

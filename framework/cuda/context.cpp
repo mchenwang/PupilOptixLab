@@ -47,8 +47,10 @@ void Context::Init() noexcept {
 }
 
 void Context::Destroy() noexcept {
-    m_streams.clear();
-    m_init_flag = false;
+    if (IsInitialized()) {
+        m_streams.clear();
+        m_init_flag = false;
+    }
 }
 
 cudaStream_t Context::GetStream(std::string_view stream_id) noexcept {
