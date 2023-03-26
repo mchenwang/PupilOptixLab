@@ -3,6 +3,7 @@ set(imgui_header
     imgui/imgui.h
     imgui/backends/imgui_impl_dx12.h
     imgui/backends/imgui_impl_win32.h
+    imgui-filebrowser/imfilebrowser.h
 )
 
 set(imgui_source
@@ -15,5 +16,6 @@ set(imgui_source
 )
 add_library(imgui SHARED ${imgui_header} ${imgui_source})
 
+target_include_directories(imgui INTERFACE imgui-filebrowser/)
 target_link_libraries(imgui PUBLIC d3d12 d3dcompiler dxgi dxguid)
 set_target_properties(imgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
