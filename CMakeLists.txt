@@ -22,6 +22,8 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
 set(3rdparty_target third-party-targets)
+set(pupil_framework_name PupilOptixLab)
 
 add_subdirectory(3rdparty)
 add_subdirectory(framework)
+add_subdirectory(example)
