@@ -1,13 +1,19 @@
 #include "gui.h"
+#include "system.h"
+#include "resource.h"
 
 #include "dx12/context.h"
 
-#include "event.h"
+#include "util/event.h"
+#include "scene/scene.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
+#include "imfilebrowser.h"
+
+#include "static.h"
 
 namespace Pupil {
 HWND g_window_handle;
@@ -19,6 +25,8 @@ namespace {
 const std::wstring WND_NAME = L"PupilOptixLab";
 const std::wstring WND_CLASS_NAME = L"PupilOptixLab_CLASS";
 HINSTANCE m_instance;
+
+ImGui::FileBrowser m_scene_file_browser;
 }// namespace
 
 namespace {
@@ -35,45 +43,48 @@ inline void SetDocking() noexcept;
 
 namespace Pupil {
 void GuiPass::Init() noexcept {
-    WNDCLASSEXW wc{};
-    wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = &WndProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
-    wc.hInstance = GetModuleHandleW(NULL);
-    wc.hIcon = NULL;
-    wc.hCursor = ::LoadCursorW(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = WND_CLASS_NAME.data();
+    // create window
+    {
+        WNDCLASSEXW wc{};
+        wc.cbSize = sizeof(WNDCLASSEXW);
+        wc.style = CS_HREDRAW | CS_VREDRAW;
+        wc.lpfnWndProc = &WndProc;
+        wc.cbClsExtra = 0;
+        wc.cbWndExtra = 0;
+        wc.hInstance = GetModuleHandleW(NULL);
+        wc.hIcon = NULL;
+        wc.hCursor = ::LoadCursorW(NULL, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+        wc.lpszMenuName = NULL;
+        wc.lpszClassName = WND_CLASS_NAME.data();
 
-    ::RegisterClassExW(&wc);
+        ::RegisterClassExW(&wc);
 
-    RECT window_rect{ 0, 0, static_cast<LONG>(g_window_w), static_cast<LONG>(g_window_h) };
-    ::AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
+        RECT window_rect{ 0, 0, static_cast<LONG>(g_window_w), static_cast<LONG>(g_window_h) };
+        ::AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, FALSE);
 
-    int screen_w = ::GetSystemMetrics(SM_CXSCREEN);
-    int screen_h = ::GetSystemMetrics(SM_CYSCREEN);
+        int screen_w = ::GetSystemMetrics(SM_CXSCREEN);
+        int screen_h = ::GetSystemMetrics(SM_CYSCREEN);
 
-    int window_w = window_rect.right - window_rect.left;
-    int window_h = window_rect.bottom - window_rect.top;
+        int window_w = window_rect.right - window_rect.left;
+        int window_h = window_rect.bottom - window_rect.top;
 
-    // Center the window within the screen. Clamp to 0, 0 for the top-left corner.
-    int window_x = std::max<int>(0, (screen_w - window_w) / 2);
-    int window_y = std::max<int>(0, (screen_h - window_h) / 2);
+        // Center the window within the screen. Clamp to 0, 0 for the top-left corner.
+        int window_x = std::max<int>(0, (screen_w - window_w) / 2);
+        int window_y = std::max<int>(0, (screen_h - window_h) / 2);
 
-    m_instance = GetModuleHandleW(NULL);
-    g_window_handle = ::CreateWindowExW(
-        NULL,
-        WND_CLASS_NAME.data(),
-        WND_NAME.data(),
-        WS_OVERLAPPEDWINDOW,
-        window_x, window_y, window_w, window_h,
-        NULL, NULL, wc.hInstance, NULL);
+        m_instance = GetModuleHandleW(NULL);
+        g_window_handle = ::CreateWindowExW(
+            NULL,
+            WND_CLASS_NAME.data(),
+            WND_NAME.data(),
+            WS_OVERLAPPEDWINDOW,
+            window_x, window_y, window_w, window_h,
+            NULL, NULL, wc.hInstance, NULL);
 
-    ::ShowWindow(g_window_handle, SW_SHOW);
-    ::UpdateWindow(g_window_handle);
+        ::ShowWindow(g_window_handle, SW_SHOW);
+        ::UpdateWindow(g_window_handle);
+    }
 
     // event binding
     {
@@ -82,8 +93,14 @@ void GuiPass::Init() noexcept {
             uint32_t h = (param >> 16) & 0xffff;
             this->Resize(w, h);
         });
+
+        EventBinder<SystemEvent::SceneLoad>([this](uint64_t param) {
+            EventDispatcher<WindowEvent::Resize>(param);
+            this->AdjustWindowSize();
+        });
     }
 
+    // init imgui
     {
         auto dx_ctx =
             util::Singleton<DirectX::Context>::instance();
@@ -105,9 +122,52 @@ void GuiPass::Init() noexcept {
             dx_ctx->srv_heap.get(),
             dx_ctx->srv_heap->GetCPUDescriptorHandleForHeapStart(),
             dx_ctx->srv_heap->GetGPUDescriptorHandleForHeapStart());
+
+        m_scene_file_browser.SetTitle("scene browser");
+        m_scene_file_browser.SetTypeFilters({ ".xml" });
+
+        std::filesystem::path scene_data_path{ DATA_DIR };
+        m_scene_file_browser.SetPwd(scene_data_path);
     }
 
     m_init_flag = true;
+}
+
+void GuiPass::SetScene(scene::Scene *scene) noexcept {
+    // init render output buffers
+    {
+        auto buffer_mngr = util::Singleton<BufferManager>::instance();
+        uint64_t size =
+            static_cast<uint64_t>(scene->sensor.film.h) *
+            scene->sensor.film.w * sizeof(float) * 4;
+        m_render_output_show_h = static_cast<float>(scene->sensor.film.h);
+        m_render_output_show_w = static_cast<float>(scene->sensor.film.w);
+        auto dx_ctx = util::Singleton<DirectX::Context>::instance();
+        auto descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        auto gpu_handle = dx_ctx->srv_heap->GetGPUDescriptorHandleForHeapStart();
+        auto cpu_handle = dx_ctx->srv_heap->GetCPUDescriptorHandleForHeapStart();
+
+        for (auto i = 0u; i < SWAP_BUFFER_NUM; ++i) {
+            BufferDesc desc{
+                .type = EBufferType::SharedCudaWithDX12,
+                .name = std::string{ RENDER_OUTPUT_BUFFER[i] },
+                .size = size
+            };
+            m_render_output_buffers[i] = buffer_mngr->AllocBuffer(desc);
+            gpu_handle.ptr += size;
+            cpu_handle.ptr += size;
+            m_render_output_srvs[i] = gpu_handle.ptr;
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+            srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srv_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;// TODO:rgba8
+            srv_desc.Texture2D.MipLevels = 1;
+            dx_ctx->device->CreateShaderResourceView(
+                m_render_output_buffers[i]->shared_res.dx12_ptr.get(),
+                &srv_desc, cpu_handle);
+        }
+    }
 }
 
 void GuiPass::Destroy() noexcept {
@@ -147,8 +207,8 @@ void GuiPass::AdjustWindowSize() noexcept {
     ::SetWindowPos(g_window_handle, 0, 0, 0, window_w, window_h, SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_FRAMECHANGED);
 }
 
-void GuiPass::RegisterGui(std::string_view name, CustomGui &&gui) noexcept {
-    m_guis.emplace(name, gui);
+void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspector) noexcept {
+    m_inspectors.emplace(name, inspector);
 }
 
 void GuiPass::Run() noexcept {
@@ -191,6 +251,9 @@ void GuiPass::OnDraw() noexcept {
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Menu")) {
+            if (ImGui::MenuItem("load scene")) {
+                m_scene_file_browser.Open();
+            }
             if (ImGui::MenuItem("TODO")) {
                 printf("test menu item\n");
             }
@@ -201,28 +264,42 @@ void GuiPass::OnDraw() noexcept {
 
     if (bool open = true;
         ImGui::Begin("Inspector", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
-        ImGui::Text("TODO");
-        for (auto &&[title, gui] : m_guis) {
+
+        ImGui::PushTextWrapPos(0.f);
+
+        for (auto &&[title, inspector] : m_inspectors) {
             if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                gui();
+                inspector();
             }
         }
+        ImGui::PopTextWrapPos();
     }
     ImGui::End();
-
-    if (bool open = true;
-        ImGui::Begin("Scene", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
-        ImGui::Text("TODO");
-    }
-    ImGui::End();
-
-    ImGui::Render();
 
     auto dx_ctx = util::Singleton<DirectX::Context>::instance();
     auto cmd_list = dx_ctx->GetCmdList();
 
     ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
     cmd_list->SetDescriptorHeaps(1, heaps);
+
+    if (bool open = true;
+        ImGui::Begin("Scene", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
+        if (auto buffer = GetCurrentRenderOutputBuffer(); buffer) {
+
+            ImGui::Image(
+                (ImTextureID)m_render_output_srvs[GetCurrentRenderOutputBufferIndex()],
+                ImVec2(m_render_output_show_w, m_render_output_show_h));
+
+        } else {
+            ImGui::Text("Render ouput buffer is empty.");
+        }
+    }
+    ImGui::End();
+
+    m_scene_file_browser.Display();
+
+    ImGui::Render();
+
     dx_ctx->StartRenderScreen(cmd_list);
 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.get());

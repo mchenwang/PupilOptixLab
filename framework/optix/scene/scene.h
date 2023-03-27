@@ -21,10 +21,10 @@ public:
     OptixTraversableHandle ias_handle = 0;
     CUdeviceptr ias_buffer = 0;
 
-    Scene(const Pupil::scene::Scene *) noexcept;
+    Scene(Pupil::scene::Scene *) noexcept;
     ~Scene() noexcept;
 
-    void ResetScene(const Pupil::scene::Scene *) noexcept;
+    void ResetScene(Pupil::scene::Scene *) noexcept;
 
 private:
     std::vector<std::unique_ptr<RenderObject>> m_ros;

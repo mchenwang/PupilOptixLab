@@ -6,15 +6,12 @@
 #include "optix/scene/mesh.h"
 #include "cuda/util.h"
 
-#include <optix_function_table_definition.h>
-#include <optix_stubs.h>
-
 namespace Pupil::optix {
-Scene::Scene(const Pupil::scene::Scene *scene) noexcept {
+Scene::Scene(Pupil::scene::Scene *scene) noexcept {
     ResetScene(scene);
 }
 
-void Scene::ResetScene(const Pupil::scene::Scene *scene) noexcept {
+void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
     m_ros.clear();
     m_ros.reserve(scene->shapes.size());
 
@@ -58,6 +55,24 @@ void Scene::ResetScene(const Pupil::scene::Scene *scene) noexcept {
     }
 
     CreateTopLevelAccel();
+
+    auto &&sensor = scene->sensor;
+    optix::CameraDesc desc{
+        .fov_y = sensor.fov,
+        .aspect_ratio = static_cast<float>(sensor.film.w) / sensor.film.h,
+        .near_clip = sensor.near_clip,
+        .far_clip = sensor.far_clip,
+        .to_world = sensor.transform
+    };
+    if (!camera)
+        camera = std::make_unique<optix::CameraHelper>(desc);
+    else
+        camera->Reset(desc);
+
+    if (!emitters)
+        emitters = std::make_unique<optix::EmitterHelper>(scene);
+    else
+        emitters->Reset(scene);
 }
 
 void Scene::CreateTopLevelAccel() noexcept {
