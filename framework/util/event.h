@@ -14,44 +14,44 @@ class Event {
 public:
     static void Bind(std::function<void(PT)> &&op) noexcept {
         std::scoped_lock<std::mutex> lock(m_mutex);
-        m_ops[enum_v].push_back(op);
+        m_ops.push_back(op);
     }
 
     static void Respond(PT p) noexcept {
-        for (auto &&op : m_ops[enum_v]) op(p);
+        for (auto &&op : m_ops) op(p);
     }
 
 private:
     static std::mutex m_mutex;
-    static std::map<ET, std::vector<std::function<void(PT)>>> m_ops;
+    static std::vector<std::function<void(PT)>> m_ops;
 };
 
 template<EnumType ET, ET enum_v, typename PT>
 std::mutex Event<ET, enum_v, PT>::m_mutex;
 template<EnumType ET, ET enum_v, typename PT>
-std::map<ET, std::vector<std::function<void(PT)>>> Event<ET, enum_v, PT>::m_ops;
+std::vector<std::function<void(PT)>> Event<ET, enum_v, PT>::m_ops;
 
 template<EnumType ET, ET enum_v>
 class Event<ET, enum_v, void> {
 public:
     static void Bind(std::function<void()> &&op) noexcept {
         std::scoped_lock<std::mutex> lock(m_mutex);
-        m_ops[enum_v].push_back(op);
+        m_ops.push_back(op);
     }
 
     static void Respond() noexcept {
-        for (auto &&op : m_ops[enum_v]) op();
+        for (auto &&op : m_ops) op();
     }
 
 private:
     static std::mutex m_mutex;
-    static std::map<ET, std::vector<std::function<void()>>> m_ops;
+    static std::vector<std::function<void()>> m_ops;
 };
 
 template<EnumType ET, ET enum_v>
 std::mutex Event<ET, enum_v, void>::m_mutex;
 template<EnumType ET, ET enum_v>
-std::map<ET, std::vector<std::function<void()>>> Event<ET, enum_v, void>::m_ops;
+std::vector<std::function<void()>> Event<ET, enum_v, void>::m_ops;
 
 namespace detail {
 template<typename T>
