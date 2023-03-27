@@ -4,8 +4,17 @@
 #include "cuda/context.h"
 #include "optix/context.h"
 
+#include "cuda/texture.h"
+
+#include "scene/scene.h"
+#include "scene/texture.h"
+
+#include "pass.h"
 #include "gui.h"
-#include "event.h"
+#include "util/event.h"
+
+#include <iostream>
+#include <format>
 
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
@@ -30,18 +39,27 @@ void System::Init(bool has_window) noexcept {
         EventDispatcher<SystemEvent::Quit>();
     });
 
-    util::Singleton<GuiPass>::instance()->Init();
+    m_gui_pass = util::Singleton<GuiPass>::instance();
+    m_gui_pass->Init();
     util::Singleton<cuda::Context>::instance()->Init();
     util::Singleton<optix::Context>::instance()->Init();
 
-    m_gui_pass = util::Singleton<GuiPass>::instance();
+    EventBinder<SystemEvent::FrameFinished>([&m_gui_pass]() {
+        m_gui_pass->FlipSwapBuffer();
+    });
 }
 
 void System::Run() noexcept {
     while (!quit_flag) {
         if (render_flag) {
             for (auto pass : m_passes) {
+                pass->BeforeRunning();
+            }
+            for (auto pass : m_passes) {
                 pass->Run();
+            }
+            for (auto pass : m_passes) {
+                pass->AfterRunning();
             }
         }
         if (m_gui_pass) m_gui_pass->Run();
@@ -55,5 +73,37 @@ void System::Destroy() noexcept {
 
 void System::AddPass(Pass *pass) noexcept {
     m_passes.push_back(pass);
+    if (m_gui_pass) {
+        m_gui_pass->RegisterInspector(
+            pass->name,
+            [&pass]() {
+                pass->Inspector();
+            });
+    }
+}
+
+void System::SetScene(std::filesystem::path scene_file_path) noexcept {
+    if (!std::filesystem::exists(scene_file_path)) {
+        std::cout << std::format("warning: scene file [{}] does not exist.\n", scene_file_path.string());
+        return;
+    }
+
+    util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+
+    if (m_scene == nullptr)
+        m_scene = std::make_unique<scene::Scene>();
+    m_scene->LoadFromXML(scene_file_path);
+
+    for (auto pass : m_passes) {
+        pass->SetScene(m_scene.get());
+    }
+    if (m_gui_pass) m_gui_pass->SetScene(m_scene.get());
+
+    util::Singleton<scene::ShapeDataManager>::instance()->Clear();
+    util::Singleton<scene::TextureManager>::instance()->Clear();
+
+    uint64_t size = (static_cast<uint32_t>(m_scene->sensor.film.w)) |
+                    (static_cast<uint32_t>(m_scene->sensor.film.h) << 16);
+    EventDispatcher<SystemEvent::SceneLoad>(size);
 }
 }// namespace Pupil

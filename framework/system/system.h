@@ -2,12 +2,21 @@
 
 #include "util/util.h"
 
+#include <filesystem>
+#include <memory>
+
 namespace Pupil {
 class Pass;
 class GuiPass;
 
+namespace scene {
+class Scene;
+}
+
 enum class SystemEvent {
-    Quit
+    Quit,
+    SceneLoad,
+    FrameFinished
 };
 
 class System : public util::Singleton<System> {
@@ -20,9 +29,11 @@ public:
     void Destroy() noexcept;
 
     void AddPass(Pass *) noexcept;
+    void SetScene(std::filesystem::path) noexcept;
 
 private:
     std::vector<Pass *> m_passes;
     GuiPass *m_gui_pass = nullptr;
+    std::unique_ptr<scene::Scene> m_scene;
 };
 }// namespace Pupil
