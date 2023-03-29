@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/util.h"
+#include "util.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>

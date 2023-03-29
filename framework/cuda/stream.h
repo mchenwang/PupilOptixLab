@@ -12,7 +12,8 @@ public:
     ~Stream() noexcept;
 
     operator cudaStream_t() const noexcept { return m_stream; }
-
+    [[nodiscard]] cudaStream_t GetStream() const noexcept { return m_stream; }
+    [[nodiscard]] cudaEvent_t GetEvent() const noexcept { return m_event; }
     [[nodiscard]] bool IsAvailable() noexcept { return cudaSuccess == cudaEventQuery(m_event); }
 
     void Synchronize() noexcept { CUDA_CHECK(cudaEventSynchronize(m_event)); }

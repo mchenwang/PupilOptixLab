@@ -11,6 +11,10 @@
 #include "util/util.h"
 
 namespace Pupil {
+namespace cuda {
+class Stream;
+}
+
 enum class EBufferType {
     Cuda,
     DX12,
@@ -25,6 +29,7 @@ struct BufferDesc {
 
 struct CudaBuffer {
     CUdeviceptr ptr = 0;
+    cuda::Stream *stream = nullptr;
 };
 
 struct DX12Buffer {
@@ -34,6 +39,7 @@ struct DX12Buffer {
 struct SharedBuffer {
     winrt::com_ptr<ID3D12Resource> dx12_ptr = nullptr;
     CUdeviceptr cuda_ptr = 0;
+    cuda::Stream *cuda_stream = nullptr;
     cudaExternalMemory_t cuda_ext_memory = nullptr;
 };
 
@@ -51,6 +57,8 @@ struct Buffer {
 
 class BufferManager : public util::Singleton<BufferManager> {
 public:
+    constexpr static std::string_view CUSTOM_OUTPUT_BUFFER = "Custom output buffer";
+
     [[nodiscard]] Buffer *GetBuffer(std::string_view) noexcept;
     Buffer *AllocBuffer(const BufferDesc &) noexcept;
     void AddBuffer(std::string_view id, std::unique_ptr<Buffer> &) noexcept;
