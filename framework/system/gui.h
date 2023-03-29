@@ -9,7 +9,7 @@
 #include <array>
 
 namespace Pupil {
-struct SharedBuffer;
+struct Buffer;
 enum class WindowEvent {
     Quit,
     Resize,
@@ -39,14 +39,20 @@ public:
     void Destroy() noexcept;
     void Resize(uint32_t, uint32_t) noexcept;
     void AdjustWindowSize() noexcept;
-    void FlipSwapBuffer() noexcept { m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM; }
 
     using CustomInspector = std::function<void()>;
     void RegisterInspector(std::string_view, CustomInspector &&) noexcept;
 
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
+
+    void FlipSwapBuffer() noexcept {
+        m_ready_buffer_index = m_current_buffer_index;
+        m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
+    }
     [[nodiscard]] uint32_t GetCurrentRenderOutputBufferIndex() const noexcept { return m_current_buffer_index; }
     [[nodiscard]] Buffer *GetCurrentRenderOutputBuffer() const noexcept { return m_render_output_buffers[m_current_buffer_index]; }
+    [[nodiscard]] uint32_t GetReadyOutputBufferIndex() const noexcept { return m_ready_buffer_index; }
+    [[nodiscard]] Buffer *GetReadyOutputBuffer() const noexcept { return m_render_output_buffers[m_ready_buffer_index]; }
 
 protected:
     void OnDraw() noexcept;
@@ -58,6 +64,7 @@ protected:
     Buffer *m_render_output_buffers[2]{};
     uint64_t m_render_output_srvs[2]{};
     uint32_t m_current_buffer_index = 0;
+    uint32_t m_ready_buffer_index = 1;
     float m_render_output_show_w = 0.f;
     float m_render_output_show_h = 0.f;
 };

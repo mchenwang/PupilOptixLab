@@ -16,7 +16,8 @@ class Scene;
 enum class SystemEvent {
     Quit,
     SceneLoad,
-    FrameFinished
+    FrameFinished,
+    PostProcessFinished
 };
 
 class System : public util::Singleton<System> {

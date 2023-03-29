@@ -44,7 +44,7 @@ void System::Init(bool has_window) noexcept {
     util::Singleton<cuda::Context>::instance()->Init();
     util::Singleton<optix::Context>::instance()->Init();
 
-    EventBinder<SystemEvent::FrameFinished>([&m_gui_pass]() {
+    EventBinder<SystemEvent::PostProcessFinished>([this]() {
         m_gui_pass->FlipSwapBuffer();
     });
 }

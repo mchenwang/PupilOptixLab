@@ -284,10 +284,10 @@ void GuiPass::OnDraw() noexcept {
 
     if (bool open = true;
         ImGui::Begin("Scene", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
-        if (auto buffer = GetCurrentRenderOutputBuffer(); buffer) {
+        if (auto buffer = GetReadyOutputBuffer(); buffer) {
 
             ImGui::Image(
-                (ImTextureID)m_render_output_srvs[GetCurrentRenderOutputBufferIndex()],
+                (ImTextureID)m_render_output_srvs[GetReadyOutputBufferIndex()],
                 ImVec2(m_render_output_show_w, m_render_output_show_h));
 
         } else {
