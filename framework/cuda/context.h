@@ -5,18 +5,16 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include <unordered_map>
+#include <queue>
 
 namespace Pupil::DirectX {
 class Context;
 };
 
 namespace Pupil::cuda {
+class Stream;
 class Context : public Pupil::util::Singleton<Context> {
 public:
-    constexpr static std::string_view DEFAULT_STREAM = "_default";
-    constexpr static std::string_view ASYN_STREAM = "_asyn";
-
     CUcontext context = nullptr;
     uint32_t cuda_device_id = 0;
     uint32_t cuda_node_mask = 0;
@@ -27,10 +25,9 @@ public:
     void Destroy() noexcept;
 
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
-    [[nodiscard]] cudaStream_t GetStream(std::string_view) noexcept;
+    void Synchronize() noexcept { CUDA_CHECK(cudaDeviceSynchronize()); }
 
 private:
-    std::unordered_map<std::string, cudaStream_t, util::StringHash, std::equal_to<>> m_streams;
     bool m_init_flag = false;
 };
 }// namespace Pupil::cuda

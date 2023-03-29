@@ -48,6 +48,9 @@ void Context::Init() noexcept {
 
 void Context::Destroy() noexcept {
     if (IsInitialized()) {
+        for (auto &&[_, stream] : m_streams) {
+            CUDA_CHECK(cudaStreamDestroy(stream));
+        }
         m_streams.clear();
         m_init_flag = false;
     }
