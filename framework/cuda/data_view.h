@@ -18,6 +18,7 @@ public:
         m_data = cuda_data;
         m_num = num;
     }
+    CUDA_HOST const T *GetDataPtr() const noexcept { return reinterpret_cast<T *>(m_data); }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE size_t GetNum() const noexcept { return m_num; }
@@ -36,6 +37,7 @@ public:
     CUDA_HOSTDEVICE ConstDataView() noexcept {}
 
     CUDA_HOST void SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
+    CUDA_HOST const T *GetDataPtr() const noexcept { return reinterpret_cast<T *>(m_data); }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE const T *operator->() const noexcept {
@@ -56,6 +58,7 @@ public:
         m_data = cuda_data;
         m_num = num;
     }
+    CUDA_HOST T *GetDataPtr() const noexcept { return reinterpret_cast<T *>(m_data); }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE size_t GetNum() const noexcept { return m_num; }
@@ -73,6 +76,7 @@ public:
     CUDA_HOSTDEVICE RWDataView() noexcept {}
 
     CUDA_HOST void SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
+    CUDA_HOST T *GetDataPtr() const noexcept { return reinterpret_cast<T *>(m_data); }
 
     CUDA_HOSTDEVICE operator bool() const noexcept { return m_data != 0; }
     CUDA_HOSTDEVICE T *operator->() const noexcept {
