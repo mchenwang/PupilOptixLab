@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.14)
-project(PupilOptixLab LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.18)
+project(PupilOptixLab LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
