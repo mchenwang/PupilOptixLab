@@ -48,23 +48,7 @@ void Context::Init() noexcept {
 
 void Context::Destroy() noexcept {
     if (IsInitialized()) {
-        for (auto &&[_, stream] : m_streams) {
-            CUDA_CHECK(cudaStreamDestroy(stream));
-        }
-        m_streams.clear();
         m_init_flag = false;
     }
-}
-
-cudaStream_t Context::GetStream(std::string_view stream_id) noexcept {
-    auto it = m_streams.find(stream_id);
-    if (it == m_streams.end()) {
-        cudaStream_t stream;
-        CUDA_CHECK(cudaStreamCreate(&stream));
-        m_streams.emplace(stream_id, stream);
-        return stream;
-    }
-
-    return it->second;
 }
 }// namespace Pupil::cuda

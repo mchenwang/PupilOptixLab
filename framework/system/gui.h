@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <array>
+#include <mutex>
 
 namespace Pupil {
 struct Buffer;
@@ -46,6 +47,7 @@ public:
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
 
     void FlipSwapBuffer() noexcept {
+        std::scoped_lock lock{ m_flip_model_mutex, m_render_output_buffer_mutex[m_ready_buffer_index] };
         m_ready_buffer_index = m_current_buffer_index;
         m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
     }
@@ -65,6 +67,8 @@ protected:
     uint64_t m_render_output_srvs[2]{};
     uint32_t m_current_buffer_index = 0;
     uint32_t m_ready_buffer_index = 1;
+    std::mutex m_render_output_buffer_mutex[2]{};
+    std::mutex m_flip_model_mutex;
     float m_render_output_show_w = 0.f;
     float m_render_output_show_h = 0.f;
 };

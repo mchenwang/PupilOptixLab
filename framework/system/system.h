@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/util.h"
+#include "scene/scene.h"
 
 #include <filesystem>
 #include <memory>
@@ -8,10 +9,7 @@
 namespace Pupil {
 class Pass;
 class GuiPass;
-
-namespace scene {
-class Scene;
-}
+class PostProcessPass;
 
 enum class SystemEvent {
     Quit,
@@ -34,7 +32,9 @@ public:
 
 private:
     std::vector<Pass *> m_passes;
+    std::vector<Pass *> m_pre_passes;
     GuiPass *m_gui_pass = nullptr;
+    PostProcessPass *m_post_pass = nullptr;
     std::unique_ptr<scene::Scene> m_scene;
 };
 }// namespace Pupil

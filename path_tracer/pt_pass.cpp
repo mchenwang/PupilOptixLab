@@ -5,8 +5,6 @@
 #include "optix/context.h"
 #include "optix/module.h"
 
-#include "scene/scene.h"
-
 namespace Pupil {
 extern uint32_t g_window_w;
 extern uint32_t g_window_h;
@@ -17,16 +15,21 @@ PTPass::PTPass(std::string_view name) noexcept
     : Pass(name) {
     auto optix_ctx = util::Singleton<optix::Context>::instance();
     auto cuda_ctx = util::Singleton<cuda::Context>::instance();
-    auto cuda_stream = cuda_ctx->GetStream(cuda::Context::DEFAULT_STREAM);
-    m_optix_pass = std::make_unique<optix::Pass<SBTTypes, OptixLaunchParams>>(optix_ctx->context, cuda_stream);
+    m_stream = std::make_unique<cuda::Stream>();
+    m_optix_pass = std::make_unique<optix::Pass<SBTTypes, OptixLaunchParams>>(optix_ctx->context, m_stream->GetStream());
     InitOptixPipeline();
     BindingEventCallback();
 }
 void PTPass::Run() noexcept {
     m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
-    // auto backend = util::Singleton<gui::Window>::instance()->GetBackend();
-    // params.frame_buffer = reinterpret_cast<float4 *>(backend->GetCurrentFrameResource().src->cuda_buffer_ptr);
-    // pass->Run(params, params.config.frame.width, params.config.frame.height);
+
+    auto frame_buffer =
+        util::Singleton<BufferManager>::instance()->GetBuffer(BufferManager::CUSTOM_OUTPUT_BUFFER);
+
+    m_optix_launch_params.frame_buffer.SetData(
+        frame_buffer->cuda_res.ptr, m_output_buffer_size);
+    m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
+                      m_optix_launch_params.config.frame.height);
 
     m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
     ++m_optix_launch_params.random_seed;
@@ -84,9 +87,16 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     CUDA_FREE(m_accum_buffer);
     size_t pixel_num = m_optix_launch_params.config.frame.width *
                        m_optix_launch_params.config.frame.height;
-    CUDA_CHECK(cudaMalloc(
-        reinterpret_cast<void **>(&m_accum_buffer),
-        pixel_num * sizeof(float4)));
+
+    m_output_buffer_size = pixel_num * sizeof(float4);
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_accum_buffer), m_output_buffer_size));
+
+    BufferDesc buffer_desc{
+        .type = EBufferType::Cuda,
+        .name = std::string{ BufferManager::CUSTOM_OUTPUT_BUFFER },
+        .size = m_output_buffer_size
+    };
+    m_output_buffer = util::Singleton<BufferManager>::instance()->AllocBuffer(buffer_desc);
 
     m_optix_launch_params.accum_buffer.SetData(m_accum_buffer, pixel_num);
 

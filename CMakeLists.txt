@@ -20,7 +20,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set(pupil_optix_root ${CMAKE_CURRENT_SOURCE_DIR})
+set(pupil_framework_root ${CMAKE_CURRENT_SOURCE_DIR}/framework)
 set(3rdparty_target third-party-targets)
 set(pupil_framework_name PupilOptixLab)
 

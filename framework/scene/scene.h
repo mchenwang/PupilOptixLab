@@ -50,6 +50,7 @@ public:
     std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::_count> xml_obj_load_cbs{};
 
     Scene() noexcept;
+    ~Scene() noexcept = default;
 
     void Reset() noexcept;
     void LoadFromXML(std::filesystem::path) noexcept;

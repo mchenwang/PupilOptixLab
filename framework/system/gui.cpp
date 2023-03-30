@@ -32,7 +32,6 @@ ImGui::FileBrowser m_scene_file_browser;
 namespace {
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-inline void SetDocking() noexcept;
 // void OnMouseDown(WPARAM, LONG, LONG) noexcept;
 // void OnMouseUp(WPARAM, LONG, LONG) noexcept;
 // void OnMouseMove(WPARAM, LONG, LONG) noexcept;
@@ -140,6 +139,7 @@ void GuiPass::SetScene(scene::Scene *scene) noexcept {
         uint64_t size =
             static_cast<uint64_t>(scene->sensor.film.h) *
             scene->sensor.film.w * sizeof(float) * 4;
+        // TODO: reset showing size when resize
         m_render_output_show_h = static_cast<float>(scene->sensor.film.h);
         m_render_output_show_w = static_cast<float>(scene->sensor.film.w);
         auto dx_ctx = util::Singleton<DirectX::Context>::instance();
@@ -285,9 +285,12 @@ void GuiPass::OnDraw() noexcept {
     if (bool open = true;
         ImGui::Begin("Scene", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
         if (auto buffer = GetReadyOutputBuffer(); buffer) {
+            std::scoped_lock lock{ m_flip_model_mutex };
+            m_render_output_buffer_mutex[m_ready_buffer_index].lock();
+            ImGui::Text("buffer[%d]", m_ready_buffer_index);
 
             ImGui::Image(
-                (ImTextureID)m_render_output_srvs[GetReadyOutputBufferIndex()],
+                (ImTextureID)m_render_output_srvs[m_ready_buffer_index],
                 ImVec2(m_render_output_show_w, m_render_output_show_h));
 
         } else {
@@ -311,6 +314,7 @@ void GuiPass::OnDraw() noexcept {
     }
 
     dx_ctx->Present(cmd_list);
+    m_render_output_buffer_mutex[m_ready_buffer_index].unlock();
 }
 }// namespace Pupil
 
@@ -377,29 +381,5 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
     }
     return ::DefWindowProc(hWnd, msg, wParam, lParam);
-}
-
-void SetDocking() noexcept {
-    static bool first_draw_call = true;
-    ImGuiID main_node_id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-
-    if (first_draw_call) {
-        first_draw_call = false;
-
-        ImGui::DockBuilderRemoveNode(main_node_id);
-        ImGui::DockBuilderAddNode(main_node_id, ImGuiDockNodeFlags_None);
-
-        // Make the dock node's size and position to match the viewport
-        ImGui::DockBuilderSetNodeSize(main_node_id, ImGui::GetMainViewport()->WorkSize);
-        ImGui::DockBuilderSetNodePos(main_node_id, ImGui::GetMainViewport()->WorkPos);
-
-        ImGuiID dock_main_id = main_node_id;
-        ImGuiID dock_inspector_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
-
-        ImGui::DockBuilderDockWindow("Inspector", dock_inspector_id);
-        ImGui::DockBuilderDockWindow("Scene", dock_main_id);
-
-        ImGui::DockBuilderFinish(dock_main_id);
-    }
 }
 }// namespace

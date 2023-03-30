@@ -7,6 +7,7 @@
 #include "scene/shape.h"
 #else
 #include <optix.h>
+#include "optix/util.h"
 #include "cuda/vec_math.h"
 #endif
 
