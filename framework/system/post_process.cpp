@@ -2,6 +2,7 @@
 #include "post_process.cuh"
 #include "cuda/util.h"
 #include "cuda/stream.h"
+#include "cuda/data_view.h"
 
 #include "system.h"
 #include "imgui.h"
@@ -22,25 +23,43 @@ int m_tone_mapping_type = 0;
 bool m_use_gamma = true;
 float m_gamma = 2.2f;
 
-inline Pupil::cuda::EPostProcessType GetPostProcessType() noexcept {
+// inline Pupil::cuda::EPostProcessType GetPostProcessType() noexcept {
+//     if (m_tone_mapping_type == 1) {
+//         if (m_use_gamma)
+//             return Pupil::cuda::EPostProcessType::ACES_TONE_MAPPING_WITH_GAMMA;
+//         else
+//             return Pupil::cuda::EPostProcessType::ACES_TONE_MAPPING_WITHOUT_GAMMA;
+//     } else {
+//         if (m_use_gamma) return Pupil::cuda::EPostProcessType::GAMMA_ONLY;
+//     }
+//     return Pupil::cuda::EPostProcessType::NONE;
+// }
+inline uint32_t GetPostProcessType() noexcept {
     if (m_tone_mapping_type == 1) {
         if (m_use_gamma)
-            return Pupil::cuda::EPostProcessType::ACES_TONE_MAPPING_WITH_GAMMA;
+            return 1;
         else
-            return Pupil::cuda::EPostProcessType::ACES_TONE_MAPPING_WITHOUT_GAMMA;
+            return 2;
     } else {
-        if (m_use_gamma) return Pupil::cuda::EPostProcessType::GAMMA_ONLY;
+        if (m_use_gamma) return 3;
     }
-    return Pupil::cuda::EPostProcessType::NONE;
+    return 0;
 }
 }// namespace
 
 namespace Pupil {
-PostProcessPass::PostProcessPass() noexcept
-    : Pass("Post Process") {
+void PostProcessPass::Init() noexcept {
     m_stream = std::make_unique<cuda::Stream>();
+    CUDA_CHECK(cudaEventCreateWithFlags(&finished_event, cudaEventDisableTiming));
+    m_init_flag = true;
+}
+void PostProcessPass::Destroy() noexcept {
+    if (!IsInitialized()) return;
+    m_stream.reset();
+    CUDA_CHECK(cudaEventDestroy(finished_event));
 }
 void PostProcessPass::BeforeRunning() noexcept {
+    if (!IsInitialized()) return;
     auto buffer_mngr = util::Singleton<BufferManager>::instance();
     input = buffer_mngr->GetBuffer(BufferManager::CUSTOM_OUTPUT_BUFFER);
     if (util::Singleton<GuiPass>::instance()->IsInitialized()) {
@@ -49,27 +68,42 @@ void PostProcessPass::BeforeRunning() noexcept {
         output = input;
 }
 void PostProcessPass::Run() noexcept {
+    if (!IsInitialized()) return;
     cuda::ConstArrayView<float4> input_view;
     input_view.SetData(input->cuda_res.ptr, m_image_size);
     cuda::RWArrayView<float4> output_view;
     output_view.SetData(output->cuda_res.ptr, m_image_size);
-    cuda::PostProcess(
-        m_stream->GetStream(), m_stream->GetEvent(),
-        output_view, input_view,
-        make_uint2(m_image_w, m_image_h),
-        m_gamma,
-        GetPostProcessType());
+    PostProcessXX();
+    // PostProcess(
+    //     m_stream->GetStream(), finished_event,
+    //     output_view.GetDataPtr(), input_view.GetDataPtr(),
+    //     make_uint2(m_image_w, m_image_h),
+    //     m_gamma,
+    //     GetPostProcessType());
     m_stream->Synchronize();
     EventDispatcher<SystemEvent::PostProcessFinished>();
 }
 
 void PostProcessPass::SetScene(scene::Scene *scene) noexcept {
+    if (!IsInitialized()) return;
     m_image_h = static_cast<uint32_t>(scene->sensor.film.h);
     m_image_w = static_cast<uint32_t>(scene->sensor.film.w);
     m_image_size = static_cast<size_t>(m_image_h) * m_image_w;
 }
 
+void PostProcessPass::SetToneMappingType(EToneMappingType type) noexcept {
+    m_tone_mapping_type = static_cast<int>(type);
+}
+void PostProcessPass::SetGammaCorrection(bool use_gamma, float gamma) noexcept {
+    m_use_gamma = use_gamma;
+    if (m_use_gamma) m_gamma = gamma;
+}
+
 void PostProcessPass::Inspector() noexcept {
+    if (!IsInitialized()) {
+        ImGui::Text("Not Initialized.");
+        return;
+    }
     ImGui::Combo("Tone Mapping", &m_tone_mapping_type, m_tone_mapping_name.data(), (int)m_tone_mapping_name.size());
     ImGui::Checkbox("Gamma Correction", &m_use_gamma);
 }
