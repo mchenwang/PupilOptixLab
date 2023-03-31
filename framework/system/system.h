@@ -9,7 +9,6 @@
 namespace Pupil {
 class Pass;
 class GuiPass;
-class PostProcessPass;
 
 enum class SystemEvent {
     Quit,
@@ -34,7 +33,6 @@ private:
     std::vector<Pass *> m_passes;
     std::vector<Pass *> m_pre_passes;
     GuiPass *m_gui_pass = nullptr;
-    PostProcessPass *m_post_pass = nullptr;
     std::unique_ptr<scene::Scene> m_scene;
 };
 }// namespace Pupil

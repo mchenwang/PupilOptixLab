@@ -12,7 +12,6 @@
 
 #include "pass.h"
 #include "gui.h"
-#include "post_process.h"
 #include "util/event.h"
 
 #include <iostream>
@@ -43,8 +42,8 @@ void System::Init(bool has_window) noexcept {
 
     m_gui_pass = util::Singleton<GuiPass>::instance();
     m_gui_pass->Init();
-    m_post_pass = util::Singleton<PostProcessPass>::instance();
-    m_post_pass->Init();
+    // m_post_pass = util::Singleton<PostProcessPass>::instance();
+    // m_post_pass->Init();
     util::Singleton<cuda::Context>::instance()->Init();
     util::Singleton<optix::Context>::instance()->Init();
 
@@ -54,6 +53,7 @@ void System::Init(bool has_window) noexcept {
 }
 
 void System::Run() noexcept {
+    CUDA_SYNC_CHECK();
     for (auto pass : m_pre_passes) pass->BeforeRunning();
     for (auto pass : m_pre_passes) pass->Run();
     for (auto pass : m_pre_passes) pass->AfterRunning();
@@ -74,19 +74,19 @@ void System::Run() noexcept {
     // }
 
     while (!quit_flag) {
-        if (render_flag) {
-            for (auto pass : m_passes) pass->BeforeRunning();
-            if (m_post_pass) m_post_pass->BeforeRunning();
-            for (auto pass : m_passes) pass->Run();
-            if (m_post_pass) m_post_pass->Run();
-            for (auto pass : m_passes) pass->AfterRunning();
-            if (m_post_pass) m_post_pass->AfterRunning();
-        }
+        // if (render_flag) {
+        //     for (auto pass : m_passes) pass->BeforeRunning();
+        //     if (m_post_pass) m_post_pass->BeforeRunning();
+        //     for (auto pass : m_passes) pass->Run();
+        //     if (m_post_pass) m_post_pass->Run();
+        //     for (auto pass : m_passes) pass->AfterRunning();
+        //     if (m_post_pass) m_post_pass->AfterRunning();
+        // }
         if (m_gui_pass) m_gui_pass->Run();
     }
 }
 void System::Destroy() noexcept {
-    util::Singleton<PostProcessPass>::instance()->Destroy();
+    // util::Singleton<PostProcessPass>::instance()->Destroy();
     util::Singleton<GuiPass>::instance()->Destroy();
     util::Singleton<cuda::Context>::instance()->Destroy();
     util::Singleton<optix::Context>::instance()->Destroy();
@@ -121,6 +121,7 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     for (auto pass : m_pre_passes) pass->SetScene(m_scene.get());
     for (auto pass : m_passes) pass->SetScene(m_scene.get());
     if (m_gui_pass) m_gui_pass->SetScene(m_scene.get());
+    // if (m_post_pass) m_post_pass->SetScene(m_scene.get());
 
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
     util::Singleton<scene::TextureManager>::instance()->Clear();
