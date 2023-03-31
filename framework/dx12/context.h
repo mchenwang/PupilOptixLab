@@ -26,17 +26,19 @@ public:
     winrt::com_ptr<IDXGIAdapter4> adapter;
 
     // 0    ----    imgui font
-    // 1    ----    render result buffer0 for imgui
-    // 2    ----    render result buffer1 for imgui
-    // 3    ----    cbv(buffer from optix) for rendering post processing
-    // 4... ----    for custom
+    // 1    ----    output flip texture 0 for imgui
+    // 2    ----    output flip buffer 0
+    // 3    ----    output flip texture 1 for imgui
+    // 4    ----    output flip buffer 1
+    // 5... ----    for custom
     winrt::com_ptr<ID3D12DescriptorHeap> srv_heap;
     constexpr static uint32_t SRV_NUM = 20;
     // 0    ----    swapchain back buffer 0
     // 1    ----    swapchain back buffer 1
     // 2    ----    swapchain back buffer 2
-    // 3    ----    for post processing target
-    // 4... ----    for custom
+    // 3    ----    output flip texture 0
+    // 4    ----    output flip texture 1
+    // 5... ----    for custom
     winrt::com_ptr<ID3D12DescriptorHeap> rtv_heap;
     constexpr static uint32_t RTV_NUM = 20;
 
