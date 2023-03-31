@@ -44,9 +44,9 @@ struct SharedBuffer {
 };
 
 struct Buffer {
-    EBufferType type;
+    EBufferType type = EBufferType::Cuda;
     union {
-        CudaBuffer cuda_res;
+        CudaBuffer cuda_res{};
         DX12Buffer dx12_res;
         SharedBuffer shared_res;
     };

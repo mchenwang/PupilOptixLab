@@ -50,10 +50,12 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
             auto properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
             auto dx12_context = util::Singleton<DirectX::Context>::instance();
+            winrt::com_ptr<ID3D12Resource> temp_res;
             DirectX::StopIfFailed(dx12_context->device->CreateCommittedResource(
                 &properties, D3D12_HEAP_FLAG_SHARED, &d3d12_buffer_desc,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr,
-                winrt::guid_of<ID3D12Resource>(), buffer->shared_res.dx12_ptr.put_void()));
+                winrt::guid_of<ID3D12Resource>(), temp_res.put_void()));
+            buffer->shared_res.dx12_ptr = temp_res;
             buffer->shared_res.dx12_ptr->SetName(std::wstring{ desc.name.begin(), desc.name.end() }.c_str());
 
             HANDLE shared_handle{};
