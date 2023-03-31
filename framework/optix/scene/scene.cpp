@@ -6,6 +6,8 @@
 #include "optix/scene/mesh.h"
 #include "cuda/util.h"
 
+#include <optix_stubs.h>
+
 namespace Pupil::optix {
 Scene::Scene(Pupil::scene::Scene *scene) noexcept {
     ResetScene(scene);
