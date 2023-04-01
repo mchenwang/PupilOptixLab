@@ -2,6 +2,10 @@
 
 #include "util/util.h"
 #include "pass.h"
+#include "resource.h"
+
+#include <d3d12.h>
+#include <winrt/base.h>
 
 #include <unordered_map>
 #include <functional>
@@ -25,8 +29,12 @@ class GuiPass : public Pass, public util::Singleton<GuiPass> {
 public:
     constexpr static uint32_t SWAP_BUFFER_NUM = 2;
     constexpr static std::array<std::string_view, SWAP_BUFFER_NUM>
-        RENDER_OUTPUT_BUFFER = {
-            "render output buffer0", "render output buffer1"
+        OUTPUT_FLIP_BUFFER = {
+            "output flip buffer0", "output flip buffer1"
+        };
+    constexpr static std::array<std::string_view, SWAP_BUFFER_NUM>
+        OUTPUT_FLIP_TEXTURE = {
+            "output flip texture0", "output flip texture1"
         };
 
     GuiPass() noexcept : Pass("GUI") {}
@@ -46,30 +54,48 @@ public:
 
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
 
-    void FlipSwapBuffer() noexcept {
-        std::scoped_lock lock{ m_flip_model_mutex, m_render_output_buffer_mutex[m_ready_buffer_index] };
-        m_ready_buffer_index = m_current_buffer_index;
-        m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
-    }
+    void FlipSwapBuffer() noexcept;
     [[nodiscard]] uint32_t GetCurrentRenderOutputBufferIndex() const noexcept { return m_current_buffer_index; }
-    [[nodiscard]] Buffer *GetCurrentRenderOutputBuffer() const noexcept { return m_render_output_buffers[m_current_buffer_index]; }
+    [[nodiscard]] auto &GetCurrentRenderOutputBuffer() const noexcept { return m_flip_buffers[m_current_buffer_index]; }
     [[nodiscard]] uint32_t GetReadyOutputBufferIndex() const noexcept { return m_ready_buffer_index; }
-    [[nodiscard]] Buffer *GetReadyOutputBuffer() const noexcept { return m_render_output_buffers[m_ready_buffer_index]; }
+    [[nodiscard]] auto &GetReadyOutputBuffer() const noexcept { return m_flip_buffers[m_ready_buffer_index]; }
 
 protected:
     void OnDraw() noexcept;
+    void InitRenderToTexturePipeline() noexcept;
+    void RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 
     std::unordered_map<std::string, CustomInspector> m_inspectors;
     bool m_init_flag = false;
+    bool m_copy_after_flip_flag = false;
 
     // one for rendering output, the other for showing on gui
-    Buffer *m_render_output_buffers[2]{};
-    uint64_t m_render_output_srvs[2]{};
+    struct FlipBuffer {
+        winrt::com_ptr<ID3D12Resource> res = nullptr;
+        D3D12_GPU_DESCRIPTOR_HANDLE output_buffer_srv{};
+        D3D12_GPU_DESCRIPTOR_HANDLE output_texture_srv{};
+        D3D12_CPU_DESCRIPTOR_HANDLE output_rtv{};
+        SharedBuffer shared_buffer{};
+    };
+
+    FlipBuffer m_flip_buffers[SWAP_BUFFER_NUM];
+
     uint32_t m_current_buffer_index = 0;
     uint32_t m_ready_buffer_index = 1;
-    std::mutex m_render_output_buffer_mutex[2]{};
     std::mutex m_flip_model_mutex;
+    uint32_t m_output_w = 0;
+    uint32_t m_output_h = 0;
     float m_render_output_show_w = 0.f;
     float m_render_output_show_h = 0.f;
+
+    // render buffer to texture
+    winrt::com_ptr<ID3D12RootSignature> m_root_signature;
+    winrt::com_ptr<ID3D12PipelineState> m_pipeline_state;
+
+    winrt::com_ptr<ID3D12Resource> m_vb;
+    D3D12_VERTEX_BUFFER_VIEW m_vbv;
+
+    winrt::com_ptr<ID3D12Resource> m_frame_constant_buffer;
+    void *m_frame_constant_buffer_mapped_ptr = nullptr;
 };
 }// namespace Pupil

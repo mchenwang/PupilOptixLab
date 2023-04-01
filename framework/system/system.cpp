@@ -74,14 +74,11 @@ void System::Run() noexcept {
     // }
 
     while (!quit_flag) {
-        // if (render_flag) {
-        //     for (auto pass : m_passes) pass->BeforeRunning();
-        //     if (m_post_pass) m_post_pass->BeforeRunning();
-        //     for (auto pass : m_passes) pass->Run();
-        //     if (m_post_pass) m_post_pass->Run();
-        //     for (auto pass : m_passes) pass->AfterRunning();
-        //     if (m_post_pass) m_post_pass->AfterRunning();
-        // }
+        if (render_flag) {
+            for (auto pass : m_passes) pass->BeforeRunning();
+            for (auto pass : m_passes) pass->Run();
+            for (auto pass : m_passes) pass->AfterRunning();
+        }
         if (m_gui_pass) m_gui_pass->Run();
     }
 }
@@ -100,7 +97,7 @@ void System::AddPass(Pass *pass) noexcept {
     if (m_gui_pass) {
         m_gui_pass->RegisterInspector(
             pass->name,
-            [&pass]() {
+            [pass]() {
                 pass->Inspector();
             });
     }
