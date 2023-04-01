@@ -5,6 +5,10 @@
 #include "optix/context.h"
 #include "optix/module.h"
 
+#include "util/event.h"
+#include "system/system.h"
+#include "system/gui.h"
+
 namespace Pupil {
 extern uint32_t g_window_w;
 extern uint32_t g_window_h;
@@ -23,14 +27,16 @@ PTPass::PTPass(std::string_view name) noexcept
 void PTPass::Run() noexcept {
     m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
 
-    auto frame_buffer =
-        util::Singleton<BufferManager>::instance()->GetBuffer(BufferManager::CUSTOM_OUTPUT_BUFFER);
+    auto &frame_buffer = 
+            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
 
     m_optix_launch_params.frame_buffer.SetData(
-        frame_buffer->cuda_res.ptr, m_output_buffer_size);
+        frame_buffer.cuda_ptr, m_output_pixel_num);
     m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
                       m_optix_launch_params.config.frame.height);
+    m_optix_pass->Synchronize();
 
+    EventDispatcher<SystemEvent::PostProcessFinished>();
     m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
     ++m_optix_launch_params.random_seed;
 }
@@ -85,24 +91,26 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     m_optix_launch_params.sample_cnt = 0;
 
     CUDA_FREE(m_accum_buffer);
-    size_t pixel_num = m_optix_launch_params.config.frame.width *
-                       m_optix_launch_params.config.frame.height;
+    m_output_pixel_num = m_optix_launch_params.config.frame.width *
+                         m_optix_launch_params.config.frame.height;
 
-    m_output_buffer_size = pixel_num * sizeof(float4);
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_accum_buffer), m_output_buffer_size));
+    size_t output_buffer_size = m_output_pixel_num * sizeof(float4);
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_accum_buffer), output_buffer_size));
 
-    BufferDesc buffer_desc{
-        .type = EBufferType::Cuda,
-        .name = std::string{ BufferManager::CUSTOM_OUTPUT_BUFFER },
-        .size = m_output_buffer_size
-    };
-    m_output_buffer = util::Singleton<BufferManager>::instance()->AllocBuffer(buffer_desc);
+    // BufferDesc buffer_desc{
+    //     .type = EBufferType::Cuda,
+    //     .name = std::string{ BufferManager::CUSTOM_OUTPUT_BUFFER },
+    //     .size = output_buffer_size
+    // };
+    // m_output_buffer = util::Singleton<BufferManager>::instance()->AllocBuffer(buffer_desc);
 
-    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer, pixel_num);
+    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer, m_output_pixel_num);
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
     m_optix_launch_params.handle = m_optix_scene->ias_handle;
     m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
+
+    SetSBT(scene);
 }
 
 void PTPass::SetSBT(scene::Scene *scene) noexcept {
@@ -151,10 +159,11 @@ void PTPass::BindingEventCallback() noexcept {
 }
 
 void PTPass::Inspector() noexcept {
+    //ImGui::Text("TODO");
     ImGui::SeparatorText("info");
     {
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::Text("Window Size(width x height): %d x %d", g_window_w, g_window_h);
+        //ImGui::Text("Window Size(width x height): %d x %d", g_window_w, g_window_h);
     }
 }
 }// namespace Pupil::pt

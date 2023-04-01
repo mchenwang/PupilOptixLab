@@ -39,6 +39,9 @@ extern "C" __global__ void __raygen__main() {
     const unsigned int w = optix_launch_params.config.frame.width;
     const unsigned int h = optix_launch_params.config.frame.height;
     const unsigned int pixel_index = index.y * w + index.x;
+    // optix_launch_params.frame_buffer[pixel_index] = make_float4(1.f);
+    // DebugPrintFloat4(optix_launch_params.frame_buffer[pixel_index]);
+    // return;
     auto &camera = *optix_launch_params.camera.operator->();
 
     // optix_launch_params.frame_buffer[pixel_index] =

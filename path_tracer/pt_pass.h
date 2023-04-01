@@ -38,7 +38,7 @@ private:
     std::unique_ptr<cuda::Stream> m_stream;
     std::unique_ptr<optix::Pass<SBTTypes, OptixLaunchParams>> m_optix_pass;
     std::unique_ptr<optix::Scene> m_optix_scene;
-    size_t m_output_buffer_size = 0;
+    size_t m_output_pixel_num = 0;
     Buffer *m_output_buffer;
     CUdeviceptr m_accum_buffer = 0;
 };

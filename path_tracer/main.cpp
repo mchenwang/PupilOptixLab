@@ -12,7 +12,7 @@ int main() {
         std::filesystem::path scene_file_path{ Pupil::DATA_DIR };
         scene_file_path /= "default.xml";
         system->SetScene(scene_file_path);
-    
+
         system->Run();
     }
 
