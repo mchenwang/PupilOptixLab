@@ -54,6 +54,5 @@ set(BUILD_TESTING OFF CACHE INTERNAL "" FORCE)
 add_sub_target(DirectXTK12 DirectXTK12 ${3rdparty_folder} "")
 
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
-
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
-add_sub_target(pugixml pugixml-static ${3rdparty_folder} "")
+set(BUILD_SHARED_LIBS ON CACHE INTERNAL "" FORCE)
+add_sub_target(pugixml pugixml-shared ${3rdparty_folder} "")
