@@ -15,10 +15,8 @@ public:
     template<typename Func, typename... Ts>
         requires(std::invocable<Func, Ts...> && std::is_same_v<void, std::invoke_result_t<Func, Ts && ...>>)
     void AddTask(Func &&func, Ts &&...args) noexcept {
-        Enqueue(std::move(
-            [&func, &args...]() {
-                func(std::forward<Ts>(args)...);
-            }));
+        std::function<void()> task_function = std::bind(std::forward<Func>(func), std::forward<Ts>(args)...);
+        Enqueue(std::move(task_function));
     }
 
     template<typename Func, typename... Ts>
