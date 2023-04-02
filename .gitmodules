@@ -1,15 +1,18 @@
-[submodule "3dparty/stb/stb"]
-	path = 3dparty/stb/stb
-	url = https://github.com/nothings/stb.git
-[submodule "3dparty/imgui/imgui"]
-	path = 3dparty/imgui/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "3dparty/assimp"]
-	path = 3dparty/assimp
-	url = https://github.com/assimp/assimp.git
-[submodule "3dparty/DirectXTK12"]
-	path = 3dparty/DirectXTK12
+[submodule "3rdparty/DirectXTK12"]
+	path = 3rdparty/DirectXTK12
 	url = https://github.com/microsoft/DirectXTK12.git
-[submodule "3dparty/pugixml"]
-	path = 3dparty/pugixml
+[submodule "3rdparty/pugixml"]
+	path = 3rdparty/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "3rdparty/assimp"]
+	path = 3rdparty/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule "3rdparty/stb/stb"]
+	path = 3rdparty/stb/stb
+	url = https://github.com/nothings/stb.git
+[submodule "3rdparty/imgui/imgui"]
+	path = 3rdparty/imgui/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "3rdparty/imgui/imgui-filebrowser"]
+	path = 3rdparty/imgui/imgui-filebrowser
+	url = https://github.com/AirGuanZ/imgui-filebrowser.git
