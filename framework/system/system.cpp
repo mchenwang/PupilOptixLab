@@ -47,7 +47,7 @@ void System::Init(bool has_window) noexcept {
     util::Singleton<cuda::Context>::instance()->Init();
     util::Singleton<optix::Context>::instance()->Init();
 
-    EventBinder<ESystemEvent::PostProcessFinished>([this](void *) {
+    EventBinder<ESystemEvent::FrameFinished>([this](void *) {
         m_gui_pass->FlipSwapBuffer();
     });
 }
@@ -78,6 +78,7 @@ void System::Run() noexcept {
             for (auto pass : m_passes) pass->BeforeRunning();
             for (auto pass : m_passes) pass->Run();
             for (auto pass : m_passes) pass->AfterRunning();
+            EventDispatcher<ESystemEvent::FrameFinished>();
         }
         if (m_gui_pass) m_gui_pass->Run();
     }
@@ -129,4 +130,12 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
             static_cast<uint32_t>(m_scene->sensor.film.h) };
     EventDispatcher<ESystemEvent::SceneLoad>(size);
 }
+
+void System::StopRendering() noexcept {
+    render_flag = false;
+}
+void System::RestartRendering() noexcept {
+    render_flag = true;
+}
+
 }// namespace Pupil

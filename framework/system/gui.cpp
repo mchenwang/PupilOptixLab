@@ -6,6 +6,7 @@
 #include "dx12/d3dx12.h"
 
 #include "util/event.h"
+#include "util/camera.h"
 #include "scene/scene.h"
 
 #include "imgui.h"
@@ -365,7 +366,7 @@ void GuiPass::OnDraw() noexcept {
         ImGui::DockBuilderSetNodePos(main_node_id, ImGui::GetMainViewport()->WorkPos);
 
         ImGuiID dock_main_id = main_node_id;
-        ImGuiID dock_inspector_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+        ImGuiID dock_inspector_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.3f, nullptr, &dock_main_id);
 
         ImGui::DockBuilderDockWindow("Inspector", dock_inspector_id);
         ImGui::DockBuilderDockWindow("Canvas", dock_main_id);
@@ -394,6 +395,45 @@ void GuiPass::OnDraw() noexcept {
         if (ImGui::CollapsingHeader("Application")) {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index);
+            if (auto &flag = util::Singleton<System>::instance()->render_flag;
+                ImGui::Button(flag ? "Stop" : "Continue")) {
+                (flag ^= 1) ? util::Singleton<System>::instance()->RestartRendering() : util::Singleton<System>::instance()->StopRendering();
+            }
+
+            ImGui::Text("Camera:");
+            ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+            ImGui::InputFloat("sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.1f");
+            ImGui::PopItemWidth();
+
+            ImGui::Text("Save rendering screen shot:");
+            // save image
+            {
+                ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.15f);
+                static char file_name[256]{};
+                ImGui::InputText("file name", file_name, 256);
+                ImGui::SameLine();
+                // constexpr auto image_file_format = std::array{ "hdr", "jpg", "png" };
+                constexpr auto image_file_format = std::array{ "hdr" };
+                static int item_current = 0;
+                ImGui::Combo("format", &item_current, image_file_format.data(), (int)image_file_format.size());
+                ImGui::SameLine();
+                if (ImGui::Button("Save")) {
+                    std::filesystem::path path{ ROOT_DIR };
+                    path /= std::string{ file_name } + "." + image_file_format[item_current];
+
+                    size_t size = g_window_h * g_window_w * 4;
+                    // auto image = new float[size];
+                    // memset(image, 0, size);
+                    // cuda::CudaMemcpyToHost(image, m_backend->GetCurrentFrameResource().src->cuda_buffer_ptr, size * sizeof(float));
+
+                    // stbi_flip_vertically_on_write(true);
+                    // stbi_write_hdr(path.string().c_str(), g_window_w, g_window_h, 4, image);
+                    // delete[] image;
+
+                    // printf("image was saved successfully in [%ws].\n", path.wstring().data());
+                }
+                ImGui::PopItemWidth();
+            }
         }
 
         for (auto &&[title, inspector] : m_inspectors) {
@@ -438,10 +478,11 @@ void GuiPass::OnDraw() noexcept {
             // This will catch our interactions
             ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
             ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+            ImGui::SetItemUsingMouseWheel();
             const bool is_hovered = ImGui::IsItemHovered();// Hovered
             const bool is_active = ImGui::IsItemActive();  // Held
 
-            if (is_hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
                 ImGuiIO &io = ImGui::GetIO();
                 const struct {
                     float x, y;
@@ -449,6 +490,21 @@ void GuiPass::OnDraw() noexcept {
                 EventDispatcher<ECanvasEvent::MouseDragging>(delta);
             }
 
+            if (is_hovered) {
+                ImGuiIO &io = ImGui::GetIO();
+                if (io.MouseWheel != 0.f)
+                    EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
+
+                util::Float3 delta_pos;
+                if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos += util::Camera::X;
+                if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
+                if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
+                if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
+                if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::X;
+                if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::X;
+                if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
+                    EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
+            }
         } else {
             ImGui::Text("Render ouput buffer is empty.");
         }

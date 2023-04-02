@@ -23,6 +23,8 @@ enum class EWindowEvent {
 
 enum class ECanvasEvent {
     MouseDragging,
+    MouseWheel,
+    CameraMove
 };
 
 class GuiPass : public Pass, public util::Singleton<GuiPass> {

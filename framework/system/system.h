@@ -13,8 +13,7 @@ class GuiPass;
 enum class ESystemEvent {
     Quit,
     SceneLoad,
-    FrameFinished,
-    PostProcessFinished
+    FrameFinished
 };
 
 class System : public util::Singleton<System> {
@@ -28,6 +27,9 @@ public:
 
     void AddPass(Pass *) noexcept;
     void SetScene(std::filesystem::path) noexcept;
+
+    void StopRendering() noexcept;
+    void RestartRendering() noexcept;
 
 private:
     std::vector<Pass *> m_passes;

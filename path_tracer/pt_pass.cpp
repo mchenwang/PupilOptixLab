@@ -27,8 +27,8 @@ PTPass::PTPass(std::string_view name) noexcept
 void PTPass::Run() noexcept {
     m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
 
-    auto &frame_buffer = 
-            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+    auto &frame_buffer =
+        util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
 
     m_optix_launch_params.frame_buffer.SetData(
         frame_buffer.cuda_ptr, m_output_pixel_num);
@@ -36,7 +36,6 @@ void PTPass::Run() noexcept {
                       m_optix_launch_params.config.frame.height);
     m_optix_pass->Synchronize();
 
-    EventDispatcher<SystemEvent::PostProcessFinished>();
     m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
     ++m_optix_launch_params.random_seed;
 }
@@ -97,13 +96,6 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     size_t output_buffer_size = m_output_pixel_num * sizeof(float4);
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_accum_buffer), output_buffer_size));
 
-    // BufferDesc buffer_desc{
-    //     .type = EBufferType::Cuda,
-    //     .name = std::string{ BufferManager::CUSTOM_OUTPUT_BUFFER },
-    //     .size = output_buffer_size
-    // };
-    // m_output_buffer = util::Singleton<BufferManager>::instance()->AllocBuffer(buffer_desc);
-
     m_optix_launch_params.accum_buffer.SetData(m_accum_buffer, m_output_pixel_num);
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
@@ -156,14 +148,38 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 }
 
 void PTPass::BindingEventCallback() noexcept {
+    EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
+        if (!util::Singleton<System>::instance()->render_flag) return;
+
+        const struct {
+            float x, y;
+        } delta = *(decltype(delta) *)p;
+        float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
+        m_optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
+    });
+
+    EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
+        if (!util::Singleton<System>::instance()->render_flag) return;
+
+        float delta = *(float *)p;
+        m_optix_scene->camera->SetFovDelta(delta);
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
+    });
+
+    EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
+        if (!util::Singleton<System>::instance()->render_flag) return;
+
+        util::Float3 delta = *(util::Float3 *)p;
+        m_optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
+    });
 }
 
 void PTPass::Inspector() noexcept {
-    //ImGui::Text("TODO");
-    ImGui::SeparatorText("info");
-    {
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        //ImGui::Text("Window Size(width x height): %d x %d", g_window_w, g_window_h);
-    }
+    ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt + 1);
 }
 }// namespace Pupil::pt
