@@ -15,14 +15,14 @@
 
 namespace Pupil {
 struct Buffer;
-enum class WindowEvent {
+enum class EWindowEvent {
     Quit,
     Resize,
-    Minimized,
-    // MouseLeftButtonMove,
-    // MouseRightButtonMove,
-    // MouseWheel,
-    // KeyboardMove
+    Minimized
+};
+
+enum class ECanvasEvent {
+    MouseDragging,
 };
 
 class GuiPass : public Pass, public util::Singleton<GuiPass> {
@@ -85,8 +85,6 @@ protected:
     std::mutex m_flip_model_mutex;
     uint32_t m_output_w = 0;
     uint32_t m_output_h = 0;
-    float m_render_output_show_w = 0.f;
-    float m_render_output_show_h = 0.f;
 
     // render buffer to texture
     winrt::com_ptr<ID3D12RootSignature> m_root_signature;

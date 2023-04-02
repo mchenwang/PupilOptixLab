@@ -20,7 +20,7 @@
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
 
-    EventBinder<SystemEvent::Quit>([this]() {
+    EventBinder<ESystemEvent::Quit>([this](void *) {
         this->quit_flag = true;
     });
 
@@ -30,14 +30,14 @@ void System::Init(bool has_window) noexcept {
         return;
     }
 
-    EventBinder<WindowEvent::Minimized>([this]() {
+    EventBinder<EWindowEvent::Minimized>([this](void *) {
         this->render_flag = false;
     });
-    EventBinder<WindowEvent::Resize>([this]() {
+    EventBinder<EWindowEvent::Resize>([this](void *) {
         this->render_flag = true;
     });
-    EventBinder<WindowEvent::Quit>([this]() {
-        EventDispatcher<SystemEvent::Quit>();
+    EventBinder<EWindowEvent::Quit>([this](void *) {
+        EventDispatcher<ESystemEvent::Quit>();
     });
 
     m_gui_pass = util::Singleton<GuiPass>::instance();
@@ -47,7 +47,7 @@ void System::Init(bool has_window) noexcept {
     util::Singleton<cuda::Context>::instance()->Init();
     util::Singleton<optix::Context>::instance()->Init();
 
-    EventBinder<SystemEvent::PostProcessFinished>([this]() {
+    EventBinder<ESystemEvent::PostProcessFinished>([this](void *) {
         m_gui_pass->FlipSwapBuffer();
     });
 }
@@ -123,8 +123,10 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
     util::Singleton<scene::TextureManager>::instance()->Clear();
 
-    uint64_t size = (static_cast<uint32_t>(m_scene->sensor.film.w)) |
-                    (static_cast<uint32_t>(m_scene->sensor.film.h) << 16);
-    EventDispatcher<SystemEvent::SceneLoad>(size);
+    struct {
+        uint32_t w, h;
+    } size{ static_cast<uint32_t>(m_scene->sensor.film.w),
+            static_cast<uint32_t>(m_scene->sensor.film.h) };
+    EventDispatcher<ESystemEvent::SceneLoad>(size);
 }
 }// namespace Pupil

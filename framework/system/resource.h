@@ -57,8 +57,6 @@ struct Buffer {
 
 class BufferManager : public util::Singleton<BufferManager> {
 public:
-    constexpr static std::string_view CUSTOM_OUTPUT_BUFFER = "Custom output buffer";
-
     [[nodiscard]] Buffer *GetBuffer(std::string_view) noexcept;
     Buffer *AllocBuffer(const BufferDesc &) noexcept;
     void AddBuffer(std::string_view id, std::unique_ptr<Buffer> &) noexcept;

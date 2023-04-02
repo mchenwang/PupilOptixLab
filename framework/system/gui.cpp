@@ -95,16 +95,13 @@ void GuiPass::Init() noexcept {
 
     // event binding
     {
-        EventBinder<WindowEvent::Resize>([this](uint64_t param) {
-            uint32_t w = param & 0xffff;
-            uint32_t h = (param >> 16) & 0xffff;
-            this->Resize(w, h);
+        EventBinder<EWindowEvent::Resize>([this](void *param) {
+            struct {
+                uint32_t w, h;
+            } size;
+            size = *static_cast<decltype(size) *>(param);
+            this->Resize(size.w, size.h);
         });
-
-        // EventBinder<SystemEvent::SceneLoad>([this](uint64_t param) {
-        //     EventDispatcher<WindowEvent::Resize>(param);
-        //     this->AdjustWindowSize();
-        // });
     }
 
     // init imgui
@@ -149,9 +146,6 @@ void GuiPass::SetScene(scene::Scene *scene) noexcept {
         uint64_t size =
             static_cast<uint64_t>(scene->sensor.film.h) *
             scene->sensor.film.w * sizeof(float) * 4;
-        // TODO: reset showing size when resize
-        m_render_output_show_h = static_cast<float>(scene->sensor.film.h);
-        m_render_output_show_w = static_cast<float>(scene->sensor.film.w);
         m_output_h = static_cast<uint32_t>(scene->sensor.film.h);
         m_output_w = static_cast<uint32_t>(scene->sensor.film.w);
 
@@ -300,7 +294,7 @@ void GuiPass::Run() noexcept {
     OnDraw();
 
     if (msg.message == WM_QUIT)
-        EventDispatcher<WindowEvent::Quit>();
+        EventDispatcher<EWindowEvent::Quit>();
 }
 
 void GuiPass::RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
@@ -310,8 +304,8 @@ void GuiPass::RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList
     cmd_list->SetPipelineState(m_pipeline_state.get());
 
     auto &buffer = GetReadyOutputBuffer();
-    ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
-    cmd_list->SetDescriptorHeaps(1, heaps);
+    // ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
+    // cmd_list->SetDescriptorHeaps(1, heaps);
     cmd_list->SetGraphicsRootDescriptorTable(0, buffer.output_buffer_srv);
     cmd_list->SetGraphicsRootConstantBufferView(1, m_frame_constant_buffer->GetGPUVirtualAddress());
 
@@ -374,7 +368,7 @@ void GuiPass::OnDraw() noexcept {
         ImGuiID dock_inspector_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
 
         ImGui::DockBuilderDockWindow("Inspector", dock_inspector_id);
-        ImGui::DockBuilderDockWindow("Scene", dock_main_id);
+        ImGui::DockBuilderDockWindow("Canvas", dock_main_id);
 
         ImGui::DockBuilderFinish(dock_main_id);
     }
@@ -397,6 +391,11 @@ void GuiPass::OnDraw() noexcept {
 
         ImGui::PushTextWrapPos(0.f);
 
+        if (ImGui::CollapsingHeader("Application")) {
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index);
+        }
+
         for (auto &&[title, inspector] : m_inspectors) {
             if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                 inspector();
@@ -414,17 +413,41 @@ void GuiPass::OnDraw() noexcept {
 
     std::scoped_lock lock{ m_flip_model_mutex };
     if (bool open = true;
-        ImGui::Begin("Scene", &open /* , ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse*/)) {
+        ImGui::Begin("Canvas", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
         if (auto buffer = GetReadyOutputBuffer(); buffer.res) {
-            ImGui::Text("buffer[%d]", m_ready_buffer_index);
             if (m_copy_after_flip_flag) {
                 RenderFlipBufferToTexture(cmd_list);
                 m_copy_after_flip_flag = false;
             }
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            float screen_w = ImGui::GetContentRegionAvail().x;
+            float screen_h = ImGui::GetContentRegionAvail().y;
+            float ratio_x = screen_w / m_output_w;
+            float ratio_y = screen_h / m_output_h;
+            float ratio = std::min(ratio_x, ratio_y);
 
+            float show_w = m_output_w * ratio;
+            float show_h = m_output_h * ratio;
+
+            float cursor_x = (screen_w - show_w) * 0.5f + ImGui::GetCursorPosX();
+            float cursor_y = (screen_h - show_h) * 0.5f + ImGui::GetCursorPosY();
+
+            ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
             ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
-                         ImVec2(m_render_output_show_w, m_render_output_show_h));
+                         ImVec2(show_w, show_h));
+
+            // This will catch our interactions
+            ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
+            ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+            const bool is_hovered = ImGui::IsItemHovered();// Hovered
+            const bool is_active = ImGui::IsItemActive();  // Held
+
+            if (is_hovered && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                ImGuiIO &io = ImGui::GetIO();
+                const struct {
+                    float x, y;
+                } delta{ io.MouseDelta.x, io.MouseDelta.y };
+                EventDispatcher<ECanvasEvent::MouseDragging>(delta);
+            }
 
         } else {
             ImGui::Text("Render ouput buffer is empty.");
@@ -652,13 +675,12 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (auto dx_ctx = Pupil::util::Singleton<Pupil::DirectX::Context>::instance();
                 dx_ctx->IsInitialized()) {
                 if (wParam == SIZE_MINIMIZED) {
-                    Pupil::EventDispatcher<Pupil::WindowEvent::Minimized>();
+                    Pupil::EventDispatcher<Pupil::EWindowEvent::Minimized>();
                 } else {
-                    uint32_t w = static_cast<uint32_t>(LOWORD(lParam));
-                    uint32_t h = static_cast<uint32_t>(HIWORD(lParam));
-                    uint64_t size = w | (h << 16);
-                    Pupil::EventDispatcher<Pupil::WindowEvent::Resize>(size);
-                    // Pupil::util::Singleton<Pupil::GuiPass>::instance()->Resize(w, h);
+                    struct {
+                        uint32_t w, h;
+                    } size{ static_cast<uint32_t>(LOWORD(lParam)), static_cast<uint32_t>(HIWORD(lParam)) };
+                    Pupil::EventDispatcher<Pupil::EWindowEvent::Resize>(size);
                 }
             }
             return 0;
@@ -699,7 +721,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         //     OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
         //     break;
         case WM_DESTROY:
-            Pupil::EventDispatcher<Pupil::WindowEvent::Quit>();
+            Pupil::EventDispatcher<Pupil::EWindowEvent::Quit>();
             ::PostQuitMessage(0);
             return 0;
     }

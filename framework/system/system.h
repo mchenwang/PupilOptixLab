@@ -10,7 +10,7 @@ namespace Pupil {
 class Pass;
 class GuiPass;
 
-enum class SystemEvent {
+enum class ESystemEvent {
     Quit,
     SceneLoad,
     FrameFinished,
