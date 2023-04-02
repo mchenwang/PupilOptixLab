@@ -12,7 +12,7 @@ class GuiPass;
 
 enum class ESystemEvent {
     Quit,
-    SceneLoad,
+    SceneLoadFinished,
     FrameFinished
 };
 

@@ -7,6 +7,7 @@
 
 #include "util/event.h"
 #include "util/camera.h"
+#include "util/thread_pool.h"
 #include "scene/scene.h"
 
 #include "imgui.h"
@@ -31,6 +32,8 @@ const std::wstring WND_CLASS_NAME = L"PupilOptixLab_CLASS";
 HINSTANCE m_instance;
 
 ImGui::FileBrowser m_scene_file_browser;
+
+bool m_waiting_scene_load = false;
 
 struct FrameInfo {
     uint32_t w = 1;
@@ -102,6 +105,10 @@ void GuiPass::Init() noexcept {
             } size;
             size = *static_cast<decltype(size) *>(param);
             this->Resize(size.w, size.h);
+        });
+
+        EventBinder<ESystemEvent::SceneLoadFinished>([](void *) {
+            m_waiting_scene_load = false;
         });
     }
 
@@ -454,64 +461,81 @@ void GuiPass::OnDraw() noexcept {
     std::scoped_lock lock{ m_flip_model_mutex };
     if (bool open = true;
         ImGui::Begin("Canvas", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
-        if (auto buffer = GetReadyOutputBuffer(); buffer.res) {
-            if (m_copy_after_flip_flag) {
-                RenderFlipBufferToTexture(cmd_list);
-                m_copy_after_flip_flag = false;
-            }
-            float screen_w = ImGui::GetContentRegionAvail().x;
-            float screen_h = ImGui::GetContentRegionAvail().y;
-            float ratio_x = screen_w / m_output_w;
-            float ratio_y = screen_h / m_output_h;
-            float ratio = std::min(ratio_x, ratio_y);
+        if (!m_waiting_scene_load) {
+            if (auto buffer = GetReadyOutputBuffer();
+                buffer.res) {
+                if (m_copy_after_flip_flag) {
+                    RenderFlipBufferToTexture(cmd_list);
+                    m_copy_after_flip_flag = false;
+                }
+                float screen_w = ImGui::GetContentRegionAvail().x;
+                float screen_h = ImGui::GetContentRegionAvail().y;
+                float ratio_x = screen_w / m_output_w;
+                float ratio_y = screen_h / m_output_h;
+                float ratio = std::min(ratio_x, ratio_y);
 
-            float show_w = m_output_w * ratio;
-            float show_h = m_output_h * ratio;
+                float show_w = m_output_w * ratio;
+                float show_h = m_output_h * ratio;
 
-            float cursor_x = (screen_w - show_w) * 0.5f + ImGui::GetCursorPosX();
-            float cursor_y = (screen_h - show_h) * 0.5f + ImGui::GetCursorPosY();
+                float cursor_x = (screen_w - show_w) * 0.5f + ImGui::GetCursorPosX();
+                float cursor_y = (screen_h - show_h) * 0.5f + ImGui::GetCursorPosY();
 
-            ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
-            ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
-                         ImVec2(show_w, show_h));
+                ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
+                ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
+                             ImVec2(show_w, show_h));
 
-            // This will catch our interactions
-            ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
-            ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-            ImGui::SetItemUsingMouseWheel();
-            const bool is_hovered = ImGui::IsItemHovered();// Hovered
-            const bool is_active = ImGui::IsItemActive();  // Held
+                // This will catch our interactions
+                ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
+                ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+                ImGui::SetItemUsingMouseWheel();
+                const bool is_hovered = ImGui::IsItemHovered();// Hovered
+                const bool is_active = ImGui::IsItemActive();  // Held
 
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                ImGuiIO &io = ImGui::GetIO();
-                const struct {
-                    float x, y;
-                } delta{ io.MouseDelta.x, io.MouseDelta.y };
-                EventDispatcher<ECanvasEvent::MouseDragging>(delta);
-            }
+                if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                    ImGuiIO &io = ImGui::GetIO();
+                    const struct {
+                        float x, y;
+                    } delta{ io.MouseDelta.x, io.MouseDelta.y };
+                    EventDispatcher<ECanvasEvent::MouseDragging>(delta);
+                }
 
-            if (is_hovered) {
-                ImGuiIO &io = ImGui::GetIO();
-                if (io.MouseWheel != 0.f)
-                    EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
+                if (is_hovered) {
+                    ImGuiIO &io = ImGui::GetIO();
+                    if (io.MouseWheel != 0.f)
+                        EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
 
-                util::Float3 delta_pos;
-                if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos += util::Camera::X;
-                if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
-                if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
-                if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
-                if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::X;
-                if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::X;
-                if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
-                    EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
+                    util::Float3 delta_pos;
+                    if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos += util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
+                    if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
+                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::X;
+                    if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
+                        EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
+                }
             }
         } else {
-            ImGui::Text("Render ouput buffer is empty.");
+            ImGui::Text("Loading %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
         }
     }
     ImGui::End();
 
     m_scene_file_browser.Display();
+    {
+        if (m_scene_file_browser.HasSelected()) {
+            util::Singleton<System>::instance()->StopRendering();
+            m_waiting_scene_load = true;
+            std::filesystem::path path = m_scene_file_browser.GetSelected();
+            util::Singleton<util::ThreadPool>::instance()->AddTask(
+                [](std::filesystem::path path) {
+                    printf("%s\n", path.string().c_str());
+                    util::Singleton<System>::instance()->SetScene(path);
+                },
+                path);
+            m_scene_file_browser.ClearSelected();
+        }
+    }
 
     ImGui::Render();
 

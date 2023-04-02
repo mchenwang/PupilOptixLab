@@ -13,12 +13,14 @@
 #include "pass.h"
 #include "gui.h"
 #include "util/event.h"
+#include "util/thread_pool.h"
 
 #include <iostream>
 #include <format>
 
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
+    util::Singleton<util::ThreadPool>::instance()->Init();
 
     EventBinder<ESystemEvent::Quit>([this](void *) {
         this->quit_flag = true;
@@ -58,33 +60,24 @@ void System::Run() noexcept {
     for (auto pass : m_pre_passes) pass->Run();
     for (auto pass : m_pre_passes) pass->AfterRunning();
 
-    // // rendering thread:
-    // while (!quit_flag) {
-    //     if (render_flag) {
-    //         for (auto pass : m_passes) pass->BeforeRunning();
-    //         for (auto pass : m_passes) pass->Run();
-    //         for (auto pass : m_passes) pass->AfterRunning();
-    //     }
-    // }
-    // // main(application) thread:
-    // if (m_gui_pass) {
-    //     while (!quit_flag) {
-    //         m_gui_pass->Run();
-    //     }
-    // }
+    util::Singleton<util::ThreadPool>::instance()->AddTask(
+        [&]() {
+            while (!quit_flag) {
+                if (render_flag) {
+                    for (auto pass : m_passes) pass->BeforeRunning();
+                    for (auto pass : m_passes) pass->Run();
+                    for (auto pass : m_passes) pass->AfterRunning();
+                    EventDispatcher<ESystemEvent::FrameFinished>();
+                }
+            }
+        });
 
     while (!quit_flag) {
-        if (render_flag) {
-            for (auto pass : m_passes) pass->BeforeRunning();
-            for (auto pass : m_passes) pass->Run();
-            for (auto pass : m_passes) pass->AfterRunning();
-            EventDispatcher<ESystemEvent::FrameFinished>();
-        }
         if (m_gui_pass) m_gui_pass->Run();
     }
 }
 void System::Destroy() noexcept {
-    // util::Singleton<PostProcessPass>::instance()->Destroy();
+    util::Singleton<util::ThreadPool>::instance()->Destroy();
     util::Singleton<GuiPass>::instance()->Destroy();
     util::Singleton<cuda::Context>::instance()->Destroy();
     util::Singleton<optix::Context>::instance()->Destroy();
@@ -124,11 +117,12 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
     util::Singleton<scene::TextureManager>::instance()->Clear();
 
+    this->render_flag = true;
     struct {
         uint32_t w, h;
     } size{ static_cast<uint32_t>(m_scene->sensor.film.w),
             static_cast<uint32_t>(m_scene->sensor.film.h) };
-    EventDispatcher<ESystemEvent::SceneLoad>(size);
+    EventDispatcher<ESystemEvent::SceneLoadFinished>(size);
 }
 
 void System::StopRendering() noexcept {
