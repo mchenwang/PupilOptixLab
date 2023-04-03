@@ -14,6 +14,11 @@ extern uint32_t g_window_w;
 extern uint32_t g_window_h;
 }// namespace Pupil
 
+namespace {
+int m_max_depth;
+bool m_accumulated_flag;
+}// namespace
+
 namespace Pupil::pt {
 PTPass::PTPass(std::string_view name) noexcept
     : Pass(name) {
@@ -24,20 +29,32 @@ PTPass::PTPass(std::string_view name) noexcept
     InitOptixPipeline();
     BindingEventCallback();
 }
+
 void PTPass::Run() noexcept {
-    m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
+    m_timer.Start();
+    {
+        if (m_dirty) {
+            m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
+            m_optix_launch_params.config.max_depth = m_max_depth;
+            m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
+            m_optix_launch_params.sample_cnt = 0;
+            m_optix_launch_params.random_seed = 0;
+            m_dirty = false;
+        }
 
-    auto &frame_buffer =
-        util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+        auto &frame_buffer =
+            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
 
-    m_optix_launch_params.frame_buffer.SetData(
-        frame_buffer.cuda_ptr, m_output_pixel_num);
-    m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
-                      m_optix_launch_params.config.frame.height);
-    m_optix_pass->Synchronize();
+        m_optix_launch_params.frame_buffer.SetData(
+            frame_buffer.cuda_ptr, m_output_pixel_num);
+        m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
+                          m_optix_launch_params.config.frame.height);
+        m_optix_pass->Synchronize();
 
-    m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
-    ++m_optix_launch_params.random_seed;
+        m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
+        ++m_optix_launch_params.random_seed;
+    }
+    m_timer.Stop();
 }
 
 void PTPass::InitOptixPipeline() noexcept {
@@ -84,7 +101,9 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     m_optix_launch_params.config.frame.height = scene->sensor.film.h;
     m_optix_launch_params.config.max_depth = scene->integrator.max_depth;
     m_optix_launch_params.config.accumulated_flag = true;
-    m_optix_launch_params.config.use_tone_mapping = false;
+
+    m_max_depth = m_optix_launch_params.config.max_depth;
+    m_accumulated_flag = m_optix_launch_params.config.accumulated_flag;
 
     m_optix_launch_params.random_seed = 0;
     m_optix_launch_params.sample_cnt = 0;
@@ -103,6 +122,8 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
 
     SetSBT(scene);
+
+    m_dirty = true;
 }
 
 void PTPass::SetSBT(scene::Scene *scene) noexcept {
@@ -148,38 +169,55 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 }
 
 void PTPass::BindingEventCallback() noexcept {
+    EventBinder<ESystemEvent::SceneLoadFinished>([this](void *) {
+        m_dirty = true;
+    });
+
     EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
         if (!util::Singleton<System>::instance()->render_flag) return;
+
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
 
         const struct {
             float x, y;
         } delta = *(decltype(delta) *)p;
         float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
         m_optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
+        m_dirty = true;
     });
 
     EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
         if (!util::Singleton<System>::instance()->render_flag) return;
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
 
         float delta = *(float *)p;
         m_optix_scene->camera->SetFovDelta(delta);
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
+        m_dirty = true;
     });
 
     EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
         if (!util::Singleton<System>::instance()->render_flag) return;
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
 
         util::Float3 delta = *(util::Float3 *)p;
         m_optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
+        m_dirty = true;
     });
 }
 
 void PTPass::Inspector() noexcept {
     ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt + 1);
+    ImGui::InputInt("max trace depth", &m_max_depth);
+    m_max_depth = clamp(m_max_depth, 1, 128);
+    if (m_optix_launch_params.config.max_depth != m_max_depth) {
+        m_dirty = true;
+    }
+
+    if (ImGui::Checkbox("accumulate radiance", &m_accumulated_flag)) {
+        m_dirty = true;
+    }
 }
 }// namespace Pupil::pt
