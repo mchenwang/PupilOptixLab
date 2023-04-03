@@ -5,7 +5,8 @@
 
 #include "pugixml.hpp"
 
-#include <iostream>
+#include "util/log.h"
+
 #include <array>
 #include <functional>
 
@@ -80,7 +81,7 @@ inline bool XYZValuePropertyVisitor(ETag tag, GlobalManager *global_manager, pug
 template<ETag T>
 struct Visitor {
     bool operator()(GlobalManager *global_manager, pugi::xml_node &node) {
-        std::cout << node.name() << " skip\n";
+        Pupil::Log::Warn("XML Node [{}] skip", node.name());
         return false;
     }
 };
@@ -95,7 +96,6 @@ struct Visitor {
 
 // clang-format off
 IMPL_VISITOR(ETag::_scene,
-    std::cout << "read scene\n";
     auto scene_root = std::make_unique<Object>(node.name(), node.attribute("version").value(), ETag::_scene);
     global_manager->current_obj = scene_root.get();
     global_manager->objects_pool.emplace_back(std::move(scene_root));

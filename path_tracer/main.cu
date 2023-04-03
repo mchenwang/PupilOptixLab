@@ -189,12 +189,7 @@ extern "C" __global__ void __raygen__main() {
         record.radiance = lerp(pre, record.radiance, t);
     }
     optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
-
-    float3 color = record.radiance;
-    if (optix_launch_params.config.use_tone_mapping)
-        color = optix::ACESToneMapping(color, 1.f);
-
-    optix_launch_params.frame_buffer[pixel_index] = make_float4(color, 1.f);
+    optix_launch_params.frame_buffer[pixel_index] = make_float4(record.radiance, 1.f);
 }
 
 extern "C" __global__ void __miss__default() {

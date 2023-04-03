@@ -67,8 +67,9 @@ class CudaTextureManager : public util::Singleton<CudaTextureManager> {
 private:
     std::vector<cudaArray_t> m_cuda_memory_array;
 
-public:
     [[nodiscard]] cudaTextureObject_t GetCudaTextureObject(util::Texture) noexcept;
+
+public:
     [[nodiscard]] cuda::Texture GetCudaTexture(util::Texture) noexcept;
 
     void Clear() noexcept;

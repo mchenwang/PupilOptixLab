@@ -3,10 +3,12 @@
 
 #include "dx12/context.h"
 
+#include "util/log.h"
+
 namespace Pupil::cuda {
 void Context::Init() noexcept {
     if (IsInitialized()) {
-        std::wcerr << "CUDA is initialized repeatedly.\n";
+        Pupil::Log::Warn("CUDA is initialized repeatedly.");
         return;
     }
 
@@ -35,7 +37,7 @@ void Context::Init() noexcept {
                 CUDA_CHECK(cudaSetDevice(dev_id));
                 cuda_device_id = (uint32_t)dev_id;
                 cuda_node_mask = dev_prop.luidDeviceNodeMask;
-                std::cout << std::format("CUDA Device with DirectX12 Used [{}] {}\n", dev_id, dev_prop.name);
+                Pupil::Log::Info("CUDA Device with DirectX12 Used [{}] {}.", dev_id, dev_prop.name);
                 break;
             }
         }

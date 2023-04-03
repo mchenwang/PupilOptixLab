@@ -1,6 +1,7 @@
 #include "texture.h"
 #include "cuda/util.h"
 #include "util/texture.h"
+#include "util/log.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -46,7 +47,7 @@ void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
     }
 
     if (image_data == nullptr)
-        std::cerr << "warring: fail to load image " << file_path << std::endl;
+        Pupil::Log::Warn("fail to load image [{}]", file_path);
     else
         m_image_datas.emplace(file_path, std::move(image_data));
 }

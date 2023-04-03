@@ -76,7 +76,7 @@ private:
     bool m_init_flag = false;
 
     bool m_use_warp = false;
-    bool m_v_sync = false;
+    bool m_v_sync = true;
     bool m_tearing_supported = false;
     winrt::com_ptr<IDXGISwapChain4> m_swapchain;
 

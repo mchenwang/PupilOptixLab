@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/util.h"
+#include "util/timer.h"
 #include "scene/scene.h"
 
 #include <filesystem>
@@ -36,5 +37,6 @@ private:
     std::vector<Pass *> m_pre_passes;
     GuiPass *m_gui_pass = nullptr;
     std::unique_ptr<scene::Scene> m_scene;
+    Timer m_render_timer;
 };
 }// namespace Pupil

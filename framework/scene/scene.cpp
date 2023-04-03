@@ -8,10 +8,10 @@
 
 #include "util/util.h"
 #include "util/texture.h"
+#include "util/log.h"
 
 #include "material/material.h"
 
-#include <iostream>
 #include <filesystem>
 
 using namespace Pupil;
@@ -26,7 +26,7 @@ void LoadFilm(const scene::xml::Object *obj, void *dst) noexcept {
     if (obj == nullptr || dst == nullptr) return;
     scene::Film *film = static_cast<scene::Film *>(dst);
     if (obj->type.compare("hdrfilm")) {
-        std::cerr << "warring: film only support hdrfilm.\n";
+        Pupil::Log::Warn("film only support hdrfilm.");
         return;
     }
 
@@ -49,7 +49,7 @@ Scene::Scene() noexcept {
             if (obj == nullptr || dst == nullptr) return;
             scene::Sensor *sensor = static_cast<scene::Sensor *>(dst);
             if (obj->type.compare("perspective")) {
-                std::cerr << "warring: sensor only support perspective.\n";
+                Pupil::Log::Warn("sensor only support perspective.");
                 return;
             }
 
@@ -68,7 +68,7 @@ Scene::Scene() noexcept {
                 } else if (value.compare("y") == 0 || value.compare("Y") == 0) {
                     fov_axis = 'y';
                 } else {
-                    std::cerr << "warring: sensor fov_axis must be x or y.\n";
+                    Pupil::Log::Warn("sensor fov_axis must be x or y.");
                 }
             }
 
@@ -119,7 +119,7 @@ Scene::Scene() noexcept {
                 xml::LoadFloat3(obj, "color1", p2, { 0.2f });
                 *texture = util::Singleton<TextureManager>::instance()->GetCheckerboardTexture(p1, p2);
             } else {
-                std::cerr << "warring: unknown texture type [" << obj->type << "].\n";
+                Pupil::Log::Warn("unknown texture type [{}].", obj->type);
                 *texture = util::Singleton<TextureManager>::instance()->GetColorTexture(0.f, 0.f, 0.f);
             }
 
@@ -161,7 +161,7 @@ Scene::Scene() noexcept {
             } else if (obj->type.compare("envmap") == 0) {
                 // TODO:
             } else {
-                std::cerr << "warring: unknown emitter type [" << obj->type << "].\n";
+                Pupil::Log::Warn("unknown emitter type [{}].", obj->type);
             }
         });
 }

@@ -10,7 +10,10 @@
 
 #include "cuda/stream.h"
 
+#include "util/timer.h"
+
 #include <memory>
+#include <mutex>
 
 namespace Pupil::pt {
 struct SBTTypes {
@@ -40,5 +43,9 @@ private:
     std::unique_ptr<optix::Scene> m_optix_scene;
     size_t m_output_pixel_num = 0;
     CUdeviceptr m_accum_buffer = 0;
+
+    std::atomic_bool m_dirty = true;
+
+    Timer m_timer;
 };
 }// namespace Pupil::pt

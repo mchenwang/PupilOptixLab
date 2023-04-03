@@ -56,3 +56,5 @@ add_sub_target(DirectXTK12 DirectXTK12 ${3rdparty_folder} "")
 set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 set(BUILD_SHARED_LIBS ON CACHE INTERNAL "" FORCE)
 add_sub_target(pugixml pugixml-shared ${3rdparty_folder} "")
+
+add_sub_target(spdlog spdlog ${3rdparty_folder} "")

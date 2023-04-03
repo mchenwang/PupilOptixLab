@@ -3,6 +3,8 @@
 
 #include <d3dcompiler.h>
 
+#include "util/log.h"
+
 #ifdef _DEBUG
 #include <dxgidebug.h>
 #pragma comment(lib, "dxguid.lib")
@@ -27,6 +29,7 @@ void Context::Init(uint32_t w, uint32_t h, HWND hWnd) noexcept {
     CreateSwapchain(hWnd);
 
     m_init_flag = true;
+    Pupil::Log::Info("DirectX12 is initialized with {} x {}.", w, h);
 }
 
 void Context::Destroy() noexcept {

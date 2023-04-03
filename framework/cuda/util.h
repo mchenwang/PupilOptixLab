@@ -5,26 +5,21 @@
 
 #include "vec_math.h"
 
+#include "util/log.h"
+
 #include <sstream>
 #include <assert.h>
 #include <iostream>
 
 inline void CudaCheck(cudaError_t error, const char *call, const char *file, unsigned int line) {
     if (error != cudaSuccess) {
-        std::stringstream ss;
-        ss << "CUDA call (" << call << " ) failed with error: '"
-           << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
-        std::cerr << ss.str().c_str();
+        Pupil::Log::Error("CUDA call({}) failed with error: {}\n\tlocation:{} : {}.\n", call, cudaGetErrorString(error), file, line);
         assert(false);
     }
 }
 inline void CudaCheck(CUresult error, const char *call, const char *file, unsigned int line) {
     if (error != cudaSuccess) {
-        std::stringstream ss;
-        ss << "CUDA call (" << call << " ) failed with error: '"
-           << error << "' (" << file << ":" << line << ")\n";
-
-        std::cerr << ss.str().c_str();
+        Pupil::Log::Error("CUDA call({}) failed with error: {}\n\tlocation:{} : {}.\n", call, error, file, line);
         assert(false);
     }
 }
@@ -32,11 +27,7 @@ inline void CudaSyncCheck(const char *file, unsigned int line) {
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        std::stringstream ss;
-        ss << "CUDA error on synchronize with error '"
-           << cudaGetErrorString(error) << "' (" << file << ":" << line << ")\n";
-
-        std::cerr << ss.str().c_str();
+        Pupil::Log::Error("CUDA error on synchronize with error: {}\n\tlocation:{} : {}.\n", cudaGetErrorString(error), file, line);
         assert(false);
     }
 }
