@@ -85,7 +85,6 @@ public:
             launch_h,
             1// launch depth
             ));
-        CUDA_SYNC_CHECK();
     }
 
     void Synchronize() noexcept {

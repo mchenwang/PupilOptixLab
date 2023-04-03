@@ -34,6 +34,7 @@ HINSTANCE m_instance;
 ImGui::FileBrowser m_scene_file_browser;
 
 bool m_waiting_scene_load = false;
+double m_flip_rate = 1.;
 
 struct FrameInfo {
     uint32_t w = 1;
@@ -109,6 +110,11 @@ void GuiPass::Init() noexcept {
 
         EventBinder<ESystemEvent::SceneLoadFinished>([](void *) {
             m_waiting_scene_load = false;
+        });
+
+        EventBinder<ESystemEvent::FrameFinished>([this](void *p) {
+            double time_count = *(double *)p;
+            m_flip_rate = 1000. / time_count;
         });
     }
 
@@ -386,9 +392,6 @@ void GuiPass::OnDraw() noexcept {
             if (ImGui::MenuItem("load scene")) {
                 m_scene_file_browser.Open();
             }
-            if (ImGui::MenuItem("TODO")) {
-                printf("test menu item\n");
-            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -399,9 +402,11 @@ void GuiPass::OnDraw() noexcept {
 
         ImGui::PushTextWrapPos(0.f);
 
-        if (ImGui::CollapsingHeader("Application")) {
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("GUI average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::Text("Canvas Rendering:");
             ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index);
+            ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
                 (flag ^= 1) ? util::Singleton<System>::instance()->RestartRendering() : util::Singleton<System>::instance()->StopRendering();
@@ -526,13 +531,11 @@ void GuiPass::OnDraw() noexcept {
         if (m_scene_file_browser.HasSelected()) {
             util::Singleton<System>::instance()->StopRendering();
             m_waiting_scene_load = true;
-            std::filesystem::path path = m_scene_file_browser.GetSelected();
             util::Singleton<util::ThreadPool>::instance()->AddTask(
                 [](std::filesystem::path path) {
-                    printf("%s\n", path.string().c_str());
                     util::Singleton<System>::instance()->SetScene(path);
                 },
-                path);
+                m_scene_file_browser.GetSelected());
             m_scene_file_browser.ClearSelected();
         }
     }

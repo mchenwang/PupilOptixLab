@@ -1,13 +1,11 @@
 #include "resource.h"
-
 #include "cuda/util.h"
 #include "cuda/context.h"
 #include "dx12/d3dx12.h"
 #include "dx12/context.h"
+#include "util/log.h"
 
 #include "wsa.h"
-
-#include <iostream>
 
 namespace Pupil {
 Buffer::~Buffer() noexcept {
@@ -91,7 +89,7 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
     auto ret = buffer.get();
     auto it = m_buffers.find(desc.name);
     if (it != m_buffers.end()) {
-        printf("warning: buffer[%s] is reset.\n", desc.name.c_str());
+        Pupil::Log::Warn("buffer[%s] is reset.\n", desc.name.c_str());
     }
     m_buffers[desc.name] = std::move(buffer);
     return ret;
@@ -100,7 +98,7 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
 void BufferManager::AddBuffer(std::string_view id, std::unique_ptr<Buffer> &buffer) noexcept {
     auto it = m_buffers.find(id);
     if (it != m_buffers.end()) {
-        printf("warning: buffer[%s] is reset.\n", id.data());
+        Pupil::Log::Warn("buffer[%s] is reset.\n", id.data());
     }
     m_buffers[std::string{ id }] = std::move(buffer);
 }
