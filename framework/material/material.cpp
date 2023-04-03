@@ -6,8 +6,8 @@
 #include "scene/xml/util_loader.h"
 
 #include "util/util.h"
+#include "util/log.h"
 
-#include <iostream>
 #include <array>
 #include <functional>
 
@@ -19,7 +19,7 @@ using material::Material;
 template<EMatType Tag>
 struct MaterialLoader {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
-        std::cout << "warring: unknown bsdf [" << obj->type << "].\n";
+        Pupil::Log::Warn("unknown bsdf [{}].", obj->type);
         return {};
     }
 };
@@ -137,7 +137,7 @@ MAT_LOADER_DEFINE(PUPIL_RENDER_MATERIAL);
 namespace Pupil::material {
 Material LoadMaterialFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexcept {
     if (obj == nullptr || scene == nullptr) {
-        std::cerr << "warring: (LoadMaterialFromXml) obj or scene is null.\n";
+        Pupil::Log::Warn("obj or scene is null.\n\tlocation: LoadMaterialFromXml().");
         return {};
     }
 
@@ -148,7 +148,7 @@ Material LoadMaterialFromXml(const scene::xml::Object *obj, scene::Scene *scene)
         ++i;
     }
 
-    std::cout << "warring: unknown bsdf [" << obj->type << "].\n";
+    Pupil::Log::Warn("unknown bsdf [{}]", obj->type);
     return material::Material{};
 }
 }// namespace Pupil::material

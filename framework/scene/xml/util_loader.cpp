@@ -1,8 +1,7 @@
 #include "util_loader.h"
 #include "scene/scene.h"
 #include "scene/texture.h"
-
-#include <iostream>
+#include "util/log.h"
 
 namespace Pupil::scene::xml {
 
@@ -54,7 +53,7 @@ bool LoadFloat3(std::string_view param_name, std::string_view value,
     } else if (xyz.size() == 1) {
         param.x = param.y = param.z = std::stof(xyz[0]);
     } else {
-        std::cerr << "warring: " << param_name << "(float3) size is " << xyz.size() << "(must be 3 or 1)\n";
+        Pupil::Log::Warn("[{}] size is {}(must be 3 or 1).", param_name, xyz.size());
         return false;
     }
     return true;
@@ -78,7 +77,7 @@ bool Load3Float(std::string_view param_name, std::string_view value,
         param.y = std::stof(xyz[1]);
         param.z = std::stof(xyz[2]);
     } else {
-        std::cerr << "warring: " << param_name << "(float3) size is " << xyz.size() << "(must be 3)\n";
+        Pupil::Log::Warn("[{}] size is {}(must be 3).", param_name, xyz.size());
         return false;
     }
     return true;
@@ -141,7 +140,7 @@ bool LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
                 if (j % 3 == 0) ++i;
             }
         } else {
-            std::cerr << "warring: transform matrix size is " << matrix_elems.size() << "(must be 9 or 16).\n";
+            Pupil::Log::Warn("transform matrix size is {}(must be 9 or 16).", matrix_elems.size());
             for (size_t i = 0; i < matrix_elems.size() && i < 16; i++) {
                 transform->matrix.e[i] = std::stof(matrix_elems[i]);
             }
@@ -158,7 +157,7 @@ bool LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
             transform->LookAt(origin, target, up);
 
             if (!obj->GetProperty("scale").empty() || obj->GetUniqueSubObject("rotate") || !obj->GetProperty("translate").empty()) {
-                std::cerr << "warring: transform scale/rotate/translate is ignored as look_at exists.\n";
+                Pupil::Log::Warn("transform scale/rotate/translate is ignored as look_at exists.");
             }
             return true;
         }
@@ -196,7 +195,7 @@ bool LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
         }
         return true;
     } else {
-        std::cerr << "warring: transform " << obj->var_name << " UNKNOWN.\n";
+        Pupil::Log::Warn("transform [{}] UNKNOWN.", obj->var_name);
     }
     return false;
 }

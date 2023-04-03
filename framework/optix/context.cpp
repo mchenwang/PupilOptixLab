@@ -4,6 +4,8 @@
 #include "cuda/context.h"
 #include "cuda/util.h"
 
+#include "util/log.h"
+
 #include <assert.h>
 #include <format>
 
@@ -12,7 +14,7 @@
 
 namespace {
 void ContextLogCB(unsigned int level, const char *tag, const char *message, void * /*cbdata */) {
-    std::cerr << std::format("[{:2}][{:12}]: {}\n", level, tag, message);
+    Pupil::Log::Info("OPTIX    [{:2}][{:12}]: {}", level, tag, message);
 }
 }// namespace
 
@@ -28,6 +30,7 @@ void Context::Init() noexcept {
     options.logCallbackLevel = 4;
     OPTIX_CHECK(optixDeviceContextCreate(*cuda_ctx, &options, &context));
     m_init_flag = true;
+    Pupil::Log::Info("OPTIX is initialized.");
 }
 
 void Context::Destroy() noexcept {

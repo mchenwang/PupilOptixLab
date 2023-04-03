@@ -38,6 +38,8 @@ void ThreadPool::Init(unsigned int threads_num) noexcept {
         });
     }
 
+    m_init_flag = true;
+
     // PEngine::Log::Info("Thread pool initialized with {} threads", s_threads_num);
 }
 

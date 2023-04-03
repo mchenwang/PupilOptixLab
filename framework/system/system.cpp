@@ -14,12 +14,14 @@
 #include "gui.h"
 #include "util/event.h"
 #include "util/thread_pool.h"
+#include "util/log.h"
 
 #include <iostream>
 #include <format>
 
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
+    util::Singleton<Log>::instance()->Init();
     util::Singleton<util::ThreadPool>::instance()->Init();
 
     EventBinder<ESystemEvent::Quit>([this](void *) {
@@ -73,6 +75,12 @@ void System::Run() noexcept {
         });
 
     while (!quit_flag) {
+        // if (render_flag) {
+        //     for (auto pass : m_passes) pass->BeforeRunning();
+        //     for (auto pass : m_passes) pass->Run();
+        //     for (auto pass : m_passes) pass->AfterRunning();
+        //     EventDispatcher<ESystemEvent::FrameFinished>();
+        // }
         if (m_gui_pass) m_gui_pass->Run();
     }
 }
@@ -81,6 +89,7 @@ void System::Destroy() noexcept {
     util::Singleton<GuiPass>::instance()->Destroy();
     util::Singleton<cuda::Context>::instance()->Destroy();
     util::Singleton<optix::Context>::instance()->Destroy();
+    util::Singleton<Log>::instance()->Destroy();
 }
 
 void System::AddPass(Pass *pass) noexcept {
@@ -99,10 +108,11 @@ void System::AddPass(Pass *pass) noexcept {
 
 void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     if (!std::filesystem::exists(scene_file_path)) {
-        std::cout << std::format("warning: scene file [{}] does not exist.\n", scene_file_path.string());
+        Pupil::Log::Warn("scene file [{}] does not exist.", scene_file_path.string());
         return;
     }
 
+    Pupil::Log::Info("start loading scene [{}].", scene_file_path.string());
     util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
 
     if (m_scene == nullptr)

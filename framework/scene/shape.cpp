@@ -3,11 +3,12 @@
 #include "scene.h"
 #include "xml/util_loader.h"
 
+#include "util/log.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include <iostream>
 #include <functional>
 
 // static data
@@ -73,7 +74,7 @@ using Pupil::scene::EShapeType;
 template<EShapeType Tag>
 struct ShapeLoader {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
-        std::cout << "warring: unknown shape type [" << obj->type << "].\n";
+        Pupil::Log::Warn("unknown shape type [{}].", obj->type);
         return {};
     }
 };
@@ -143,7 +144,7 @@ SHAPE_LOADER_DEFINE(PUPIL_SCENE_SHAPE);
 namespace Pupil::scene {
 Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexcept {
     if (obj == nullptr || scene == nullptr) {
-        std::cerr << "warring: (LoadShapeFromXml) obj or scene is null.\n";
+        Pupil::Log::Warn("obj or scene is null.\n\tlocation: LoadShapeFromXml().");
         return {};
     }
 
@@ -159,7 +160,7 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
             if (auto emitter_xml_obj = obj->GetUniqueSubObject("emitter"); emitter_xml_obj) {
                 scene->InvokeXmlObjLoadCallBack(emitter_xml_obj, &shape.emitter);
                 if (shape.emitter.type != EEmitterType::Area) {
-                    std::cerr << "warring: shape emitter not support.\n";
+                    Pupil::Log::Warn("shape emitter not support.");
                 } else
                     shape.is_emitter = true;
             }
@@ -168,7 +169,7 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
         ++i;
     }
 
-    std::cout << "warring: unknown shape type [" << obj->type << "].\n";
+    Pupil::Log::Warn("unknown shape type [{}].", obj->type);
     return {};
 }
 
@@ -180,12 +181,12 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
     const auto scene = importer.ReadFile(file_path.data(), aiProcess_Triangulate);
 
     if (scene == nullptr) {
-        std::cerr << "warring: Mesh load failed (" << file_path << ").\n";
+        Pupil::Log::Warn("Mesh load failed.\n\tlocation: {}.", file_path);
         return;
     }
 
     if (scene->mNumMeshes != 1) {
-        std::cerr << "warring: Mesh load failed (" << file_path << ").\n";
+        Pupil::Log::Warn("Mesh load failed.\n\tlocation: {}.", file_path);
         return;
     }
 
