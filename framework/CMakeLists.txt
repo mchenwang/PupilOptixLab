@@ -3,11 +3,6 @@ find_package(OptiX REQUIRED)
 configure_file(static.h.in ${CMAKE_CURRENT_LIST_DIR}/static.h)
 set(STATIC_DATA_FILE ${CMAKE_CURRENT_LIST_DIR}/static.h)
 
-if(WIN32)
-    add_definitions(-DUNICODE -D_UNICODE)
-    add_definitions(-DNOMINMAX)
-endif()
-
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES})
