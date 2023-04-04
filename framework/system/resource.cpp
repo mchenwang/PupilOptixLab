@@ -89,7 +89,7 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
     auto ret = buffer.get();
     auto it = m_buffers.find(desc.name);
     if (it != m_buffers.end()) {
-        Pupil::Log::Warn("buffer[%s] is reset.\n", desc.name.c_str());
+        Pupil::Log::Warn("buffer[{}] is reset.", desc.name.c_str());
     }
     m_buffers[desc.name] = std::move(buffer);
     return ret;
@@ -98,7 +98,7 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
 void BufferManager::AddBuffer(std::string_view id, std::unique_ptr<Buffer> &buffer) noexcept {
     auto it = m_buffers.find(id);
     if (it != m_buffers.end()) {
-        Pupil::Log::Warn("buffer[%s] is reset.\n", id.data());
+        Pupil::Log::Warn("buffer[{}] is reset.", id.data());
     }
     m_buffers[std::string{ id }] = std::move(buffer);
 }
