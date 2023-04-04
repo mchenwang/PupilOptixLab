@@ -9,6 +9,8 @@
 #include "system/system.h"
 #include "system/gui.h"
 
+extern "C" char embedded_ptx_code[];
+
 namespace Pupil {
 extern uint32_t g_window_w;
 extern uint32_t g_window_h;
@@ -61,7 +63,8 @@ void PTPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
 
     auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
-    auto pt_module = module_mngr->GetModule("path_tracer/pt_main.ptx");
+    // auto pt_module = module_mngr->GetModule("path_tracer/pt_main.ptx");
+    auto pt_module = module_mngr->GetModule(embedded_ptx_code);
 
     optix::PipelineDesc pipeline_desc;
     {

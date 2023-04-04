@@ -73,16 +73,14 @@ namespace Pupil::optix {
     *temp = std::make_unique<Module>(*context, builtin_type);
     return temp->get();
 }
-[[nodiscard]] Module *ModuleManager::GetModule(std::string_view file_relative_path) noexcept {
-    std::filesystem::path path = std::filesystem::path{ ROOT_DIR } / file_relative_path;
-    path.make_preferred();
 
-    std::string id = path.string();
+[[nodiscard]] Module *ModuleManager::GetModule(std::string_view embedded_ptx_code) noexcept {
+    const char *id = embedded_ptx_code.data();
 
     auto it = m_modules.find(id);
     if (it == m_modules.end()) {
         auto context = util::Singleton<Context>::instance();
-        m_modules.emplace(id, std::make_unique<Module>(*context, id));
+        m_modules.emplace(id, std::make_unique<Module>(*context, embedded_ptx_code));
     }
     return m_modules.find(id)->second.get();
 }
@@ -113,26 +111,18 @@ Module::Module(OptixDeviceContext context, OptixPrimitiveType builtin_type) noex
         &optix_module));
 }
 
-Module::Module(OptixDeviceContext context, std::string_view file_id) noexcept {
+Module::Module(OptixDeviceContext context, std::string_view embedded_ptx_code) noexcept {
     OptixModuleCompileOptions module_compile_options{
         .optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
         .debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL
     };
 
-    std::filesystem::path file_path{ file_id };
-    std::ifstream file(file_path.string(), std::ios::binary);
-    std::string ptx_source;
-    if (!file.good()) assert(false);
-
-    std::vector<unsigned char> buffer = std::vector<unsigned char>(std::istreambuf_iterator<char>(file), {});
-    ptx_source.assign(buffer.begin(), buffer.end());
-
     OPTIX_CHECK_LOG(optixModuleCreateFromPTX(
         context,
         &module_compile_options,
         &Pipeline::pipeline_compile_options,
-        ptx_source.c_str(),
-        ptx_source.size(),
+        embedded_ptx_code.data(),
+        embedded_ptx_code.size(),
         LOG,
         &LOG_SIZE,
         &optix_module));

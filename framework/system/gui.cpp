@@ -479,6 +479,7 @@ void GuiPass::OnDraw() noexcept {
                 float ratio_x = screen_w / m_output_w;
                 float ratio_y = screen_h / m_output_h;
                 float ratio = std::min(ratio_x, ratio_y);
+                if (ratio == 0.f) ratio = 1.f;
 
                 float show_w = m_output_w * ratio;
                 float show_h = m_output_h * ratio;
