@@ -154,6 +154,8 @@ void GuiPass::Init() noexcept {
 }
 
 void GuiPass::SetScene(scene::Scene *scene) noexcept {
+    auto dx_ctx = util::Singleton<DirectX::Context>::instance();
+    dx_ctx->Flush();
     // init render output buffers
     {
         auto buffer_mngr = util::Singleton<BufferManager>::instance();
@@ -163,7 +165,6 @@ void GuiPass::SetScene(scene::Scene *scene) noexcept {
         m_output_h = static_cast<uint32_t>(scene->sensor.film.h);
         m_output_w = static_cast<uint32_t>(scene->sensor.film.w);
 
-        auto dx_ctx = util::Singleton<DirectX::Context>::instance();
         auto srv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         auto rtv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         auto srv_cpu_handle = dx_ctx->srv_heap->GetCPUDescriptorHandleForHeapStart();
