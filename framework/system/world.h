@@ -14,11 +14,17 @@ class Scene;
 class CameraHelper;
 }// namespace optix
 
+enum class EWorldEvent {
+    CameraChange,
+    CameraMove,
+    CameraFovChange,
+    CameraViewChange,
+};
+
 class World : public util::Singleton<World> {
 public:
     std::unique_ptr<scene::Scene> scene = nullptr;
     std::unique_ptr<optix::Scene> optix_scene = nullptr;
-    std::atomic_bool dirty = true;
 
     void Init() noexcept;
     void Destroy() noexcept;

@@ -36,12 +36,8 @@ PTPass::PTPass(std::string_view name) noexcept
 void PTPass::Run() noexcept {
     m_timer.Start();
     {
-        if (auto world = util::Singleton<World>::instance();
-            world->dirty) {
-            m_optix_launch_params.camera.SetData(world->optix_scene->camera->GetCudaMemory());
-            world->dirty = false;
-        }
         if (m_dirty) {
+            m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
             m_optix_launch_params.config.max_depth = m_max_depth;
             m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
             m_optix_launch_params.sample_cnt = 0;
@@ -99,6 +95,8 @@ void PTPass::InitOptixPipeline() noexcept {
 }
 
 void PTPass::SetScene(World *world) noexcept {
+    m_world_camera = world->optix_scene->camera.get();
+
     m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
     m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
     m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
@@ -173,18 +171,7 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 }
 
 void PTPass::BindingEventCallback() noexcept {
-    EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
+    EventBinder<EWorldEvent::CameraChange>([this](void *) {
         m_dirty = true;
     });
 
