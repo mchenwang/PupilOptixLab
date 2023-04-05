@@ -19,7 +19,8 @@ void World::Init() noexcept {
         } delta = *(decltype(delta) *)p;
         float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
         optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
-        dirty = true;
+        EventDispatcher<EWorldEvent::CameraViewChange>();
+        EventDispatcher<EWorldEvent::CameraChange>();
     });
 
     EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
@@ -27,7 +28,8 @@ void World::Init() noexcept {
 
         float delta = *(float *)p;
         optix_scene->camera->SetFovDelta(delta);
-        dirty = true;
+        EventDispatcher<EWorldEvent::CameraFovChange>();
+        EventDispatcher<EWorldEvent::CameraChange>();
     });
 
     EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
@@ -35,7 +37,8 @@ void World::Init() noexcept {
 
         util::Float3 delta = *(util::Float3 *)p;
         optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
-        dirty = true;
+        EventDispatcher<EWorldEvent::CameraMove>();
+        EventDispatcher<EWorldEvent::CameraChange>();
     });
 }
 
@@ -62,9 +65,9 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
     else
         optix_scene = std::make_unique<optix::Scene>(scene.get());
     timer.Stop();
-    Pupil::Log::Info("Time consumed for scene loading: {:.3f}", timer.ElapsedSeconds());
+    Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
 
-    dirty = true;
+    EventDispatcher<EWorldEvent::CameraChange>();
     return true;
 }
 
