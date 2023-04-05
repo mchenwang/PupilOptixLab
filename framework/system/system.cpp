@@ -1,8 +1,10 @@
 #include "system.h"
+#include "world.h"
 
 #include "dx12/context.h"
 #include "cuda/context.h"
 #include "optix/context.h"
+#include "optix/scene/scene.h"
 
 #include "cuda/texture.h"
 #include "cuda/stream.h"
@@ -23,9 +25,17 @@ namespace Pupil {
 void System::Init(bool has_window) noexcept {
     util::Singleton<Log>::instance()->Init();
     util::Singleton<util::ThreadPool>::instance()->Init();
+    util::Singleton<World>::instance()->Init();
 
     EventBinder<ESystemEvent::Quit>([this](void *) {
         this->quit_flag = true;
+    });
+
+    EventBinder<ESystemEvent::StartRendering>([this](void *) {
+        this->render_flag = true;
+    });
+    EventBinder<ESystemEvent::StopRendering>([this](void *) {
+        this->render_flag = false;
     });
 
     if (!has_window) {
@@ -80,6 +90,7 @@ void System::Run() noexcept {
 }
 void System::Destroy() noexcept {
     util::Singleton<util::ThreadPool>::instance()->Destroy();
+    util::Singleton<World>::instance()->Destroy();
     util::Singleton<GuiPass>::instance()->Destroy();
     util::Singleton<cuda::Context>::instance()->Destroy();
     util::Singleton<optix::Context>::instance()->Destroy();
@@ -109,30 +120,23 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     Pupil::Log::Info("start loading scene [{}].", scene_file_path.string());
     util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
 
-    if (m_scene == nullptr)
-        m_scene = std::make_unique<scene::Scene>();
-    m_scene->LoadFromXML(scene_file_path);
+    auto world = util::Singleton<World>::instance();
+    if (!world->LoadScene(scene_file_path)) {
+        Pupil::Log::Warn("scene load failed.");
+        return;
+    }
+    auto *p = &world;
 
-    for (auto pass : m_pre_passes) pass->SetScene(m_scene.get());
-    for (auto pass : m_passes) pass->SetScene(m_scene.get());
-    if (m_gui_pass) m_gui_pass->SetScene(m_scene.get());
+    EventDispatcher<ESystemEvent::SceneLoad>(world);
 
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
     util::Singleton<scene::TextureManager>::instance()->Clear();
 
-    this->render_flag = true;
     struct {
         uint32_t w, h;
-    } size{ static_cast<uint32_t>(m_scene->sensor.film.w),
-            static_cast<uint32_t>(m_scene->sensor.film.h) };
-    EventDispatcher<ESystemEvent::SceneLoadFinished>(size);
+    } size{ static_cast<uint32_t>(world->scene->sensor.film.w),
+            static_cast<uint32_t>(world->scene->sensor.film.h) };
+    EventDispatcher<ECanvasEvent::Resize>(size);
+    EventDispatcher<ESystemEvent::StartRendering>();
 }
-
-void System::StopRendering() noexcept {
-    render_flag = false;
-}
-void System::RestartRendering() noexcept {
-    render_flag = true;
-}
-
 }// namespace Pupil
