@@ -23,6 +23,7 @@ enum class EWindowEvent {
 };
 
 enum class ECanvasEvent {
+    Resize,
     MouseDragging,
     MouseWheel,
     CameraMove
@@ -43,13 +44,13 @@ public:
     GuiPass() noexcept : Pass("GUI") {}
 
     virtual void Run() noexcept override;
-    virtual void SetScene(scene::Scene *) noexcept override;
     virtual void BeforeRunning() noexcept override {}
     virtual void AfterRunning() noexcept override {}
 
     void Init() noexcept;
     void Destroy() noexcept;
     void Resize(uint32_t, uint32_t) noexcept;
+    void ResizeCanvas(uint32_t w, uint32_t h) noexcept;
     void AdjustWindowSize() noexcept;
 
     using CustomInspector = std::function<void()>;

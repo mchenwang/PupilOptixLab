@@ -108,13 +108,20 @@ void GuiPass::Init() noexcept {
             this->Resize(size.w, size.h);
         });
 
-        EventBinder<ESystemEvent::SceneLoadFinished>([](void *) {
+        EventBinder<ESystemEvent::StartRendering>([](void *) {
             m_waiting_scene_load = false;
         });
 
         EventBinder<ESystemEvent::FrameFinished>([this](void *p) {
             double time_count = *(double *)p;
             m_flip_rate = 1000. / time_count;
+        });
+
+        EventBinder<ECanvasEvent::Resize>([this](void *p) {
+            struct {
+                uint32_t w, h;
+            } size = *static_cast<decltype(size) *>(p);
+            ResizeCanvas(size.w, size.h);
         });
     }
 
@@ -153,17 +160,15 @@ void GuiPass::Init() noexcept {
     m_init_flag = true;
 }
 
-void GuiPass::SetScene(scene::Scene *scene) noexcept {
+void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
     auto dx_ctx = util::Singleton<DirectX::Context>::instance();
     dx_ctx->Flush();
     // init render output buffers
     {
         auto buffer_mngr = util::Singleton<BufferManager>::instance();
-        uint64_t size =
-            static_cast<uint64_t>(scene->sensor.film.h) *
-            scene->sensor.film.w * sizeof(float) * 4;
-        m_output_h = static_cast<uint32_t>(scene->sensor.film.h);
-        m_output_w = static_cast<uint32_t>(scene->sensor.film.w);
+        uint64_t size = static_cast<uint64_t>(h) * w * sizeof(float) * 4;
+        m_output_h = h;
+        m_output_w = w;
 
         auto srv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         auto rtv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -178,8 +183,7 @@ void GuiPass::SetScene(scene::Scene *scene) noexcept {
         for (auto i = 0u; i < SWAP_BUFFER_NUM; ++i) {
             auto d3d12_res_desc = CD3DX12_RESOURCE_DESC::Tex2D(
                 DXGI_FORMAT_R8G8B8A8_UNORM,
-                static_cast<UINT>(scene->sensor.film.w),
-                static_cast<UINT>(scene->sensor.film.h),
+                static_cast<UINT>(w), static_cast<UINT>(h),
                 1, 0, 1, 0,
                 D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
             auto properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -410,7 +414,11 @@ void GuiPass::OnDraw() noexcept {
             ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
-                (flag ^= 1) ? util::Singleton<System>::instance()->RestartRendering() : util::Singleton<System>::instance()->StopRendering();
+                if (flag ^= 1) {
+                    EventDispatcher<ESystemEvent::StartRendering>();
+                } else {
+                    EventDispatcher<ESystemEvent::StopRendering>();
+                }
             }
 
             ImGui::Text("Camera:");
@@ -531,7 +539,7 @@ void GuiPass::OnDraw() noexcept {
     m_scene_file_browser.Display();
     {
         if (m_scene_file_browser.HasSelected()) {
-            util::Singleton<System>::instance()->StopRendering();
+            EventDispatcher<ESystemEvent::StopRendering>();
             m_waiting_scene_load = true;
             util::Singleton<util::ThreadPool>::instance()->AddTask(
                 [](std::filesystem::path path) {
