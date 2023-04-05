@@ -16,6 +16,7 @@ class Scene;
 
 enum class ESystemEvent {
     Quit,
+    Precompute,
     StartRendering,
     StopRendering,
     SceneLoad,

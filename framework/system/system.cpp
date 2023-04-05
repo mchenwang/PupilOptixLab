@@ -21,6 +21,10 @@
 #include <iostream>
 #include <format>
 
+namespace {
+bool m_system_run_flag = false;
+}
+
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
     util::Singleton<Log>::instance()->Init();
@@ -36,6 +40,13 @@ void System::Init(bool has_window) noexcept {
     });
     EventBinder<ESystemEvent::StopRendering>([this](void *) {
         this->render_flag = false;
+    });
+
+    EventBinder<ESystemEvent::Precompute>([this](void *) {
+        CUDA_SYNC_CHECK();
+        for (auto pass : m_pre_passes) pass->BeforeRunning();
+        for (auto pass : m_pre_passes) pass->Run();
+        for (auto pass : m_pre_passes) pass->AfterRunning();
     });
 
     if (!has_window) {
@@ -65,11 +76,8 @@ void System::Init(bool has_window) noexcept {
 }
 
 void System::Run() noexcept {
-    CUDA_SYNC_CHECK();
-    for (auto pass : m_pre_passes) pass->BeforeRunning();
-    for (auto pass : m_pre_passes) pass->Run();
-    for (auto pass : m_pre_passes) pass->AfterRunning();
-
+    EventDispatcher<ESystemEvent::Precompute>();
+    m_system_run_flag = true;
     util::Singleton<util::ThreadPool>::instance()->AddTask(
         [&]() {
             while (!quit_flag) {
@@ -125,8 +133,6 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         Pupil::Log::Warn("scene load failed.");
         return;
     }
-    auto *p = &world;
-
     EventDispatcher<ESystemEvent::SceneLoad>(world);
 
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
@@ -137,6 +143,11 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     } size{ static_cast<uint32_t>(world->scene->sensor.film.w),
             static_cast<uint32_t>(world->scene->sensor.film.h) };
     EventDispatcher<ECanvasEvent::Resize>(size);
-    EventDispatcher<ESystemEvent::StartRendering>();
+    this->render_flag = true;
+
+    if (m_system_run_flag) {
+        EventDispatcher<ESystemEvent::Precompute>();
+        EventDispatcher<ESystemEvent::StartRendering>();
+    }
 }
 }// namespace Pupil
