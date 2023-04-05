@@ -9,6 +9,8 @@
 #include "system/system.h"
 #include "system/gui.h"
 
+// 构建期通过CMake将.cu代码编译并嵌入到.c文件中，
+// 代码指令由char类型保存，只需要声明extern即可获取
 extern "C" char ddgi_pt_pass_embedded_ptx_code[];
 
 namespace Pupil {
@@ -38,25 +40,42 @@ PTPass::PTPass(std::string_view name) noexcept
 void PTPass::Run() noexcept {
     m_timer.Start();
     {
+        // 由于ui线程和渲染线程分离，所以在渲染前先检查是否通过ui修改了渲染参数
         if (m_dirty) {
-            m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
+            m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
             m_optix_launch_params.config.max_depth = m_max_depth;
             m_optix_launch_params.random_seed = 0;
             m_optix_launch_params.spp = m_spp;
             m_dirty = false;
         }
 
-        if (m_show_type == 0) {
-            auto &frame_buffer =
-                util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+        // 获取用于在gui上展示的的Buffer资源，每次渲染开始时都不一样(使用了flip model，一共有两个buffer，来回切换)
+        // 只要调用GetCurrentRenderOutputBuffer即可获得，
+        // 该buffer是cuda与dx12的共享资源，所以叫shared_buffer
+        auto &frame_buffer =
+            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
 
+        if (m_show_type == 0) {// pt
+            // frame_buffer写入的内容将会被展示到gui上
             m_optix_launch_params.frame_buffer.SetData(
                 frame_buffer.cuda_ptr, m_output_pixel_num);
             m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
                               m_optix_launch_params.config.frame.height);
-            m_optix_pass->Synchronize();
+            m_optix_pass->Synchronize();// 等待optix渲染结束
 
             ++m_optix_launch_params.random_seed;
+        } else if (m_show_type == 1) {// albedo
+            auto buf_mngr = util::Singleton<BufferManager>::instance();
+            auto albedo = buf_mngr->GetBuffer("ddgi_albedo");
+            cudaMemcpyAsync((void *)frame_buffer.cuda_ptr, (void *)albedo->cuda_res.ptr,
+                            m_output_pixel_num * sizeof(float4), cudaMemcpyKind::cudaMemcpyDeviceToDevice, m_stream->GetStream());
+            cudaStreamSynchronize(m_stream->GetStream());
+        } else if (m_show_type == 2) {// normal
+            auto buf_mngr = util::Singleton<BufferManager>::instance();
+            auto normal = buf_mngr->GetBuffer("ddgi_normal");
+            cudaMemcpyAsync((void *)frame_buffer.cuda_ptr, (void *)normal->cuda_res.ptr,
+                            m_output_pixel_num * sizeof(float4), cudaMemcpyKind::cudaMemcpyDeviceToDevice, m_stream->GetStream());
+            cudaStreamSynchronize(m_stream->GetStream());
         }
     }
     m_timer.Stop();
@@ -69,6 +88,13 @@ void PTPass::InitOptixPipeline() noexcept {
     auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
     auto pt_module = module_mngr->GetModule(ddgi_pt_pass_embedded_ptx_code);
 
+    // 创建optix pipeline，需要填写.cu中对应的函数入口，
+    // 产生光线(每一个像素都会执行，相当于一个线程)：命名前缀必须是__raygen__
+    // 光线击中(当optixTrace()发出的光线与场景相交(最近的交点)时会执行)：命名前缀必须是__closesthit__
+    // 光线未击中：命名前缀必须是__miss__
+    // 光追算法需要追踪view ray和shadow ray(判断是否在阴影中，即交点与光源中间是否有遮挡)
+    // 因此对closesthit和miss需要有default和shadow两种处理，分别对应两个函数的入口
+    // 但在gbuffer渲染时不需要shadow ray
     optix::PipelineDesc pipeline_desc;
     {
         // for mesh(triangle) geo
@@ -82,7 +108,8 @@ void PTPass::InitOptixPipeline() noexcept {
         };
         pipeline_desc.programs.push_back(desc);
     }
-
+    // mesh的求交使用built-in的三角形求交模块（默认）
+    // 球的求交使用built-in的球求交模块(这里使用module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE)生成)
     {
         // for sphere geo
         optix::ProgramDesc desc{
@@ -97,15 +124,12 @@ void PTPass::InitOptixPipeline() noexcept {
     m_optix_pass->InitPipeline(pipeline_desc);
 }
 
-void PTPass::SetScene(scene::Scene *scene) noexcept {
-    if (m_optix_scene == nullptr)
-        m_optix_scene = std::make_unique<optix::Scene>(scene);
-    else
-        m_optix_scene->ResetScene(scene);
-
-    m_optix_launch_params.config.frame.width = scene->sensor.film.w;
-    m_optix_launch_params.config.frame.height = scene->sensor.film.h;
-    m_optix_launch_params.config.max_depth = scene->integrator.max_depth;
+void PTPass::SetScene(World *world) noexcept {
+    // 对于场景初始化参数
+    m_world_camera = world->optix_scene->camera.get();
+    m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
+    m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
+    m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
 
     m_max_depth = m_optix_launch_params.config.max_depth;
     m_spp = 1;
@@ -117,15 +141,16 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
                          m_optix_launch_params.config.frame.height;
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
-    m_optix_launch_params.handle = m_optix_scene->ias_handle;
-    m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
+    m_optix_launch_params.handle = world->optix_scene->ias_handle;
+    m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
-    SetSBT(scene);
+    SetSBT(world->scene.get());
 
     m_dirty = true;
 }
 
 void PTPass::SetSBT(scene::Scene *scene) noexcept {
+    // 将场景数据绑定到sbt中
     optix::SBTDesc<SBTTypes> desc{};
     desc.ray_gen_data = {
         .program_name = "__raygen__main",
@@ -168,39 +193,15 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 }
 
 void PTPass::BindingEventCallback() noexcept {
-    EventBinder<ESystemEvent::SceneLoadFinished>([this](void *) {
+    // 相机参数改变后，需要在渲染前将改变后的参数传入optix的pipeline中，
+    // 由于是多线程异步实现的，需要m_dirty原子操作标记一下
+    EventBinder<EWorldEvent::CameraChange>([this](void *) {
         m_dirty = true;
     });
 
-    EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-
-        m_optix_launch_params.random_seed = 0;
-
-        const struct {
-            float x, y;
-        } delta = *(decltype(delta) *)p;
-        float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
-        m_optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.random_seed = 0;
-
-        float delta = *(float *)p;
-        m_optix_scene->camera->SetFovDelta(delta);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.random_seed = 0;
-
-        util::Float3 delta = *(util::Float3 *)p;
-        m_optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
-        m_dirty = true;
+    // 导入新的场景时，需要重新执行SetScene的逻辑
+    EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
+        SetScene((World *)p);
     });
 }
 

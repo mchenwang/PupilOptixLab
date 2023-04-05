@@ -35,7 +35,7 @@ void GBufferPass::Run() noexcept {
     m_timer.Start();
     {
         if (m_dirty) {
-            m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
+            m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
             m_optix_launch_params.random_seed = 0;
             m_dirty = false;
         }
@@ -84,14 +84,10 @@ void GBufferPass::InitOptixPipeline() noexcept {
     m_optix_pass->InitPipeline(pipeline_desc);
 }
 
-void GBufferPass::SetScene(scene::Scene *scene) noexcept {
-    if (m_optix_scene == nullptr)
-        m_optix_scene = std::make_unique<optix::Scene>(scene);
-    else
-        m_optix_scene->ResetScene(scene);
-
-    m_optix_launch_params.config.frame.width = scene->sensor.film.w;
-    m_optix_launch_params.config.frame.height = scene->sensor.film.h;
+void GBufferPass::SetScene(World *world) noexcept {
+    m_world_camera = world->optix_scene->camera.get();
+    m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
+    m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
 
     m_optix_launch_params.random_seed = 0;
 
@@ -115,10 +111,10 @@ void GBufferPass::SetScene(scene::Scene *scene) noexcept {
     m_normal = buf_mngr->AllocBuffer(normal_buf_desc);
     m_optix_launch_params.normal.SetData(m_normal->cuda_res.ptr, m_output_pixel_num);
 
-    m_optix_launch_params.handle = m_optix_scene->ias_handle;
-    m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
+    m_optix_launch_params.handle = world->optix_scene->ias_handle;
+    m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
-    SetSBT(scene);
+    SetSBT(world->scene.get());
 
     m_dirty = true;
 }
@@ -144,10 +140,9 @@ void GBufferPass::SetSBT(scene::Scene *scene) noexcept {
 
             desc.hit_datas.push_back(hit_default_data);
 
-            // HitGroupDataRecord hit_shadow_data{};
-            // hit_shadow_data.program_name = "__closesthit__shadow";
-            // hit_shadow_data.data.mat.type = shape.mat.type;
-            // desc.hit_datas.push_back(hit_shadow_data);
+            HitGroupDataRecord hit_shadow_data{};
+            hit_shadow_data.program_name = "__closesthit__default";
+            desc.hit_datas.push_back(hit_shadow_data);
         }
     }
     {
@@ -156,49 +151,22 @@ void GBufferPass::SetSBT(scene::Scene *scene) noexcept {
             .data = SBTTypes::MissDataType{}
         };
         desc.miss_datas.push_back(miss_data);
-        // decltype(desc)::Pair<SBTTypes::MissDataType> miss_shadow_data = {
-        //     .program_name = "__miss__shadow",
-        //     .data = SBTTypes::MissDataType{}
-        // };
-        // desc.miss_datas.push_back(miss_shadow_data);
+        decltype(desc)::Pair<SBTTypes::MissDataType> miss_shadow_data = {
+            .program_name = "__miss__default",
+            .data = SBTTypes::MissDataType{}
+        };
+        desc.miss_datas.push_back(miss_shadow_data);
     }
     m_optix_pass->InitSBT(desc);
 }
 
 void GBufferPass::BindingEventCallback() noexcept {
-    EventBinder<ESystemEvent::SceneLoadFinished>([this](void *) {
+    EventBinder<EWorldEvent::CameraChange>([this](void *) {
         m_dirty = true;
     });
 
-    EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-
-        m_optix_launch_params.random_seed = 0;
-
-        const struct {
-            float x, y;
-        } delta = *(decltype(delta) *)p;
-        float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
-        m_optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.random_seed = 0;
-
-        float delta = *(float *)p;
-        m_optix_scene->camera->SetFovDelta(delta);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.random_seed = 0;
-
-        util::Float3 delta = *(util::Float3 *)p;
-        m_optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
-        m_dirty = true;
+    EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
+        SetScene((World *)p);
     });
 }
 
