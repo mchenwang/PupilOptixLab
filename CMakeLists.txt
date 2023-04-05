@@ -50,9 +50,9 @@ macro(cuda_compile_and_embed output_var cuda_file)
         OUTPUT ${embedded_file}
         COMMAND ${BIN2C} -c --padd 0 --type char --name ${c_var_name} ${ptx_file} > ${embedded_file}
         DEPENDS ${ptx_file}
-        COMMENT "compiling (and embedding ptx from) ${cuda_file}"
+        COMMENT "compiling (and embedding ptx from) ${cuda_file} (to ${embedded_file})"
     )
-    set(embedded_ptx_code ${embedded_file})
+    set(${output_var} ${embedded_file})
 endmacro()
 
 add_subdirectory(3rdparty)
