@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace Pupil {
 namespace scene {
 class Scene;
