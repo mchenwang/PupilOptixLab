@@ -524,8 +524,8 @@ void GuiPass::OnDraw() noexcept {
                     if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
                     if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
                     if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
+                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
                     if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
                         EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
                 }
