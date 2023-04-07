@@ -34,7 +34,6 @@ public:
 
     void AddPass(Pass *) noexcept;
     void SetScene(std::filesystem::path) noexcept;
-    [[nodiscard]] optix::Scene *GetOptixScene() noexcept;
 
 private:
     std::vector<Pass *> m_passes;
