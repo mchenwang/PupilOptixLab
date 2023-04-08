@@ -8,3 +8,4 @@ imgui.ini
 src/static.h
 !data/mis.xml
 !data/cornellbox.xml
+!data/default.xml
