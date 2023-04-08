@@ -4,6 +4,15 @@
 #include "transform.h"
 
 namespace Pupil::util {
+struct CameraDesc {
+    float fov_y;
+    float aspect_ratio;
+    float near_clip = 0.01f;
+    float far_clip = 10000.f;
+
+    Transform to_world;
+};
+
 class Camera {
 private:
     float m_fov_y;

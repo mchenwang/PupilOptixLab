@@ -18,7 +18,7 @@ void World::Init() noexcept {
             float x, y;
         } delta = *(decltype(delta) *)p;
         float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
-        optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
+        camera->Rotate(delta.x * scale, delta.y * scale);
         EventDispatcher<EWorldEvent::CameraViewChange>();
         EventDispatcher<EWorldEvent::CameraChange>();
     });
@@ -27,7 +27,7 @@ void World::Init() noexcept {
         if (!util::Singleton<System>::instance()->render_flag) return;
 
         float delta = *(float *)p;
-        optix_scene->camera->SetFovDelta(delta);
+        camera->SetFovDelta(delta);
         EventDispatcher<EWorldEvent::CameraFovChange>();
         EventDispatcher<EWorldEvent::CameraChange>();
     });
@@ -36,7 +36,7 @@ void World::Init() noexcept {
         if (!util::Singleton<System>::instance()->render_flag) return;
 
         util::Float3 delta = *(util::Float3 *)p;
-        optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
+        camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
         EventDispatcher<EWorldEvent::CameraMove>();
         EventDispatcher<EWorldEvent::CameraChange>();
     });
@@ -45,6 +45,7 @@ void World::Init() noexcept {
 void World::Destroy() noexcept {
     scene.reset();
     optix_scene.reset();
+    camera.reset();
 }
 
 bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
@@ -64,6 +65,11 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
         optix_scene->ResetScene(scene.get());
     else
         optix_scene = std::make_unique<optix::Scene>(scene.get());
+
+    if (camera)
+        camera->Reset(optix_scene->camera_desc);
+    else
+        camera = std::make_unique<CameraHelper>(optix_scene->camera_desc);
     timer.Stop();
     Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
 
