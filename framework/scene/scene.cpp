@@ -172,6 +172,7 @@ void Scene::Reset() noexcept {
 
     integrator = Integrator{};
     sensor = Sensor{};
+    aabb = util::AABB{};
 }
 
 void Scene::LoadFromXML(std::filesystem::path file) noexcept {
@@ -192,6 +193,11 @@ void Scene::LoadFromXML(std::filesystem::path file) noexcept {
                 //Shape shape;
                 shapes.push_back({});
                 InvokeXmlObjLoadCallBack(xml_obj, &shapes.back());
+                // Pupil::Log::Info("shape [{}] AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
+                //                  xml_obj->id,
+                //                  shapes.back().aabb.min.x, shapes.back().aabb.min.y, shapes.back().aabb.min.z,
+                //                  shapes.back().aabb.max.x, shapes.back().aabb.max.y, shapes.back().aabb.max.z);
+                aabb.Merge(shapes.back().aabb);
                 break;
             case xml::ETag::_emitter:
                 //Emitter emitter;
@@ -202,6 +208,9 @@ void Scene::LoadFromXML(std::filesystem::path file) noexcept {
                 break;
         }
     }
+    Pupil::Log::Info("scene AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
+                     aabb.min.x, aabb.min.y, aabb.min.z,
+                     aabb.max.x, aabb.max.y, aabb.max.z);
 }
 
 void Scene::LoadFromXML(std::string_view file_name, std::string_view root) noexcept {

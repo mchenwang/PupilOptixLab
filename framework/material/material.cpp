@@ -40,9 +40,9 @@ struct MaterialLoader<EMatType::_dielectric> {
         Material mat{};
         mat.type = EMatType::_dielectric;
         std::string value = obj->GetProperty("int_ior");
-        mat.dielectric.int_ior = material::LoadIor(value, 1.5046f);
+        mat.dielectric.int_ior = material::LoadDielectricIor(value, 1.5046f);
         value = obj->GetProperty("ext_ior");
-        mat.dielectric.ext_ior = material::LoadIor(value, 1.000277f);
+        mat.dielectric.ext_ior = material::LoadDielectricIor(value, 1.000277f);
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.dielectric.specular_reflectance, { 1.f });
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_transmittance", mat.dielectric.specular_transmittance, { 1.f });
         return mat;
@@ -54,8 +54,15 @@ struct MaterialLoader<EMatType::_conductor> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
         mat.type = EMatType::_conductor;
-        scene::xml::LoadTextureOrRGB(obj, scene, "eta", mat.conductor.eta, { 1.f });
-        scene::xml::LoadTextureOrRGB(obj, scene, "k", mat.conductor.k, { 1.f });
+        auto conductor_mat_name = obj->GetProperty("material");
+
+        util::Float3 eta, k;
+        if (!material::LoadConductorIor(conductor_mat_name, eta, k)) {
+            eta = { 0.f };
+            k = { 1.f };
+        }
+        scene::xml::LoadTextureOrRGB(obj, scene, "eta", mat.conductor.eta, eta);
+        scene::xml::LoadTextureOrRGB(obj, scene, "k", mat.conductor.k, k);
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.conductor.specular_reflectance, { 1.f });
         return mat;
     }
@@ -67,8 +74,15 @@ struct MaterialLoader<EMatType::_roughconductor> {
         Material mat{};
         mat.type = EMatType::_roughconductor;
         scene::xml::LoadFloat(obj, "alpha", mat.rough_conductor.alpha, 0.1f);
-        scene::xml::LoadTextureOrRGB(obj, scene, "eta", mat.rough_conductor.eta, { 1.f });
-        scene::xml::LoadTextureOrRGB(obj, scene, "k", mat.rough_conductor.k, { 1.f });
+
+        auto conductor_mat_name = obj->GetProperty("material");
+        util::Float3 eta, k;
+        if (!material::LoadConductorIor(conductor_mat_name, eta, k)) {
+            eta = { 0.f };
+            k = { 1.f };
+        }
+        scene::xml::LoadTextureOrRGB(obj, scene, "eta", mat.rough_conductor.eta, eta);
+        scene::xml::LoadTextureOrRGB(obj, scene, "k", mat.rough_conductor.k, k);
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.rough_conductor.specular_reflectance, { 1.f });
         return mat;
     }
@@ -80,9 +94,9 @@ struct MaterialLoader<EMatType::_plastic> {
         Material mat{};
         mat.type = EMatType::_plastic;
         std::string value = obj->GetProperty("int_ior");
-        mat.plastic.int_ior = material::LoadIor(value, 1.49f);
+        mat.plastic.int_ior = material::LoadDielectricIor(value, 1.49f);
         value = obj->GetProperty("ext_ior");
-        mat.plastic.ext_ior = material::LoadIor(value, 1.000277f);
+        mat.plastic.ext_ior = material::LoadDielectricIor(value, 1.000277f);
         value = obj->GetProperty("nonlinear");
         if (value.compare("true"))
             mat.plastic.nonlinear = true;
@@ -100,9 +114,9 @@ struct MaterialLoader<EMatType::_roughplastic> {
         Material mat{};
         mat.type = EMatType::_roughplastic;
         std::string value = obj->GetProperty("int_ior");
-        mat.rough_plastic.int_ior = material::LoadIor(value, 1.49f);
+        mat.rough_plastic.int_ior = material::LoadDielectricIor(value, 1.49f);
         value = obj->GetProperty("ext_ior");
-        mat.rough_plastic.ext_ior = material::LoadIor(value, 1.000277f);
+        mat.rough_plastic.ext_ior = material::LoadDielectricIor(value, 1.000277f);
         value = obj->GetProperty("nonlinear");
         if (value.compare("true"))
             mat.rough_plastic.nonlinear = true;
