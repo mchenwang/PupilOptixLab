@@ -23,7 +23,8 @@
 
 namespace {
 bool m_system_run_flag = false;
-}
+bool m_scene_load_flag = false;
+}// namespace
 
 namespace Pupil {
 void System::Init(bool has_window) noexcept {
@@ -76,8 +77,13 @@ void System::Init(bool has_window) noexcept {
 }
 
 void System::Run() noexcept {
-    EventDispatcher<ESystemEvent::Precompute>();
     m_system_run_flag = true;
+    if (m_scene_load_flag) {
+        EventDispatcher<ESystemEvent::Precompute>();
+    } else {
+        EventDispatcher<ESystemEvent::StopRendering>();
+    }
+
     util::Singleton<util::ThreadPool>::instance()->AddTask(
         [&]() {
             while (!quit_flag) {
@@ -133,6 +139,7 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         Pupil::Log::Warn("scene load failed.");
         return;
     }
+    m_scene_load_flag = true;
     EventDispatcher<ESystemEvent::SceneLoad>(world);
 
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
