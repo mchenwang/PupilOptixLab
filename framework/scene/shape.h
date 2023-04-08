@@ -4,6 +4,7 @@
 #include "util/enum.h"
 #include "util/util.h"
 #include "util/type.h"
+#include "util/aabb.h"
 
 #include "material/material.h"
 #include "emitter.h"
@@ -88,6 +89,7 @@ struct Shape {
     unsigned int sub_emitters_num = 0;
 
     util::Transform transform;
+    util::AABB aabb{};
 
     Shape() noexcept {}
 };
@@ -101,6 +103,7 @@ private:
         std::vector<float> normals;
         std::vector<float> texcoords;
         std::vector<uint32_t> indices;
+        util::AABB aabb{};
     };
 
     std::unordered_map<std::string, std::unique_ptr<ShapeData>, util::StringHash, std::equal_to<>> m_shape_datas;

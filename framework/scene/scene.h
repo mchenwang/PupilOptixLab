@@ -45,6 +45,7 @@ public:
     Sensor sensor;
     std::vector<Shape> shapes;
     std::vector<Emitter> emitters;
+    util::AABB aabb;
 
     using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
     std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::_count> xml_obj_load_cbs{};
