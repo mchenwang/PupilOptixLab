@@ -1,4 +1,3 @@
-find_package(OptiX REQUIRED)
 
 configure_file(static.h.in ${CMAKE_CURRENT_LIST_DIR}/static.h)
 set(STATIC_DATA_FILE ${CMAKE_CURRENT_LIST_DIR}/static.h)
@@ -14,3 +13,11 @@ add_dependencies(${pupil_framework_name} file-copy)
 target_link_libraries(${pupil_framework_name} PUBLIC ${3rdparty_target})
 target_link_libraries(${pupil_framework_name} PUBLIC CUDA::cudart CUDA::cuda_driver)
 target_link_libraries(${pupil_framework_name} PUBLIC OptiX)
+
+target_compile_definitions(${pupil_framework_name} PUBLIC _UNICODE UNICODE NOMINMAX)
+
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:C>:/utf-8>")
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/await>")
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/MP>")
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler "/wd4819" >)
