@@ -5,6 +5,6 @@ target/
 *.ptx
 data/*
 imgui.ini
-src/static.h
+framework/static.h
 !data/mis.xml
 !data/cornellbox.xml
