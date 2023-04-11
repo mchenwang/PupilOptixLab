@@ -126,7 +126,7 @@ void PTPass::InitOptixPipeline() noexcept {
 
 void PTPass::SetScene(World *world) noexcept {
     // 对于场景初始化参数
-    m_world_camera = world->optix_scene->camera.get();
+    m_world_camera = world->camera.get();
     m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
     m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
     m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;

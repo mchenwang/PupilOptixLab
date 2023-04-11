@@ -85,7 +85,7 @@ void GBufferPass::InitOptixPipeline() noexcept {
 }
 
 void GBufferPass::SetScene(World *world) noexcept {
-    m_world_camera = world->optix_scene->camera.get();
+    m_world_camera = world->camera.get();
     m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
     m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
 

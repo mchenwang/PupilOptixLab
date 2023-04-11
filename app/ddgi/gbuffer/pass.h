@@ -8,7 +8,6 @@
 #include "scene/scene.h"
 #include "optix/pass.h"
 #include "optix/scene/scene.h"
-#include "optix/scene/camera.h"
 
 #include "cuda/stream.h"
 
@@ -47,7 +46,7 @@ private:
     Buffer *m_normal = nullptr;
 
     std::atomic_bool m_dirty = true;
-    optix::CameraHelper *m_world_camera = nullptr;
+    Pupil::CameraHelper *m_world_camera = nullptr;
 
     Timer m_timer;
 };
