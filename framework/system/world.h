@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/util.h"
+#include "camera.h"
 
 #include <filesystem>
 #include <memory>
@@ -25,6 +26,7 @@ class World : public util::Singleton<World> {
 public:
     std::unique_ptr<scene::Scene> scene = nullptr;
     std::unique_ptr<optix::Scene> optix_scene = nullptr;
+    std::unique_ptr<CameraHelper> camera = nullptr;
 
     void Init() noexcept;
     void Destroy() noexcept;

@@ -130,8 +130,6 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         Pupil::Log::Warn("scene file [{}] does not exist.", scene_file_path.string());
         return;
     }
-
-    Pupil::Log::Info("start loading scene [{}].", scene_file_path.string());
     util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
 
     auto world = util::Singleton<World>::instance();

@@ -16,9 +16,14 @@
 #include "backends/imgui_impl_dx12.h"
 #include "imfilebrowser.h"
 
+#include "cuda/util.h"
+
 #include "static.h"
 
 #include <d3dcompiler.h>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
 
 namespace Pupil {
 HWND g_window_handle;
@@ -442,16 +447,17 @@ void GuiPass::OnDraw() noexcept {
                     std::filesystem::path path{ ROOT_DIR };
                     path /= std::string{ file_name } + "." + image_file_format[item_current];
 
-                    size_t size = g_window_h * g_window_w * 4;
-                    // auto image = new float[size];
-                    // memset(image, 0, size);
-                    // cuda::CudaMemcpyToHost(image, m_backend->GetCurrentFrameResource().src->cuda_buffer_ptr, size * sizeof(float));
+                    size_t size = m_output_h * m_output_w * 4;
+                    auto image = new float[size];
+                    memset(image, 0, size);
+                    auto &buffer = GetReadyOutputBuffer();
+                    cuda::CudaMemcpyToHost(image, buffer.shared_buffer.cuda_ptr, size * sizeof(float));
 
-                    // stbi_flip_vertically_on_write(true);
-                    // stbi_write_hdr(path.string().c_str(), g_window_w, g_window_h, 4, image);
-                    // delete[] image;
+                    stbi_flip_vertically_on_write(true);
+                    stbi_write_hdr(path.string().c_str(), m_output_w, m_output_h, 4, image);
+                    delete[] image;
 
-                    // printf("image was saved successfully in [%ws].\n", path.wstring().data());
+                    Pupil::Log::Info("image was saved successfully in [{}].\n", path.string());
                 }
                 ImGui::PopItemWidth();
             }

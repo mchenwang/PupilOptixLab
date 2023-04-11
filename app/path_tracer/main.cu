@@ -34,20 +34,12 @@ struct PathPayloadRecord {
 };
 
 extern "C" __global__ void __raygen__main() {
-    // const RayGenData *sbt_data = (RayGenData *)optixGetSbtDataPointer();
     const uint3 index = optixGetLaunchIndex();
     const unsigned int w = optix_launch_params.config.frame.width;
     const unsigned int h = optix_launch_params.config.frame.height;
     const unsigned int pixel_index = index.y * w + index.x;
-    // optix_launch_params.frame_buffer[pixel_index] = make_float4(1.f);
-    // DebugPrintFloat4(optix_launch_params.frame_buffer[pixel_index]);
-    // return;
-    auto &camera = *optix_launch_params.camera.operator->();
 
-    // optix_launch_params.frame_buffer[pixel_index] =
-    //     make_float4(
-    //         (float)index.x / w,
-    //         (float)index.y / h, 0.f, 1.f);
+    auto &camera = *optix_launch_params.camera.GetDataPtr();
 
     PathPayloadRecord record{};
     uint32_t u0, u1;
@@ -69,20 +61,13 @@ extern "C" __global__ void __raygen__main() {
     // const float2 subpixel = make_float2((static_cast<float>(index.x)) / w, (static_cast<float>(index.y)) / h);
     const float4 point_on_film = make_float4(subpixel, 0.f, 1.f);
 
-    float4 d = make_float4(
-        dot(camera.sample_to_camera.r0, point_on_film),
-        dot(camera.sample_to_camera.r1, point_on_film),
-        dot(camera.sample_to_camera.r2, point_on_film),
-        dot(camera.sample_to_camera.r3, point_on_film));
+    float4 d = camera.sample_to_camera * point_on_film;
 
     d /= d.w;
     d.w = 0.f;
     d = normalize(d);
 
-    float3 ray_direction = normalize(make_float3(
-        dot(camera.camera_to_world.r0, d),
-        dot(camera.camera_to_world.r1, d),
-        dot(camera.camera_to_world.r2, d)));
+    float3 ray_direction = normalize(make_float3(camera.camera_to_world * d));
 
     float3 ray_origin = make_float3(
         camera.camera_to_world.r0.w,
