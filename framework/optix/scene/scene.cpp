@@ -59,17 +59,13 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
     CreateTopLevelAccel();
 
     auto &&sensor = scene->sensor;
-    optix::CameraDesc desc{
+    camera_desc = util::CameraDesc{
         .fov_y = sensor.fov,
         .aspect_ratio = static_cast<float>(sensor.film.w) / sensor.film.h,
         .near_clip = sensor.near_clip,
         .far_clip = sensor.far_clip,
         .to_world = sensor.transform
     };
-    if (!camera)
-        camera = std::make_unique<optix::CameraHelper>(desc);
-    else
-        camera->Reset(desc);
 
     if (!emitters)
         emitters = std::make_unique<optix::EmitterHelper>(scene);
@@ -167,7 +163,6 @@ void Scene::CreateTopLevelAccel() noexcept {
 
 Scene::~Scene() noexcept {
     CUDA_FREE(ias_buffer);
-    camera.reset();
     emitters.reset();
 }
 }// namespace Pupil::optix

@@ -6,25 +6,28 @@ float Camera::sensitivity_scale = 1.f;
 
 Mat4 Camera::GetSampleToCameraMatrix() noexcept {
     if (m_projection_dirty) {
+        auto proj = DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip);
+
+        m_proj = DirectX::XMMatrixTranspose(proj);
         m_sample_to_camera = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixInverse(
-                nullptr,
-                DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip) *
-                    DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
-                    DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
+                nullptr, proj *
+                             DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+                             DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
         m_projection_dirty = false;
     }
     return m_sample_to_camera;
 }
 Mat4 Camera::GetProjectionMatrix() noexcept {
     if (m_projection_dirty) {
-        auto proj = DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip) *
-                    DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
-                    DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f);
+        auto proj = DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip);
 
         m_proj = DirectX::XMMatrixTranspose(proj);
         m_sample_to_camera = DirectX::XMMatrixTranspose(
-            DirectX::XMMatrixInverse(nullptr, proj));
+            DirectX::XMMatrixInverse(
+                nullptr, proj *
+                             DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+                             DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
         m_projection_dirty = false;
     }
     return m_proj;
