@@ -51,7 +51,8 @@ struct AABB {
             { max.x, max.y, min.z },
             { max.x, max.y, max.z }
         };
-
+        min = { std::numeric_limits<float>::max() };
+        max = { std::numeric_limits<float>::lowest() };
         for (auto &&v : vertex) Merge(Transform::TransformPoint(v, trans.matrix));
     }
 };
