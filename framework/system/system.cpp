@@ -7,6 +7,7 @@
 #include "optix/scene/scene.h"
 
 #include "cuda/texture.h"
+#include "cuda/shape.h"
 #include "cuda/stream.h"
 
 #include "scene/scene.h"
@@ -131,6 +132,7 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         return;
     }
     util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+    util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
 
     auto world = util::Singleton<World>::instance();
     if (!world->LoadScene(scene_file_path)) {
