@@ -126,13 +126,20 @@ void System::AddPass(Pass *pass) noexcept {
     }
 }
 
+std::filesystem::path temp;
 void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     if (!std::filesystem::exists(scene_file_path)) {
         Pupil::Log::Warn("scene file [{}] does not exist.", scene_file_path.string());
         return;
     }
-    util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
-    util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
+    if (temp != scene_file_path.parent_path()) {
+        temp = scene_file_path.parent_path();
+        util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+        util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
+
+        util::Singleton<scene::ShapeDataManager>::instance()->Clear();
+        util::Singleton<scene::TextureManager>::instance()->Clear();
+    }
 
     auto world = util::Singleton<World>::instance();
     if (!world->LoadScene(scene_file_path)) {
@@ -141,9 +148,6 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
     }
     m_scene_load_flag = true;
     EventDispatcher<ESystemEvent::SceneLoad>(world);
-
-    util::Singleton<scene::ShapeDataManager>::instance()->Clear();
-    util::Singleton<scene::TextureManager>::instance()->Clear();
 
     struct {
         uint32_t w, h;
