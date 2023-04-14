@@ -3,6 +3,8 @@
 #include "transform.h"
 #include "type.h"
 
+#include <array>
+
 namespace Pupil::util {
 enum class ETextureAddressMode : unsigned int {
     Wrap = 0,
@@ -38,6 +40,16 @@ struct BitmapTexture {
 
     ETextureAddressMode address_mode = ETextureAddressMode::Wrap;
     ETextureFilterMode filter_mode = ETextureFilterMode::Linear;
+
+    enum class FileFormat {
+        HDR,
+        EXR
+    };
+    constexpr static std::array S_FILE_FORMAT_NAME {
+        "hdr", "exr"
+    };
+
+    static bool Save(float *data, size_t w, size_t h, const char *, FileFormat) noexcept;
 };
 
 struct Texture {

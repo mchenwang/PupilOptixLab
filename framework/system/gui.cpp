@@ -8,6 +8,7 @@
 #include "util/event.h"
 #include "util/camera.h"
 #include "util/thread_pool.h"
+#include "util/texture.h"
 #include "scene/scene.h"
 
 #include "imgui.h"
@@ -21,9 +22,6 @@
 #include "static.h"
 
 #include <d3dcompiler.h>
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb/stb_image_write.h"
 
 namespace Pupil {
 HWND g_window_handle;
@@ -438,26 +436,23 @@ void GuiPass::OnDraw() noexcept {
                 static char file_name[256]{};
                 ImGui::InputText("file name", file_name, 256);
                 ImGui::SameLine();
-                // constexpr auto image_file_format = std::array{ "hdr", "jpg", "png" };
-                constexpr auto image_file_format = std::array{ "hdr" };
+
                 static int item_current = 0;
-                ImGui::Combo("format", &item_current, image_file_format.data(), (int)image_file_format.size());
+                ImGui::Combo("format", &item_current,
+                             util::BitmapTexture::S_FILE_FORMAT_NAME.data(),
+                             (int)util::BitmapTexture::S_FILE_FORMAT_NAME.size());
                 ImGui::SameLine();
                 if (ImGui::Button("Save")) {
                     std::filesystem::path path{ ROOT_DIR };
-                    path /= std::string{ file_name } + "." + image_file_format[item_current];
+                    path /= std::string{ file_name } + "." + util::BitmapTexture::S_FILE_FORMAT_NAME[item_current];
 
                     size_t size = m_output_h * m_output_w * 4;
                     auto image = new float[size];
                     memset(image, 0, size);
                     auto &buffer = GetReadyOutputBuffer();
                     cuda::CudaMemcpyToHost(image, buffer.shared_buffer.cuda_ptr, size * sizeof(float));
-
-                    stbi_flip_vertically_on_write(true);
-                    stbi_write_hdr(path.string().c_str(), m_output_w, m_output_h, 4, image);
+                    util::BitmapTexture::Save(image, m_output_w, m_output_h, path.string().c_str(), (util::BitmapTexture::FileFormat)item_current);
                     delete[] image;
-
-                    Pupil::Log::Info("image was saved successfully in [{}].\n", path.string());
                 }
                 ImGui::PopItemWidth();
             }
