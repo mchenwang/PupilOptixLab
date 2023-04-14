@@ -19,3 +19,6 @@
 [submodule "3rdparty/spdlog"]
 	path = 3rdparty/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "3rdparty/exr/tinyexr"]
+	path = 3rdparty/exr/tinyexr
+	url = https://github.com/syoyo/tinyexr.git
