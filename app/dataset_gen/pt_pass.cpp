@@ -36,25 +36,34 @@ PTPass::PTPass(std::string_view name) noexcept
 }
 
 void PTPass::Run() noexcept {
-    m_timer.Start();
+    if (m_optix_launch_params.sample_cnt == 0)
+        m_timer.Start();
     {
         if (m_dirty) {
             m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
             m_optix_launch_params.config.max_depth = m_max_depth;
             m_optix_launch_params.random_seed = 0;
-            m_optix_launch_params.spp = m_spp;
             m_dirty = false;
         }
+
+        auto &frame_buffer =
+            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+
+        m_optix_launch_params.frame_buffer.SetData(
+            frame_buffer.cuda_ptr, m_output_pixel_num);
         m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
                           m_optix_launch_params.config.frame.height);
         m_optix_pass->Synchronize();
 
-
-
+        ++m_optix_launch_params.sample_cnt;
         ++m_optix_launch_params.random_seed;
     }
-    m_timer.Stop();
-    m_time_cnt = m_timer.ElapsedMilliseconds();
+    if (m_optix_launch_params.sample_cnt == 10) {
+        m_timer.Stop();
+        m_time_cnt = m_timer.ElapsedMilliseconds();
+        Pupil::Log::Info("time cost: {}ms", m_time_cnt);
+        Pupil::EventDispatcher<pt::EPTEvent::SppFinished>();
+    }
 }
 
 void PTPass::InitOptixPipeline() noexcept {
@@ -97,22 +106,24 @@ void PTPass::SetScene(World *world) noexcept {
     m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
 
     m_max_depth = m_optix_launch_params.config.max_depth;
-    m_spp = 4;
+    m_spp = 6000;
 
     m_optix_launch_params.random_seed = 0;
-    m_optix_launch_params.spp = m_spp;
+    m_optix_launch_params.sample_cnt = 0;
 
     m_output_pixel_num = m_optix_launch_params.config.frame.width *
                          m_optix_launch_params.config.frame.height;
 
+    auto buf_mngr = util::Singleton<BufferManager>::instance();
     BufferDesc desc{
         .type = EBufferType::Cuda,
-        .name = "result",
+        .name = "pt accum buffer",
         .size = m_output_pixel_num * sizeof(float4)
     };
-    m_buffer = util::Singleton<BufferManager>::instance()->AllocBuffer(desc);
+    m_accum_buffer = buf_mngr->AllocBuffer(desc);
+    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer->cuda_res.ptr, m_output_pixel_num);
 
-    m_optix_launch_params.frame_buffer.SetData(m_buffer->cuda_res.ptr, m_output_pixel_num);
+    m_optix_launch_params.frame_buffer.SetData(0, 0);
 
     m_optix_launch_params.handle = world->optix_scene->ias_handle;
     m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
@@ -175,7 +186,7 @@ void PTPass::BindingEventCallback() noexcept {
 }
 
 void PTPass::Inspector() noexcept {
-    constexpr auto show_type = std::array{ "pt result", "albedo", "normal" };
+    /*constexpr auto show_type = std::array{ "pt result", "albedo", "normal" };
     ImGui::Combo("result", &m_show_type, show_type.data(), (int)show_type.size());
 
     ImGui::InputInt("spp", &m_spp);
@@ -187,7 +198,8 @@ void PTPass::Inspector() noexcept {
     m_max_depth = clamp(m_max_depth, 1, 128);
     if (m_optix_launch_params.config.max_depth != m_max_depth) {
         m_dirty = true;
-    }
+    }*/
+    ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt);
     ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", m_time_cnt, 1000.0f / m_time_cnt);
 }
 }// namespace Pupil::pt

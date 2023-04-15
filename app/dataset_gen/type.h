@@ -16,11 +16,12 @@ struct OptixLaunchParams {
         } frame;
     } config;
     unsigned int random_seed;
-    unsigned int spp;
+    unsigned int sample_cnt;
 
     cuda::ConstDataView<optix::Camera> camera;
     optix::EmitterGroup emitters;
 
+    cuda::RWArrayView<float4> accum_buffer;
     cuda::RWArrayView<float4> frame_buffer;
 
     OptixTraversableHandle handle;
