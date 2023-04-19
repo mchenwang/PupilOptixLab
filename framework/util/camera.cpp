@@ -90,6 +90,13 @@ void Camera::SetWorldTransform(Transform to_world) noexcept {
 
     m_rotate_inv = m_rotate.GetTranspose();
 
+    m_view =
+        m_rotate *
+        Mat4(1.f, 0.f, 0.f, -m_position.x,
+             0.f, 1.f, 0.f, -m_position.y,
+             0.f, 0.f, 1.f, -m_position.z,
+             0.f, 0.f, 0.f, 1.f);
+
     m_to_world_dirty = false;
 }
 
