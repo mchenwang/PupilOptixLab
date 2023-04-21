@@ -156,6 +156,15 @@ bool LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
             Load3Float(look_at, "up", up, { 0.f, 1.f, 0.f });
             transform->LookAt(origin, target, up);
 
+            // Mitsuba 3: +X points left, +Y points up, +Z points view
+            // Pupil Transform: +X points right, +Y points up, +Z points -view
+            transform->matrix.re[0][0] *= -1;
+            transform->matrix.re[1][0] *= -1;
+            transform->matrix.re[2][0] *= -1;
+            transform->matrix.re[0][2] *= -1;
+            transform->matrix.re[1][2] *= -1;
+            transform->matrix.re[2][2] *= -1;
+
             if (!obj->GetProperty("scale").empty() || obj->GetUniqueSubObject("rotate") || !obj->GetProperty("translate").empty()) {
                 Pupil::Log::Warn("transform scale/rotate/translate is ignored as look_at exists.");
             }

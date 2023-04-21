@@ -90,12 +90,19 @@ void Camera::SetWorldTransform(Transform to_world) noexcept {
 
     m_rotate_inv = m_rotate.GetTranspose();
 
+    m_view =
+        m_rotate *
+        Mat4(1.f, 0.f, 0.f, -m_position.x,
+             0.f, 1.f, 0.f, -m_position.y,
+             0.f, 0.f, 1.f, -m_position.z,
+             0.f, 0.f, 0.f, 1.f);
+
     m_to_world_dirty = false;
 }
 
 void Camera::Rotate(float delta_x, float delta_y) noexcept {
     Transform pitch;
-    pitch.Rotate(X.x, X.y, X.z, -delta_y);
+    pitch.Rotate(X.x, X.y, X.z, delta_y);
     Transform yaw;
     yaw.Rotate(Y.x, Y.y, Y.z, delta_x);
 

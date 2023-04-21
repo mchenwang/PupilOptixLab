@@ -95,14 +95,6 @@ void Transform::LookAt(const Float3 &origin, const Float3 &target, const Float3 
     auto world_to_camera = DirectX::XMMatrixLookAtRH(eye_position, focus_position, up_direction);
     auto camera_to_world = DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, world_to_camera));
     matrix = camera_to_world;
-    // Mitsuba 3: +X points left, +Y points up, +Z points view
-    // Pupil Transform: +X points right, +Y points up, +Z points -view
-    this->matrix.re[0][0] *= -1;
-    this->matrix.re[1][0] *= -1;
-    this->matrix.re[2][0] *= -1;
-    this->matrix.re[0][2] *= -1;
-    this->matrix.re[1][2] *= -1;
-    this->matrix.re[2][2] *= -1;
 }
 
 Float3 Transform::TransformPoint(const Float3 point, const Mat4 &transform_matrix) noexcept {
