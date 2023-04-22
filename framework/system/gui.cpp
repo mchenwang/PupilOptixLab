@@ -295,7 +295,7 @@ void GuiPass::AdjustWindowSize() noexcept {
 }
 
 void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspector) noexcept {
-    m_inspectors.emplace(name, inspector);
+    m_inspectors.emplace_back(name, inspector);
 }
 
 void GuiPass::FlipSwapBuffer() noexcept {
@@ -521,12 +521,12 @@ void GuiPass::OnDraw() noexcept {
                         EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
 
                     util::Float3 delta_pos;
-                    if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos += util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
+                    if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos -= util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos += util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos -= util::Camera::Z;
+                    if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos += util::Camera::Z;
                     if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
+                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
                     if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
                         EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
                 }
@@ -784,36 +784,6 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if ((wParam & 0xfff0) == SC_KEYMENU)// Disable ALT application menu
                 return 0;
             break;
-        // case WM_KEYDOWN:
-        //     OnKeyDown(wParam);
-        //     break;
-        // case WM_KEYUP:
-        //     OnKeyUp(wParam);
-        //     break;
-        // case WM_LBUTTONDOWN:
-        // case WM_MBUTTONDOWN:
-        // case WM_RBUTTONDOWN:
-        //     if (GetCursorPos(&cursor_pos)) {
-        //         OnMouseDown(wParam, cursor_pos.x, cursor_pos.y);
-        //     }
-        //     break;
-        // case WM_LBUTTONUP:
-        // case WM_MBUTTONUP:
-        // case WM_RBUTTONUP:
-        //     if (GetCursorPos(&cursor_pos)) {
-        //         OnMouseUp(wParam, cursor_pos.x, cursor_pos.y);
-        //     }
-        //     break;
-        // case WM_MOUSEMOVE:
-        //     if (GetCursorPos(&cursor_pos)) {
-        //         OnMouseMove(wParam, cursor_pos.x, cursor_pos.y);
-        //         // m_last_mouse_pos.x = cursor_pos.x;
-        //         // m_last_mouse_pos.y = cursor_pos.y;
-        //     }
-        //     break;
-        // case WM_MOUSEWHEEL:
-        //     OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
-        //     break;
         case WM_DESTROY:
             Pupil::EventDispatcher<Pupil::EWindowEvent::Quit>();
             ::PostQuitMessage(0);
