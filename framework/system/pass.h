@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace Pupil {
 namespace scene {
 class Scene;
@@ -24,14 +26,12 @@ class Pass {
 public:
     const std::string name;
     const EPassTag tag;
-    Pass(std::string_view name, EPassTag tag = EPassTag::None) noexcept 
+    Pass(std::string_view name, EPassTag tag = EPassTag::None) noexcept
         : name(name), tag(tag) {}
 
     virtual void Run() noexcept = 0;
     virtual void BeforeRunning() noexcept = 0;
     virtual void AfterRunning() noexcept = 0;
-
-    virtual void SetScene(scene::Scene *) noexcept {}
     virtual void Inspector() noexcept {}
 };
 }// namespace Pupil

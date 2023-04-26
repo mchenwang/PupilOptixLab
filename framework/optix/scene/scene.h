@@ -14,7 +14,7 @@ struct RenderObject;
 
 class Scene {
 public:
-    std::unique_ptr<CameraHelper> camera;
+    util::CameraDesc camera_desc;
 
     std::unique_ptr<EmitterHelper> emitters;
 

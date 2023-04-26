@@ -1,9 +1,9 @@
 #include "camera.h"
+
 #include "cuda/util.h"
 
-namespace Pupil::optix {
-
-CameraHelper::CameraHelper(const CameraDesc &desc) noexcept {
+namespace Pupil {
+CameraHelper::CameraHelper(const util::CameraDesc &desc) noexcept {
     m_camera.SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
     m_camera.SetWorldTransform(desc.to_world);
     m_desc = desc;
@@ -14,7 +14,7 @@ CameraHelper::~CameraHelper() noexcept {
     CUDA_FREE(m_camera_cuda_memory);
 }
 
-void CameraHelper::Reset(const CameraDesc &desc) noexcept {
+void CameraHelper::Reset(const util::CameraDesc &desc) noexcept {
     m_camera.SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
     m_camera.SetWorldTransform(desc.to_world);
     m_desc = desc;
@@ -99,5 +99,4 @@ CUdeviceptr CameraHelper::GetCudaMemory() noexcept {
 std::tuple<util::Float3, util::Float3, util::Float3> CameraHelper::GetCameraCoordinateSystem() const noexcept {
     return m_camera.GetCameraCoordinateSystem();
 }
-
-}// namespace Pupil::optix
+}// namespace Pupil

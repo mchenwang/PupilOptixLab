@@ -155,6 +155,7 @@ Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexc
             scene->InvokeXmlObjLoadCallBack(bsdf, &shape.mat);
             auto transform = obj->GetUniqueSubObject("transform");
             scene->InvokeXmlObjLoadCallBack(transform, &shape.transform);
+            shape.aabb.Transform(shape.transform);
 
             shape.is_emitter = false;
             if (auto emitter_xml_obj = obj->GetUniqueSubObject("emitter"); emitter_xml_obj) {
@@ -203,6 +204,7 @@ void ShapeDataManager::LoadShapeFromFile(std::string_view file_path) noexcept {
             shape->positions.emplace_back(mesh->mVertices[j].x);
             shape->positions.emplace_back(mesh->mVertices[j].y);
             shape->positions.emplace_back(mesh->mVertices[j].z);
+            shape->aabb.Merge(mesh->mVertices[j].x, mesh->mVertices[j].y, mesh->mVertices[j].z);
 
             if (has_normals) {
                 shape->normals.emplace_back(mesh->mNormals[j].x);
@@ -250,6 +252,7 @@ Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
     shape.obj.normals = it->second->normals.size() > 0 ? it->second->normals.data() : nullptr;
     shape.obj.texcoords = it->second->texcoords.size() > 0 ? it->second->texcoords.data() : nullptr;
     shape.obj.indices = it->second->indices.data();
+    shape.aabb = it->second->aabb;
 
     return shape;
 }
@@ -261,6 +264,10 @@ Shape ShapeDataManager::GetSphere(float r, util::Float3 c, bool flip_normals) no
     shape.sphere.center = c;
     shape.sphere.radius = r;
     shape.sphere.flip_normals = flip_normals;
+    shape.aabb = util::AABB{
+        { c.x - r, c.y - r, c.z - r },
+        { c.x + r, c.y + r, c.z + r }
+    };
 
     return shape;
 }
@@ -276,6 +283,7 @@ Shape ShapeDataManager::GetCube(bool flip_normals) noexcept {
     shape.cube.normals = m_cube_normals;
     shape.cube.texcoords = m_cube_texcoords;
     shape.cube.indices = m_cube_indices;
+    shape.aabb = util::AABB{ { -1.f, -1.f, -1.f }, { 1.f, 1.f, 1.f } };
 
     return shape;
 }
@@ -291,6 +299,7 @@ Shape ShapeDataManager::GetRectangle(bool flip_normals) noexcept {
     shape.rect.normals = m_rect_normals;
     shape.rect.texcoords = m_rect_texcoords;
     shape.rect.indices = m_rect_indices;
+    shape.aabb = util::AABB{ { -1.f, -1.f, 0.f }, { 1.f, 1.f, 0.f } };
 
     return shape;
 }

@@ -2,7 +2,6 @@
 
 #include "util/util.h"
 #include "util/timer.h"
-#include "scene/scene.h"
 
 #include <filesystem>
 #include <memory>
@@ -11,9 +10,16 @@ namespace Pupil {
 class Pass;
 class GuiPass;
 
+namespace optix {
+class Scene;
+}
+
 enum class ESystemEvent {
     Quit,
-    SceneLoadFinished,
+    Precompute,
+    StartRendering,
+    StopRendering,
+    SceneLoad,
     FrameFinished
 };
 
@@ -29,14 +35,10 @@ public:
     void AddPass(Pass *) noexcept;
     void SetScene(std::filesystem::path) noexcept;
 
-    void StopRendering() noexcept;
-    void RestartRendering() noexcept;
-
 private:
     std::vector<Pass *> m_passes;
     std::vector<Pass *> m_pre_passes;
     GuiPass *m_gui_pass = nullptr;
-    std::unique_ptr<scene::Scene> m_scene;
     Timer m_render_timer;
 };
 }// namespace Pupil

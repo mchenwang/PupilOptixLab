@@ -8,6 +8,9 @@
 #include "util/event.h"
 #include "system/system.h"
 #include "system/gui.h"
+#include "system/world.h"
+
+extern "C" char embedded_ptx_code[];
 
 namespace Pupil {
 extern uint32_t g_window_w;
@@ -34,7 +37,7 @@ void PTPass::Run() noexcept {
     m_timer.Start();
     {
         if (m_dirty) {
-            m_optix_launch_params.camera.SetData(m_optix_scene->camera->GetCudaMemory());
+            m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
             m_optix_launch_params.config.max_depth = m_max_depth;
             m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
             m_optix_launch_params.sample_cnt = 0;
@@ -61,7 +64,7 @@ void PTPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
 
     auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
-    auto pt_module = module_mngr->GetModule("path_tracer/pt_main.ptx");
+    auto pt_module = module_mngr->GetModule(embedded_ptx_code);
 
     optix::PipelineDesc pipeline_desc;
     {
@@ -91,15 +94,12 @@ void PTPass::InitOptixPipeline() noexcept {
     m_optix_pass->InitPipeline(pipeline_desc);
 }
 
-void PTPass::SetScene(scene::Scene *scene) noexcept {
-    if (m_optix_scene == nullptr)
-        m_optix_scene = std::make_unique<optix::Scene>(scene);
-    else
-        m_optix_scene->ResetScene(scene);
+void PTPass::SetScene(World *world) noexcept {
+    m_world_camera = world->camera.get();
 
-    m_optix_launch_params.config.frame.width = scene->sensor.film.w;
-    m_optix_launch_params.config.frame.height = scene->sensor.film.h;
-    m_optix_launch_params.config.max_depth = scene->integrator.max_depth;
+    m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
+    m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
+    m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
     m_optix_launch_params.config.accumulated_flag = true;
 
     m_max_depth = m_optix_launch_params.config.max_depth;
@@ -108,20 +108,22 @@ void PTPass::SetScene(scene::Scene *scene) noexcept {
     m_optix_launch_params.random_seed = 0;
     m_optix_launch_params.sample_cnt = 0;
 
-    CUDA_FREE(m_accum_buffer);
     m_output_pixel_num = m_optix_launch_params.config.frame.width *
                          m_optix_launch_params.config.frame.height;
-
-    size_t output_buffer_size = m_output_pixel_num * sizeof(float4);
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_accum_buffer), output_buffer_size));
-
-    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer, m_output_pixel_num);
+    auto buf_mngr = util::Singleton<BufferManager>::instance();
+    BufferDesc desc{
+        .type = EBufferType::Cuda,
+        .name = "pt accum buffer",
+        .size = m_output_pixel_num * sizeof(float4)
+    };
+    m_accum_buffer = buf_mngr->AllocBuffer(desc);
+    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer->cuda_res.ptr, m_output_pixel_num);
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
-    m_optix_launch_params.handle = m_optix_scene->ias_handle;
-    m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
+    m_optix_launch_params.handle = world->optix_scene->ias_handle;
+    m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
-    SetSBT(scene);
+    SetSBT(world->scene.get());
 
     m_dirty = true;
 }
@@ -169,42 +171,12 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 }
 
 void PTPass::BindingEventCallback() noexcept {
-    EventBinder<ESystemEvent::SceneLoadFinished>([this](void *) {
+    EventBinder<EWorldEvent::CameraChange>([this](void *) {
         m_dirty = true;
     });
 
-    EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
-
-        const struct {
-            float x, y;
-        } delta = *(decltype(delta) *)p;
-        float scale = util::Camera::sensitivity * util::Camera::sensitivity_scale;
-        m_optix_scene->camera->Rotate(delta.x * scale, delta.y * scale);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
-
-        float delta = *(float *)p;
-        m_optix_scene->camera->SetFovDelta(delta);
-        m_dirty = true;
-    });
-
-    EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
-
-        util::Float3 delta = *(util::Float3 *)p;
-        m_optix_scene->camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
-        m_dirty = true;
+    EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
+        SetScene((World *)p);
     });
 }
 

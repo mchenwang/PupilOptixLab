@@ -4,6 +4,7 @@
 
 #include "system/pass.h"
 #include "system/resource.h"
+#include "system/world.h"
 #include "scene/scene.h"
 #include "optix/pass.h"
 #include "optix/scene/scene.h"
@@ -27,10 +28,11 @@ public:
     PTPass(std::string_view name = "Path Tracing") noexcept;
     virtual void Run() noexcept override;
     virtual void Inspector() noexcept override;
-    virtual void SetScene(scene::Scene *) noexcept override;
 
     virtual void BeforeRunning() noexcept override {}
     virtual void AfterRunning() noexcept override {}
+
+    void SetScene(World *) noexcept;
 
 private:
     void BindingEventCallback() noexcept;
@@ -40,11 +42,11 @@ private:
     OptixLaunchParams m_optix_launch_params;
     std::unique_ptr<cuda::Stream> m_stream;
     std::unique_ptr<optix::Pass<SBTTypes, OptixLaunchParams>> m_optix_pass;
-    std::unique_ptr<optix::Scene> m_optix_scene;
     size_t m_output_pixel_num = 0;
-    CUdeviceptr m_accum_buffer = 0;
+    Buffer *m_accum_buffer = nullptr;
 
     std::atomic_bool m_dirty = true;
+    CameraHelper *m_world_camera = nullptr;
 
     Timer m_timer;
 };

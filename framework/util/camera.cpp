@@ -6,28 +6,57 @@ float Camera::sensitivity_scale = 1.f;
 
 Mat4 Camera::GetSampleToCameraMatrix() noexcept {
     if (m_projection_dirty) {
+        auto proj = DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip);
+
+        m_proj = DirectX::XMMatrixTranspose(proj);
         m_sample_to_camera = DirectX::XMMatrixTranspose(
             DirectX::XMMatrixInverse(
-                nullptr,
-                DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip) *
-                    DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
-                    DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
+                nullptr, proj *
+                             DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+                             DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
         m_projection_dirty = false;
     }
     return m_sample_to_camera;
 }
+Mat4 Camera::GetProjectionMatrix() noexcept {
+    if (m_projection_dirty) {
+        auto proj = DirectX::XMMatrixPerspectiveFovRH(m_fov_y / 180.f * 3.14159265358979323846f, m_aspect_ratio, m_near_clip, m_far_clip);
+
+        m_proj = DirectX::XMMatrixTranspose(proj);
+        m_sample_to_camera = DirectX::XMMatrixTranspose(
+            DirectX::XMMatrixInverse(
+                nullptr, proj *
+                             DirectX::XMMatrixTranslation(1.f, 1.f, 0.f) *
+                             DirectX::XMMatrixScaling(0.5f, 0.5f, 1.f)));
+        m_projection_dirty = false;
+    }
+    return m_proj;
+}
 Mat4 Camera::GetToWorldMatrix() noexcept {
     if (m_to_world_dirty) {
-        Mat4 view_matrix =
+        m_view =
             m_rotate *
             Mat4(1.f, 0.f, 0.f, -m_position.x,
                  0.f, 1.f, 0.f, -m_position.y,
                  0.f, 0.f, 1.f, -m_position.z,
                  0.f, 0.f, 0.f, 1.f);
-        m_to_world = view_matrix.GetInverse();
+        m_to_world = m_view.GetInverse();
         m_to_world_dirty = false;
     }
     return m_to_world;
+}
+Mat4 Camera::GetViewMatrix() noexcept {
+    if (m_to_world_dirty) {
+        m_view =
+            m_rotate *
+            Mat4(1.f, 0.f, 0.f, -m_position.x,
+                 0.f, 1.f, 0.f, -m_position.y,
+                 0.f, 0.f, 1.f, -m_position.z,
+                 0.f, 0.f, 0.f, 1.f);
+        m_to_world = m_view.GetInverse();
+        m_to_world_dirty = false;
+    }
+    return m_view;
 }
 
 std::tuple<Float3, Float3, Float3> Camera::GetCameraCoordinateSystem() const noexcept {

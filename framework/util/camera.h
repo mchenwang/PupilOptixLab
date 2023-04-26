@@ -4,6 +4,15 @@
 #include "transform.h"
 
 namespace Pupil::util {
+struct CameraDesc {
+    float fov_y;
+    float aspect_ratio;
+    float near_clip = 0.01f;
+    float far_clip = 10000.f;
+
+    Transform to_world;
+};
+
 class Camera {
 private:
     float m_fov_y;
@@ -17,9 +26,12 @@ private:
     Mat4 m_rotate_inv;
 
     bool m_to_world_dirty = true;
+    Mat4 m_to_world;// camera to world
+    Mat4 m_view;    // world to camera
+
     bool m_projection_dirty = true;
-    Mat4 m_to_world;
-    Mat4 m_sample_to_camera;
+    Mat4 m_sample_to_camera;// screen to camera
+    Mat4 m_proj;            // camera to screen
 
 public:
     static float sensitivity;
@@ -32,7 +44,9 @@ public:
     Camera() noexcept = default;
 
     Mat4 GetSampleToCameraMatrix() noexcept;
+    Mat4 GetProjectionMatrix() noexcept;
     Mat4 GetToWorldMatrix() noexcept;
+    Mat4 GetViewMatrix() noexcept;
 
     std::tuple<Float3, Float3, Float3> GetCameraCoordinateSystem() const noexcept;
 

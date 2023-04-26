@@ -46,6 +46,7 @@ inline void EventDispatcher(void *p) {
     Event<decltype(enum_v), enum_v>::Respond(p);
 }
 template<auto enum_v, typename T>
+    requires(!std::is_pointer_v<T>)
 inline void EventDispatcher(T p) {
     Event<decltype(enum_v), enum_v>::Respond((void *)&p);
 }

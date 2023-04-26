@@ -62,9 +62,8 @@ Pipeline::Pipeline(const OptixDeviceContext device_context, const PipelineDesc &
                 desc.hitgroup.entryFunctionNameCH = hit_group.ch_entry;
                 desc.hitgroup.moduleCH = module->optix_module;
                 create_flag = true;
-            } else {
-                assert("empty entry cannot be used as the program id" && false);
             }
+
             if (hit_group.is_entry) {
                 desc.hitgroup.entryFunctionNameIS = hit_group.is_entry;
                 create_flag = true;

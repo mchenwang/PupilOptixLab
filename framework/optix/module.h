@@ -18,7 +18,8 @@ struct Module {
 
 class ModuleManager : public Pupil::util::Singleton<ModuleManager> {
 private:
-    std::unordered_map<std::string, std::unique_ptr<Module>, util::StringHash, std::equal_to<>> m_modules;
+    // std::unordered_map<std::string, std::unique_ptr<Module>, util::StringHash, std::equal_to<>> m_modules;
+    std::unordered_map<const char *, std::unique_ptr<Module>> m_modules;
 
 public:
     [[nodiscard]] Module *GetModule(OptixPrimitiveType) noexcept;

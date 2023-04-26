@@ -8,6 +8,7 @@
 #include "util/event.h"
 #include "util/camera.h"
 #include "util/thread_pool.h"
+#include "util/texture.h"
 #include "scene/scene.h"
 
 #include "imgui.h"
@@ -15,6 +16,8 @@
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx12.h"
 #include "imfilebrowser.h"
+
+#include "cuda/util.h"
 
 #include "static.h"
 
@@ -108,13 +111,20 @@ void GuiPass::Init() noexcept {
             this->Resize(size.w, size.h);
         });
 
-        EventBinder<ESystemEvent::SceneLoadFinished>([](void *) {
+        EventBinder<ESystemEvent::StartRendering>([](void *) {
             m_waiting_scene_load = false;
         });
 
         EventBinder<ESystemEvent::FrameFinished>([this](void *p) {
             double time_count = *(double *)p;
             m_flip_rate = 1000. / time_count;
+        });
+
+        EventBinder<ECanvasEvent::Resize>([this](void *p) {
+            struct {
+                uint32_t w, h;
+            } size = *static_cast<decltype(size) *>(p);
+            ResizeCanvas(size.w, size.h);
         });
     }
 
@@ -153,17 +163,16 @@ void GuiPass::Init() noexcept {
     m_init_flag = true;
 }
 
-void GuiPass::SetScene(scene::Scene *scene) noexcept {
+void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
+    auto dx_ctx = util::Singleton<DirectX::Context>::instance();
+    dx_ctx->Flush();
     // init render output buffers
     {
         auto buffer_mngr = util::Singleton<BufferManager>::instance();
-        uint64_t size =
-            static_cast<uint64_t>(scene->sensor.film.h) *
-            scene->sensor.film.w * sizeof(float) * 4;
-        m_output_h = static_cast<uint32_t>(scene->sensor.film.h);
-        m_output_w = static_cast<uint32_t>(scene->sensor.film.w);
+        uint64_t size = static_cast<uint64_t>(h) * w * sizeof(float) * 4;
+        m_output_h = h;
+        m_output_w = w;
 
-        auto dx_ctx = util::Singleton<DirectX::Context>::instance();
         auto srv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         auto rtv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
         auto srv_cpu_handle = dx_ctx->srv_heap->GetCPUDescriptorHandleForHeapStart();
@@ -177,8 +186,7 @@ void GuiPass::SetScene(scene::Scene *scene) noexcept {
         for (auto i = 0u; i < SWAP_BUFFER_NUM; ++i) {
             auto d3d12_res_desc = CD3DX12_RESOURCE_DESC::Tex2D(
                 DXGI_FORMAT_R8G8B8A8_UNORM,
-                static_cast<UINT>(scene->sensor.film.w),
-                static_cast<UINT>(scene->sensor.film.h),
+                static_cast<UINT>(w), static_cast<UINT>(h),
                 1, 0, 1, 0,
                 D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
             auto properties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -409,7 +417,11 @@ void GuiPass::OnDraw() noexcept {
             ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
-                (flag ^= 1) ? util::Singleton<System>::instance()->RestartRendering() : util::Singleton<System>::instance()->StopRendering();
+                if (flag ^= 1) {
+                    EventDispatcher<ESystemEvent::StartRendering>();
+                } else {
+                    EventDispatcher<ESystemEvent::StopRendering>();
+                }
             }
 
             ImGui::Text("Camera:");
@@ -424,25 +436,23 @@ void GuiPass::OnDraw() noexcept {
                 static char file_name[256]{};
                 ImGui::InputText("file name", file_name, 256);
                 ImGui::SameLine();
-                // constexpr auto image_file_format = std::array{ "hdr", "jpg", "png" };
-                constexpr auto image_file_format = std::array{ "hdr" };
+
                 static int item_current = 0;
-                ImGui::Combo("format", &item_current, image_file_format.data(), (int)image_file_format.size());
+                ImGui::Combo("format", &item_current,
+                             util::BitmapTexture::S_FILE_FORMAT_NAME.data(),
+                             (int)util::BitmapTexture::S_FILE_FORMAT_NAME.size());
                 ImGui::SameLine();
                 if (ImGui::Button("Save")) {
                     std::filesystem::path path{ ROOT_DIR };
-                    path /= std::string{ file_name } + "." + image_file_format[item_current];
+                    path /= std::string{ file_name } + "." + util::BitmapTexture::S_FILE_FORMAT_NAME[item_current];
 
-                    size_t size = g_window_h * g_window_w * 4;
-                    // auto image = new float[size];
-                    // memset(image, 0, size);
-                    // cuda::CudaMemcpyToHost(image, m_backend->GetCurrentFrameResource().src->cuda_buffer_ptr, size * sizeof(float));
-
-                    // stbi_flip_vertically_on_write(true);
-                    // stbi_write_hdr(path.string().c_str(), g_window_w, g_window_h, 4, image);
-                    // delete[] image;
-
-                    // printf("image was saved successfully in [%ws].\n", path.wstring().data());
+                    size_t size = m_output_h * m_output_w * 4;
+                    auto image = new float[size];
+                    memset(image, 0, size);
+                    auto &buffer = GetReadyOutputBuffer();
+                    cuda::CudaMemcpyToHost(image, buffer.shared_buffer.cuda_ptr, size * sizeof(float));
+                    util::BitmapTexture::Save(image, m_output_w, m_output_h, path.string().c_str(), (util::BitmapTexture::FileFormat)item_current);
+                    delete[] image;
                 }
                 ImGui::PopItemWidth();
             }
@@ -478,6 +488,7 @@ void GuiPass::OnDraw() noexcept {
                 float ratio_x = screen_w / m_output_w;
                 float ratio_y = screen_h / m_output_h;
                 float ratio = std::min(ratio_x, ratio_y);
+                if (ratio == 0.f) ratio = 1.f;
 
                 float show_w = m_output_w * ratio;
                 float show_h = m_output_h * ratio;
@@ -514,8 +525,8 @@ void GuiPass::OnDraw() noexcept {
                     if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos -= util::Camera::X;
                     if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos += util::Camera::Z;
                     if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos -= util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::X;
+                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
+                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
                     if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
                         EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
                 }
@@ -529,7 +540,7 @@ void GuiPass::OnDraw() noexcept {
     m_scene_file_browser.Display();
     {
         if (m_scene_file_browser.HasSelected()) {
-            util::Singleton<System>::instance()->StopRendering();
+            EventDispatcher<ESystemEvent::StopRendering>();
             m_waiting_scene_load = true;
             util::Singleton<util::ThreadPool>::instance()->AddTask(
                 [](std::filesystem::path path) {
