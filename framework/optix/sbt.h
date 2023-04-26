@@ -122,22 +122,25 @@ void SBT<T>::SetMissData(BindingInfo<typename T::MissDataType> binding_info) noe
         const auto size = sizeof(MissDataRecord) * binding_info.datas.size();
 
         if (miss_sbt) CUDA_FREE(miss_sbt);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&miss_sbt), size));
+        if (size != 0) {
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&miss_sbt), size));
 
-        std::vector<MissDataRecord> ms_data;
-        for (auto &[program, data] : binding_info.datas) {
-            MissDataRecord record{};
-            ms_data.push_back(record);
-            OPTIX_CHECK(optixSbtRecordPackHeader(program, &ms_data.back()));
-            ms_data.back().data = data;
+            std::vector<MissDataRecord> ms_data;
+            for (auto &[program, data] : binding_info.datas) {
+                if (program == nullptr) continue;
+                MissDataRecord record{};
+                ms_data.push_back(record);
+                OPTIX_CHECK(optixSbtRecordPackHeader(program, &ms_data.back()));
+                ms_data.back().data = data;
+            }
+
+            if (ms_data.size() > 0)
+                CUDA_CHECK(cudaMemcpy(
+                    reinterpret_cast<void *>(miss_sbt),
+                    ms_data.data(),
+                    size,
+                    cudaMemcpyHostToDevice));
         }
-
-        CUDA_CHECK(cudaMemcpy(
-            reinterpret_cast<void *>(miss_sbt),
-            ms_data.data(),
-            size,
-            cudaMemcpyHostToDevice));
-
         sbt.missRecordBase = miss_sbt;
         sbt.missRecordCount = static_cast<unsigned int>(binding_info.datas.size());
         sbt.missRecordStrideInBytes = sizeof(MissDataRecord);
@@ -153,22 +156,25 @@ void SBT<T>::SetHitGroupData(BindingInfo<typename T::HitGroupDataType> binding_i
         const auto size = sizeof(HitGroupDataRecord) * binding_info.datas.size();
 
         if (hitgroup_sbt) CUDA_FREE(hitgroup_sbt);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&hitgroup_sbt), size));
+        if (size != 0) {
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&hitgroup_sbt), size));
 
-        std::vector<HitGroupDataRecord> hit_data;
-        for (auto &[program, data] : binding_info.datas) {
-            HitGroupDataRecord record{};
-            hit_data.push_back(record);
-            OPTIX_CHECK(optixSbtRecordPackHeader(program, &hit_data.back()));
-            hit_data.back().data = data;
+            std::vector<HitGroupDataRecord> hit_data;
+            for (auto &[program, data] : binding_info.datas) {
+                if (program == nullptr) continue;
+                HitGroupDataRecord record{};
+                hit_data.push_back(record);
+                OPTIX_CHECK(optixSbtRecordPackHeader(program, &hit_data.back()));
+                hit_data.back().data = data;
+            }
+
+            if (hit_data.size() > 0)
+                CUDA_CHECK(cudaMemcpy(
+                    reinterpret_cast<void *>(hitgroup_sbt),
+                    hit_data.data(),
+                    size,
+                    cudaMemcpyHostToDevice));
         }
-
-        CUDA_CHECK(cudaMemcpy(
-            reinterpret_cast<void *>(hitgroup_sbt),
-            hit_data.data(),
-            size,
-            cudaMemcpyHostToDevice));
-
         sbt.hitgroupRecordBase = hitgroup_sbt;
         sbt.hitgroupRecordCount = static_cast<unsigned int>(binding_info.datas.size());
         sbt.hitgroupRecordStrideInBytes = sizeof(HitGroupDataRecord);

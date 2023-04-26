@@ -42,7 +42,7 @@ public:
             rg_data.datas.push_back(data);
             m_sbt->SetRayGenData(rg_data);
         }
-        {
+        if (desc.hit_datas.size() > 0) {
             BindingInfo<typename T::HitGroupDataType> hit_datas{};
             for (auto &hit_data : desc.hit_datas) {
                 typename decltype(hit_datas)::Pair data{
@@ -53,7 +53,8 @@ public:
             }
             m_sbt->SetHitGroupData(hit_datas);
         }
-        {
+
+        if (desc.miss_datas.size() > 0) {
             BindingInfo<typename T::MissDataType> miss_datas{};
             for (auto &miss_data : desc.miss_datas) {
                 typename decltype(miss_datas)::Pair data{
@@ -62,6 +63,11 @@ public:
                 };
                 miss_datas.datas.push_back(data);
             }
+            m_sbt->SetMissData(miss_datas);
+        } else {
+            BindingInfo<typename T::MissDataType> miss_datas{};
+            typename decltype(miss_datas)::Pair data{ .program = nullptr };
+            miss_datas.datas.push_back(data);
             m_sbt->SetMissData(miss_datas);
         }
     }
