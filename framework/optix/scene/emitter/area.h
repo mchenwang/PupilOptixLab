@@ -31,6 +31,9 @@ struct TriAreaEmitter {
             ret.distance = distance;
         }
 
+        ret.pos = position;
+        ret.normal = normal;
+
         return ret;
     }
 

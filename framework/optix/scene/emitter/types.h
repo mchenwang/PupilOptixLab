@@ -16,6 +16,8 @@ enum class EEmitterType {
 struct EmitterSampleRecord {
     float3 radiance;
     float3 wi;
+    float3 pos;
+    float3 normal;
 
     float distance;
     float pdf;

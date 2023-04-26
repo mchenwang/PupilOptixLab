@@ -27,6 +27,10 @@ struct ConstEnvEmitter {
         ret.radiance = color;
         ret.is_delta = false;
 
+        // TODO
+        // ret.pos = position;
+        // ret.normal = normal;
+
         return ret;
     }
 
