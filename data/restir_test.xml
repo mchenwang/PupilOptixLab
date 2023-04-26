@@ -1,0 +1,155 @@
+<scene version="3.0.0">
+	<default name="integrator" value="path" />
+	<default name="resy" value="720" />
+	<default name="resx" value="1280" />
+	<default name="max_depth" value="6" />
+	<integrator type="$integrator">
+		<integer name="max_depth" value="$max_depth" />
+	</integrator>
+	<sensor type="perspective">
+		<float name="fov" value="45" />
+		<transform name="to_world">
+			<lookat origin="5, 2, 5" target="0, 0.5, 0" up="0, 1, 0"/>
+		</transform>
+		<sampler type="independent">
+			<integer name="sample_count" value="1" />
+		</sampler>
+		<film type="hdrfilm">
+			<integer name="width" value="$resx" />
+			<integer name="height" value="$resy" />
+			<string name="file_format" value="openexr" />
+			<string name="pixel_format" value="rgb" />
+			<rfilter type="tent" />
+		</film>
+	</sensor>
+
+    <bsdf type="diffuse" id="FloorBSDF">
+		<texture name="reflectance" type="checkerboard">
+			<rgb name="color1" value="0.2, 0.2, 0.2" />
+			<rgb name="color0" value="0.8, 0.8, 0.8" />
+			<transform name="to_uv">
+				<scale x="200.000000" y="200.000000" />
+			</transform>
+		</texture>
+    </bsdf>
+
+    <bsdf type="diffuse" id="BSDF1">
+		<texture name="reflectance" type="checkerboard">
+			<rgb name="color1" value="0.2, 0.2, 0.2" />
+			<rgb name="color0" value="0.8, 0.8, 0.8" />
+			<transform name="to_uv">
+				<scale x="5.000000" y="5.000000" />
+			</transform>
+		</texture>
+    </bsdf>
+
+    <!-- <shape type="rectangle">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="5" y="5"/>
+			<rotate x="1" angle="90"/>
+			<translate value="0, 10, 0"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="1, 1, 1" />
+		</emitter>
+    </shape> -->
+
+    <shape type="sphere">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="0.1" y="0.1" z="0.1"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="100, 100, 100" />
+		</emitter>
+    </shape>
+
+    <shape type="sphere">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="0.1" y="0.1" z="0.1"/>
+			<translate value="2, 2, 0"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="200, 0, 0" />
+		</emitter>
+    </shape>
+
+    <shape type="sphere">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="0.1" y="0.1" z="0.1"/>
+			<translate value="-2, 2, 0"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="0, 0, 200" />
+		</emitter>
+    </shape>
+
+    <shape type="sphere">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="0.1" y="0.1" z="0.1"/>
+			<translate value="0, 2, 2"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="0, 200, 0" />
+		</emitter>
+    </shape>
+
+    <shape type="sphere">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+		<transform name="to_world">
+			<scale x="0.1" y="0.1" z="0.1"/>
+			<translate value="0, 2, -2"/>
+		</transform>
+		
+		<emitter type="area">
+			<rgb name="radiance" value="200, 200, 0" />
+		</emitter>
+    </shape>
+
+	<shape type="sphere" id="s1">
+		<transform name="to_world">
+			<translate value="-3, 0, 0"/>
+		</transform>
+		<ref id="BSDF1"/>
+	</shape>
+
+	<shape type="cube" id="s2">
+		<transform name="to_world">
+			<translate value="1, 0, -1"/>
+            <rotate value="1,0,1" angle="45" />
+			<scale x="0.5" y="0.5" z="0.5"/>
+		</transform>
+		<ref id="BSDF1"/>
+	</shape>
+
+	<shape type="rectangle" id="Floor">
+		<transform name="to_world">
+			<scale x="100" y="100"/>
+			<rotate x="1" angle="-90"/>
+			<translate value="0, -1, 0"/>
+		</transform>
+		<ref id="FloorBSDF" />
+	</shape>
+
+</scene>
