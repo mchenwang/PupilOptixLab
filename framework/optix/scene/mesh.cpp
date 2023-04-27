@@ -4,6 +4,8 @@
 
 #include "cuda/util.h"
 
+#include <optix_stubs.h>
+
 using namespace Pupil::optix;
 
 namespace {
