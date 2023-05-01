@@ -14,6 +14,7 @@ struct Module {
     ~Module() noexcept;
 
     OptixModule optix_module = nullptr;
+    operator OptixModule() const noexcept { return optix_module; }
 };
 
 class ModuleManager : public Pupil::util::Singleton<ModuleManager> {
