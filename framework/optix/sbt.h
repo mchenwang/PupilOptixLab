@@ -17,168 +17,105 @@ struct alignas(OPTIX_SBT_RECORD_ALIGNMENT) Record {
 };
 
 template<typename T>
-struct RecordTraits {};
-
-template<typename T>
-struct RecordTraits<Record<T>> {
-    using Type = T;
-};
-template<>
-struct RecordTraits<void> {
-    using Type = void;
-};
-
-template<typename T>
-concept RecordType = requires { RecordTraits<T>::Type; };
-
-template<typename T>
 concept SBTTypes =
     requires {
         typename T::RayGenDataType;
         typename T::MissDataType;
         typename T::HitGroupDataType;
+        typename T::CallablesDataType;
+        typename T::ExceptionDataType;
     };
+
+struct EmptyData {};
+
+struct EmptySBT {
+    using RayGenDataType = EmptyData;
+    using MissDataType = EmptyData;
+    using HitGroupDataType = EmptyData;
+    using CallablesDataType = EmptyData;
+    using ExceptionDataType = EmptyData;
+};
+
+template<typename T, typename U>
+struct ProgDataPair {
+    using DataType = U;
+    T program;
+    DataType data;
+};
+
+template<typename T>
+struct ProgDataPair<T, void> {
+    using DataType = EmptyData;
+    T program;
+    DataType data;
+};
+
+template<typename U>
+using ProgDataDescPair = ProgDataPair<std::string, U>;
+template<typename U>
+using ProgDataBindingPair = ProgDataPair<OptixProgramGroup, U>;
 
 template<SBTTypes T>
 struct SBTDesc {
-    template<typename U>
-    struct Pair {
-        std::string program_name;
-        U data;
-    };
-    Pair<typename T::RayGenDataType> ray_gen_data;
-    std::vector<Pair<typename T::MissDataType>> miss_datas;
-    std::vector<Pair<typename T::HitGroupDataType>> hit_datas;
+    ProgDataDescPair<typename T::RayGenDataType> ray_gen_data;
+    std::vector<ProgDataDescPair<typename T::MissDataType>> miss_datas;
+    std::vector<ProgDataDescPair<typename T::HitGroupDataType>> hit_datas;
+    std::vector<ProgDataDescPair<typename T::CallablesDataType>> callables_datas;
+    ProgDataDescPair<typename T::ExceptionDataType> exception_data;
 };
 
 template<typename U>
 struct BindingInfo {
-    struct Pair {
-        OptixProgramGroup program;
-        U data;
-    };
-    std::vector<Pair> datas;
+    using BindingPair = ProgDataBindingPair<U>;
+    std::vector<BindingPair> datas;
 };
 
 template<SBTTypes T>
 struct SBT {
 private:
-    CUdeviceptr ray_gen_sbt = 0;
-    CUdeviceptr miss_sbt = 0;
-    CUdeviceptr hitgroup_sbt = 0;
+    CUdeviceptr m_ray_gen_record = 0;
+    CUdeviceptr m_miss_record = 0;
+    CUdeviceptr m_hitgroup_record = 0;
+    CUdeviceptr m_callables_record = 0;
+    CUdeviceptr m_exception_record = 0;
 
 public:
     OptixShaderBindingTable sbt{};
 
-    SBT()
+    SBT(const SBTDesc<T> &desc, const Pipeline *pipeline)
     noexcept;
 
-    void SetRayGenData(BindingInfo<typename T::RayGenDataType> binding_info) noexcept;
-    void SetMissData(BindingInfo<typename T::MissDataType> binding_info) noexcept;
-    void SetHitGroupData(BindingInfo<typename T::HitGroupDataType> binding_info) noexcept;
+    using RayGenBindingType = BindingInfo<typename T::RayGenDataType>;
+    using MissBindingType = BindingInfo<typename T::MissDataType>;
+    using HitGroupBindingType = BindingInfo<typename T::HitGroupDataType>;
+    using CallablesBindingType = BindingInfo<typename T::CallablesDataType>;
+    using ExceptionBindingType = BindingInfo<typename T::ExceptionDataType>;
+
+    using RayGenDataRecord = Record<typename RayGenBindingType::BindingPair::DataType>;
+    using MissDataRecord = Record<typename MissBindingType::BindingPair::DataType>;
+    using HitGroupDataRecord = Record<typename HitGroupBindingType::BindingPair::DataType>;
+    using CallablesDataRecord = Record<typename CallablesBindingType::BindingPair::DataType>;
+    using ExceptionDataRecord = Record<typename ExceptionBindingType::BindingPair::DataType>;
+
+    void SetRayGenData(const RayGenBindingType &binding_info) noexcept;
+    void SetMissData(const MissBindingType &binding_info) noexcept;
+    void SetHitGroupData(const HitGroupBindingType &binding_info) noexcept;
+    void SetCallablesData(const CallablesBindingType &binding_info) noexcept;
+    void SetExceptionData(const ExceptionBindingType &binding_info) noexcept;
+
+    void UpdateRayGenRecord(const RayGenDataRecord &record) noexcept;
+    void UpdateMissRecord(const MissDataRecord &record, unsigned int offset) noexcept;
+    void UpdateHitGroupRecord(const HitGroupDataRecord &record, unsigned int offset) noexcept;
+    void UpdateCallablesRecord(const CallablesDataRecord &record, unsigned int offset) noexcept;
+    void UpdateExceptionRecord(const ExceptionDataRecord &record) noexcept;
+
+    void UpdateMissRecords(const MissDataRecord *records, unsigned int cnt, unsigned int offset) noexcept;
+    void UpdateHitGroupRecords(const HitGroupDataRecord *records, unsigned int cnt, unsigned int offset) noexcept;
+    void UpdateCallablesRecords(const CallablesDataRecord *records, unsigned int cnt, unsigned int offset) noexcept;
 
     ~SBT() noexcept;
 };
 
 }// namespace Pupil::optix
 
-// implement
-#include "optix_stubs.h"
-
-namespace Pupil::optix {
-template<SBTTypes T>
-SBT<T>::SBT() noexcept {
-}
-
-template<SBTTypes T>
-void SBT<T>::SetRayGenData(BindingInfo<typename T::RayGenDataType> binding_info) noexcept {
-    if constexpr (std::is_void_v<typename T::RayGenDataType>)
-        return;
-    else {
-        using RayGenDataRecord = Record<typename T::RayGenDataType>;
-        constexpr auto size = sizeof(RayGenDataRecord);
-
-        if (ray_gen_sbt) CUDA_FREE(ray_gen_sbt);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ray_gen_sbt), size));
-        RayGenDataRecord record{};
-
-        OPTIX_CHECK(optixSbtRecordPackHeader(binding_info.datas[0].program, &record));
-        record.data = binding_info.datas[0].data;
-        CUDA_CHECK(cudaMemcpy(
-            reinterpret_cast<void *>(ray_gen_sbt),
-            &record,
-            size,
-            cudaMemcpyHostToDevice));
-        sbt.raygenRecord = ray_gen_sbt;
-    }
-}
-
-template<SBTTypes T>
-void SBT<T>::SetMissData(BindingInfo<typename T::MissDataType> binding_info) noexcept {
-    if constexpr (std::is_void_v<typename T::MissDataType>)
-        return;
-    else {
-        using MissDataRecord = Record<typename T::MissDataType>;
-        const auto size = sizeof(MissDataRecord) * binding_info.datas.size();
-
-        if (miss_sbt) CUDA_FREE(miss_sbt);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&miss_sbt), size));
-
-        std::vector<MissDataRecord> ms_data;
-        for (auto &[program, data] : binding_info.datas) {
-            MissDataRecord record{};
-            ms_data.push_back(record);
-            OPTIX_CHECK(optixSbtRecordPackHeader(program, &ms_data.back()));
-            ms_data.back().data = data;
-        }
-
-        CUDA_CHECK(cudaMemcpy(
-            reinterpret_cast<void *>(miss_sbt),
-            ms_data.data(),
-            size,
-            cudaMemcpyHostToDevice));
-
-        sbt.missRecordBase = miss_sbt;
-        sbt.missRecordCount = static_cast<unsigned int>(binding_info.datas.size());
-        sbt.missRecordStrideInBytes = sizeof(MissDataRecord);
-    }
-}
-
-template<SBTTypes T>
-void SBT<T>::SetHitGroupData(BindingInfo<typename T::HitGroupDataType> binding_info) noexcept {
-    if constexpr (std::is_void_v<typename T::HitGroupDataType>)
-        return;
-    else {
-        using HitGroupDataRecord = Record<typename T::HitGroupDataType>;
-        const auto size = sizeof(HitGroupDataRecord) * binding_info.datas.size();
-
-        if (hitgroup_sbt) CUDA_FREE(hitgroup_sbt);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&hitgroup_sbt), size));
-
-        std::vector<HitGroupDataRecord> hit_data;
-        for (auto &[program, data] : binding_info.datas) {
-            HitGroupDataRecord record{};
-            hit_data.push_back(record);
-            OPTIX_CHECK(optixSbtRecordPackHeader(program, &hit_data.back()));
-            hit_data.back().data = data;
-        }
-
-        CUDA_CHECK(cudaMemcpy(
-            reinterpret_cast<void *>(hitgroup_sbt),
-            hit_data.data(),
-            size,
-            cudaMemcpyHostToDevice));
-
-        sbt.hitgroupRecordBase = hitgroup_sbt;
-        sbt.hitgroupRecordCount = static_cast<unsigned int>(binding_info.datas.size());
-        sbt.hitgroupRecordStrideInBytes = sizeof(HitGroupDataRecord);
-    }
-}
-
-template<SBTTypes T>
-SBT<T>::~SBT() noexcept {
-    CUDA_FREE(sbt.raygenRecord);
-    CUDA_FREE(sbt.missRecordBase);
-    CUDA_FREE(sbt.hitgroupRecordBase);
-}
-}// namespace Pupil::optix
+#include "sbt.inl"

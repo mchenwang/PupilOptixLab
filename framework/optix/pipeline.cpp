@@ -204,10 +204,10 @@ Pipeline::~Pipeline() noexcept {
     }
 }
 
-OptixProgramGroup Pupil::optix::Pipeline::FindProgram(std::string name) noexcept {
+OptixProgramGroup Pupil::optix::Pipeline::FindProgram(std::string name) const noexcept {
     if (m_program_map.find(name) == m_program_map.end())
         return nullptr;
     else
-        return m_program_map[name];
+        return m_program_map.at(name);
 }
 }// namespace Pupil::optix

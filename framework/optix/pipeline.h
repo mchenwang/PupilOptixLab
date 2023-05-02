@@ -8,19 +8,6 @@
 namespace Pupil::optix {
 struct Module;
 
-// struct ProgramDesc {
-//     Module *module_ptr = nullptr;
-//     const char *ray_gen_entry = nullptr;
-//     const char *hit_miss = nullptr;
-//     const char *shadow_miss = nullptr;
-//     struct {
-//         const char *ch_entry = nullptr;
-//         const char *ah_entry = nullptr;
-//         Module *intersect_module = nullptr;// use for builtin type
-//         const char *is_entry = nullptr;
-//     } hit_group, shadow_grop;
-// };
-
 // The implementation of pipeline should be constrained in the same module,
 // while builtin intersection module can be separated
 struct RayTraceProgramDesc {
@@ -67,8 +54,8 @@ public:
     Pipeline(const PipelineDesc &desc) noexcept;
     ~Pipeline() noexcept;
 
-    std::string_view GetRayGenProgramName() noexcept { return m_ray_gen_program_name; }
-    OptixProgramGroup GetRayGenProgram() noexcept { return m_ray_gen_program; }
-    OptixProgramGroup FindProgram(std::string) noexcept;
+    std::string_view GetRayGenProgramName() const noexcept { return m_ray_gen_program_name; }
+    OptixProgramGroup GetRayGenProgram() const noexcept { return m_ray_gen_program; }
+    OptixProgramGroup FindProgram(std::string) const noexcept;
 };
 }// namespace Pupil::optix
