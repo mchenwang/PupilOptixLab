@@ -109,22 +109,22 @@ void Material::LoadMaterial(::material::Material mat) noexcept {
     type = mat.type;
     twosided = mat.twosided;
     switch (type) {
-        case EMatType::_diffuse:
+        case EMatType::Diffuse:
             diffuse = ::LoadMaterial(mat.diffuse);
             break;
-        case EMatType::_dielectric:
+        case EMatType::Dielectric:
             dielectric = ::LoadMaterial(mat.dielectric);
             break;
-        case EMatType::_conductor:
+        case EMatType::Conductor:
             conductor = ::LoadMaterial(mat.conductor);
             break;
-        case EMatType::_roughconductor:
+        case EMatType::RoughConductor:
             rough_conductor = ::LoadMaterial(mat.rough_conductor);
             break;
-        case EMatType::_plastic:
+        case EMatType::Plastic:
             plastic = ::LoadMaterial(mat.plastic);
             break;
-        case EMatType::_roughplastic:
+        case EMatType::RoughPlastic:
             rough_plastic = ::LoadMaterial(mat.rough_plastic);
             break;
 
