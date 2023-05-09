@@ -11,11 +11,11 @@ struct Conductor {
     cuda::Texture k;
     cuda::Texture specular_reflectance;
 
-    CUDA_HOSTDEVICE float3 GetBsdf() const noexcept {
+    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
         return make_float3(0.f);
     }
 
-    CUDA_HOSTDEVICE float GetPdf() const noexcept {
+    CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
         return 0.f;
     }
 

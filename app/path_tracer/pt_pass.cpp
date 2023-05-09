@@ -63,33 +63,53 @@ void PTPass::Run() noexcept {
 void PTPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
 
-    auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
+    auto sphere_module = module_mngr->GetModule(optix::EModuleBuiltinType::SpherePrimitive);
     auto pt_module = module_mngr->GetModule(embedded_ptx_code);
 
     optix::PipelineDesc pipeline_desc;
     {
         // for mesh(triangle) geo
-        optix::ProgramDesc desc{
+        optix::RayTraceProgramDesc forward_ray_desc{
             .module_ptr = pt_module,
             .ray_gen_entry = "__raygen__main",
-            .hit_miss = "__miss__default",
-            .shadow_miss = "__miss__shadow",
+            .miss_entry = "__miss__default",
             .hit_group = { .ch_entry = "__closesthit__default" },
-            .shadow_grop = { .ch_entry = "__closesthit__shadow" }
         };
-        pipeline_desc.programs.push_back(desc);
+        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
+        optix::RayTraceProgramDesc shadow_ray_desc{
+            .module_ptr = pt_module,
+            .miss_entry = "__miss__shadow",
+            .hit_group = { .ch_entry = "__closesthit__shadow" },
+        };
+        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
     }
 
     {
         // for sphere geo
-        optix::ProgramDesc desc{
+        optix::RayTraceProgramDesc forward_ray_desc{
             .module_ptr = pt_module,
             .hit_group = { .ch_entry = "__closesthit__default",
                            .intersect_module = sphere_module },
-            .shadow_grop = { .ch_entry = "__closesthit__shadow",
-                             .intersect_module = sphere_module }
         };
-        pipeline_desc.programs.push_back(desc);
+        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
+        optix::RayTraceProgramDesc shadow_ray_desc{
+            .module_ptr = pt_module,
+            .hit_group = { .ch_entry = "__closesthit__shadow",
+                           .intersect_module = sphere_module },
+        };
+        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    }
+    {
+        // optix::CallableProgramDesc desc{
+        //     .module_ptr = pt_module,
+        //     .cc_entry = nullptr,
+        //     .dc_entry = "__direct_callable__diffuse_sample",
+        // };
+        // pipeline_desc.callable_programs.push_back(desc);
+        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        pipeline_desc.callable_programs.insert(
+            pipeline_desc.callable_programs.end(),
+            mat_programs.begin(), mat_programs.end());
     }
     m_optix_pass->InitPipeline(pipeline_desc);
 }
@@ -131,15 +151,14 @@ void PTPass::SetScene(World *world) noexcept {
 void PTPass::SetSBT(scene::Scene *scene) noexcept {
     optix::SBTDesc<SBTTypes> desc{};
     desc.ray_gen_data = {
-        .program_name = "__raygen__main",
-        .data = SBTTypes::RayGenDataType{}
+        .program = "__raygen__main"
     };
     {
         int emitter_index_offset = 0;
-        using HitGroupDataRecord = decltype(desc)::Pair<SBTTypes::HitGroupDataType>;
+        using HitGroupDataRecord = optix::ProgDataDescPair<SBTTypes::HitGroupDataType>;
         for (auto &&shape : scene->shapes) {
             HitGroupDataRecord hit_default_data{};
-            hit_default_data.program_name = "__closesthit__default";
+            hit_default_data.program = "__closesthit__default";
             hit_default_data.data.mat.LoadMaterial(shape.mat);
             hit_default_data.data.geo.LoadGeometry(shape);
             if (shape.is_emitter) {
@@ -150,22 +169,37 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
             desc.hit_datas.push_back(hit_default_data);
 
             HitGroupDataRecord hit_shadow_data{};
-            hit_shadow_data.program_name = "__closesthit__shadow";
+            hit_shadow_data.program = "__closesthit__shadow";
             hit_shadow_data.data.mat.type = shape.mat.type;
             desc.hit_datas.push_back(hit_shadow_data);
         }
     }
     {
-        decltype(desc)::Pair<SBTTypes::MissDataType> miss_data = {
-            .program_name = "__miss__default",
-            .data = SBTTypes::MissDataType{}
+        optix::ProgDataDescPair<SBTTypes::MissDataType> miss_data = {
+            .program = "__miss__default"
         };
         desc.miss_datas.push_back(miss_data);
-        decltype(desc)::Pair<SBTTypes::MissDataType> miss_shadow_data = {
-            .program_name = "__miss__shadow",
-            .data = SBTTypes::MissDataType{}
+        optix::ProgDataDescPair<SBTTypes::MissDataType> miss_shadow_data = {
+            .program = "__miss__shadow"
         };
         desc.miss_datas.push_back(miss_shadow_data);
+    }
+    {
+        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        for (auto &mat_prog : mat_programs) {
+            if (mat_prog.cc_entry) {
+                optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {
+                    .program = mat_prog.cc_entry
+                };
+                desc.callables_datas.push_back(cc_data);
+            }
+            if (mat_prog.dc_entry) {
+                optix::ProgDataDescPair<SBTTypes::CallablesDataType> dc_data = {
+                    .program = mat_prog.dc_entry
+                };
+                desc.callables_datas.push_back(dc_data);
+            }
+        }
     }
     m_optix_pass->InitSBT(desc);
 }

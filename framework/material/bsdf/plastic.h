@@ -29,7 +29,7 @@ struct Plastic {
         float fresnel_i = fresnel::DielectricReflectance(eta, wi.z);
         float fresnel_o = fresnel::DielectricReflectance(eta, wo.z);
 
-        float3 local_albedo = specular_reflectance.Sample(tex);
+        float3 local_albedo = diffuse_reflectance.Sample(tex);
         float3 diffuse_contribution = local_albedo * (1.f - fresnel_o) * (1.f - fresnel_i) *
                                       (1.f / (eta * eta)) * M_1_PIf;
         // float fdr_int = fresnel::DiffuseReflectance(1.f / eta);

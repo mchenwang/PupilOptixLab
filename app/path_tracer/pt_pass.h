@@ -17,9 +17,7 @@
 #include <mutex>
 
 namespace Pupil::pt {
-struct SBTTypes {
-    using RayGenDataType = Pupil::pt::RayGenData;
-    using MissDataType = Pupil::pt::MissData;
+struct SBTTypes : public optix::EmptySBT {
     using HitGroupDataType = Pupil::pt::HitGroupData;
 };
 

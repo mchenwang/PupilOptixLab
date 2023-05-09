@@ -14,7 +14,23 @@
 
 namespace {
 void ContextLogCB(unsigned int level, const char *tag, const char *message, void * /*cbdata */) {
-    Pupil::Log::Info("OPTIX    [{:2}][{:12}]: {}", level, tag, message);
+    switch (level) {
+        case 1:// fatal
+            Pupil::Log::Error("OPTIX [{}][{}]: {}", level, tag, message);
+            break;
+        case 2:// error
+            Pupil::Log::Error("OPTIX [{}][{}]: {}", level, tag, message);
+            break;
+        case 3:// warning
+            Pupil::Log::Warn("OPTIX [{}][{}]: {}", level, tag, message);
+            break;
+        case 4:// print
+            Pupil::Log::Info("OPTIX [{}][{}]: {}", level, tag, message);
+            break;
+        default:
+            Pupil::Log::Error("OPTIX [{}][{}]: {}", level, tag, message);
+            break;
+    }
 }
 }// namespace
 

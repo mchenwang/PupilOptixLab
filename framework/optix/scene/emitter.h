@@ -23,6 +23,8 @@ struct Emitter {
     EEmitterType type CONST_STATIC_INIT(EEmitterType::None);
     float select_probability;
 
+    constexpr static unsigned int S_DC_SBT_OFFSET = 2 * 6;
+
     union {
         TriAreaEmitter area;
         SphereEmitter sphere;
@@ -32,20 +34,19 @@ struct Emitter {
 
     CUDA_HOSTDEVICE Emitter() noexcept {}
 
-    CUDA_HOSTDEVICE EmitEvalRecord Eval(LocalGeometry emit_local_geo, float3 scatter_pos) const noexcept {
-        EmitEvalRecord ret;
+#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+    CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
-                ret = area.Eval(emit_local_geo, scatter_pos);
+                area.Eval(ret, emit_local_geo, scatter_pos);
                 break;
             case EEmitterType::Sphere:
-                ret = sphere.Eval(emit_local_geo, scatter_pos);
+                sphere.Eval(ret, emit_local_geo, scatter_pos);
                 break;
             case EEmitterType::ConstEnv:
-                ret = const_env.Eval(emit_local_geo, scatter_pos);
+                const_env.Eval(ret, emit_local_geo, scatter_pos);
                 break;
         }
-        return ret;
     }
 
     CUDA_HOSTDEVICE float3 GetRadiance(float2 tex) const noexcept {
@@ -64,23 +65,20 @@ struct Emitter {
         return ret;
     }
 
-    CUDA_HOSTDEVICE EmitterSampleRecord SampleDirect(LocalGeometry hit_geo, float2 xi) const noexcept {
-        EmitterSampleRecord ret;
+    CUDA_HOSTDEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
-                ret = area.SampleDirect(hit_geo, xi);
+                area.SampleDirect(ret, hit_geo, xi);
                 break;
             case EEmitterType::Sphere:
-                ret = sphere.SampleDirect(hit_geo, xi);
+                sphere.SampleDirect(ret, hit_geo, xi);
                 break;
             case EEmitterType::ConstEnv:
-                ret = const_env.SampleDirect(hit_geo, xi);
+                const_env.SampleDirect(ret, hit_geo, xi);
                 break;
         }
-        return ret;
     }
 
-#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
     CUDA_HOSTDEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
                                                float3 ray_o, float3 ray_dir,
                                                float t_min, float t_max) noexcept {

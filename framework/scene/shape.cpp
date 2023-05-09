@@ -242,7 +242,7 @@ Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
 
     Shape shape;
     shape.type = EShapeType::_obj;
-    shape.mat.type = material::EMatType::_unknown;
+    shape.mat.type = material::EMatType::Unknown;
     shape.obj.face_normals = false;
     shape.obj.flip_tex_coords = true;
     shape.obj.flip_normals = false;
@@ -260,7 +260,7 @@ Shape ShapeDataManager::GetShape(std::string_view id) noexcept {
 Shape ShapeDataManager::GetSphere(float r, util::Float3 c, bool flip_normals) noexcept {
     Shape shape;
     shape.type = EShapeType::_sphere;
-    shape.mat.type = material::EMatType::_unknown;
+    shape.mat.type = material::EMatType::Unknown;
     shape.sphere.center = c;
     shape.sphere.radius = r;
     shape.sphere.flip_normals = flip_normals;
@@ -275,7 +275,7 @@ Shape ShapeDataManager::GetSphere(float r, util::Float3 c, bool flip_normals) no
 Shape ShapeDataManager::GetCube(bool flip_normals) noexcept {
     Shape shape;
     shape.type = EShapeType::_cube;
-    shape.mat.type = material::EMatType::_unknown;
+    shape.mat.type = material::EMatType::Unknown;
     shape.cube.flip_normals = flip_normals;
     shape.cube.vertex_num = 24;
     shape.cube.face_num = 12;
@@ -291,7 +291,7 @@ Shape ShapeDataManager::GetCube(bool flip_normals) noexcept {
 Shape ShapeDataManager::GetRectangle(bool flip_normals) noexcept {
     Shape shape;
     shape.type = EShapeType::_rectangle;
-    shape.mat.type = material::EMatType::_unknown;
+    shape.mat.type = material::EMatType::Unknown;
     shape.rect.flip_normals = flip_normals;
     shape.rect.vertex_num = 4;
     shape.rect.face_num = 2;

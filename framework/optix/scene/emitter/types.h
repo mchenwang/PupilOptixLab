@@ -4,13 +4,13 @@
 #include "cuda/texture.h"
 
 namespace Pupil::optix {
-enum class EEmitterType {
+enum class EEmitterType : unsigned int {
     None,
     TriArea,
     Sphere,
-    // Point,
+    ConstEnv,
     EnvMap,
-    ConstEnv
+    // Point,
 };
 
 struct EmitterSampleRecord {
@@ -20,7 +20,7 @@ struct EmitterSampleRecord {
     float3 normal;
 
     float distance;
-    float pdf;
+    float pdf = 0.f;
     bool is_delta;
 };
 struct EmitEvalRecord {

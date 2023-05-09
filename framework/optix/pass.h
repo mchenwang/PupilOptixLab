@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sbt.h"
 #include "pipeline.h"
+#include "sbt.h"
 
 #include <memory>
 
@@ -28,48 +28,11 @@ public:
     }
 
     void InitPipeline(const PipelineDesc &desc) noexcept {
-        m_pipeline = std::make_unique<Pipeline>(m_device_context, desc);
+        m_pipeline = std::make_unique<Pipeline>(desc);
     }
 
     void InitSBT(const SBTDesc<T> &desc) noexcept {
-        m_sbt = std::make_unique<SBT<T>>();
-        {
-            BindingInfo<typename T::RayGenDataType> rg_data;
-            typename decltype(rg_data)::Pair data{
-                .program = m_pipeline->FindProgram(desc.ray_gen_data.program_name),
-                .data = desc.ray_gen_data.data
-            };
-            rg_data.datas.push_back(data);
-            m_sbt->SetRayGenData(rg_data);
-        }
-        if (desc.hit_datas.size() > 0) {
-            BindingInfo<typename T::HitGroupDataType> hit_datas{};
-            for (auto &hit_data : desc.hit_datas) {
-                typename decltype(hit_datas)::Pair data{
-                    .program = m_pipeline->FindProgram(hit_data.program_name),
-                    .data = hit_data.data
-                };
-                hit_datas.datas.push_back(data);
-            }
-            m_sbt->SetHitGroupData(hit_datas);
-        }
-
-        if (desc.miss_datas.size() > 0) {
-            BindingInfo<typename T::MissDataType> miss_datas{};
-            for (auto &miss_data : desc.miss_datas) {
-                typename decltype(miss_datas)::Pair data{
-                    .program = m_pipeline->FindProgram(miss_data.program_name),
-                    .data = miss_data.data
-                };
-                miss_datas.datas.push_back(data);
-            }
-            m_sbt->SetMissData(miss_datas);
-        } else {
-            BindingInfo<typename T::MissDataType> miss_datas{};
-            typename decltype(miss_datas)::Pair data{ .program = nullptr };
-            miss_datas.datas.push_back(data);
-            m_sbt->SetMissData(miss_datas);
-        }
+        m_sbt = std::make_unique<SBT<T>>(desc, m_pipeline.get());
     }
 
     void Run(const LaunchParamT &params, const unsigned int launch_w, const unsigned int launch_h) noexcept {
