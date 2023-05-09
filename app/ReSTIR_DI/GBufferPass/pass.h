@@ -10,9 +10,7 @@
 
 #include "type.h"
 
-struct GBufferPassSBTType {
-    using RayGenDataType = GBufferPassRayGenData;
-    using MissDataType = GBufferPassMissData;
+struct GBufferPassSBTType : public Pupil::optix::EmptySBT {
     using HitGroupDataType = GBufferPassHitGroupData;
 };
 

@@ -114,8 +114,7 @@ void TemporalReusePass::SetScene(Pupil::World *world) noexcept {
     {
         optix::SBTDesc<TemporalReusePassSBTType> desc{};
         desc.ray_gen_data = {
-            .program_name = "__raygen__main",
-            .data = TemporalReusePassSBTType::RayGenDataType{}
+            .program = "__raygen__main",
         };
         m_optix_pass->InitSBT(desc);
     }
@@ -129,11 +128,11 @@ void TemporalReusePass::InitOptixPipeline() noexcept {
 
     optix::PipelineDesc pipeline_desc;
     {
-        optix::ProgramDesc desc{
+        optix::RayTraceProgramDesc desc{
             .module_ptr = rt_module,
             .ray_gen_entry = "__raygen__main"
         };
-        pipeline_desc.programs.push_back(desc);
+        pipeline_desc.ray_trace_programs.push_back(desc);
     }
     m_optix_pass->InitPipeline(pipeline_desc);
 }

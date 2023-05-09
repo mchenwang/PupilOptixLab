@@ -34,8 +34,6 @@ struct GBufferPassLaunchParams {
     Pupil::cuda::RWArrayView<Reservoir> reservoirs;// memset with 0 on cpu
 };
 
-struct GBufferPassRayGenData {};
-struct GBufferPassMissData {};
 struct GBufferPassHitGroupData {
     Pupil::optix::material::Material mat;
     Pupil::optix::Geometry geo;

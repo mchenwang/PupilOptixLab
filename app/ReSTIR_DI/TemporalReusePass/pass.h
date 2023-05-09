@@ -9,10 +9,7 @@
 
 #include "type.h"
 
-struct TemporalReusePassSBTType {
-    using RayGenDataType = TemporalReusePassRayGenData;
-    using MissDataType = TemporalReusePassMissData;
-    using HitGroupDataType = TemporalReusePassHitGroupData;
+struct TemporalReusePassSBTType : public Pupil::optix::EmptySBT {
 };
 
 class TemporalReusePass : public Pupil::Pass {

@@ -23,7 +23,3 @@ struct ShadowRayPassLaunchParams {
 
     Pupil::cuda::RWArrayView<float4> frame_buffer;
 };
-
-struct ShadowRayPassRayGenData {};
-struct ShadowRayPassMissData {};
-struct ShadowRayPassHitGroupData {};

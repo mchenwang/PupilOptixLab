@@ -101,6 +101,9 @@ void SBT<T>::SetMissData(const MissBindingType &binding_info) noexcept {
                 size,
                 cudaMemcpyHostToDevice));
         record_cnt = static_cast<unsigned int>(ms_data.size());
+    } else {
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_miss_record), sizeof(MissDataRecord)));
+        record_cnt = 1;
     }
     sbt.missRecordBase = m_miss_record;
     sbt.missRecordCount = record_cnt;

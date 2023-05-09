@@ -10,10 +10,7 @@
 
 #include "type.h"
 
-struct ShadingPassSBTType {
-    using RayGenDataType = ShadingPassRayGenData;
-    using MissDataType = ShadingPassMissData;
-    using HitGroupDataType = ShadingPassHitGroupData;
+struct ShadingPassSBTType : public Pupil::optix::EmptySBT {
 };
 
 class ShadingPass : public Pupil::Pass {

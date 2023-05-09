@@ -87,7 +87,8 @@ extern "C" __global__ void __closesthit__default() {
 
     const auto ray_dir = optixGetWorldRayDirection();
 
-    auto geo = sbt_data->geo.GetHitLocalGeometry(ray_dir, sbt_data->mat.twosided);
+    optix::LocalGeometry geo;
+    sbt_data->geo.GetHitLocalGeometry(geo, ray_dir, sbt_data->mat.twosided);
     record->color = sbt_data->mat.GetColor(geo.texcoord);
     record->normal = geo.normal;
     record->pos = geo.position;
@@ -107,7 +108,8 @@ extern "C" __global__ void __closesthit__default() {
 
     for (unsigned int i = 0u; i < 32; i++) {
         auto &emitter = optix_launch_params.emitters.SelectOneEmiiter(record->random.Next());
-        auto emitter_sample_record = emitter.SampleDirect(geo, record->random.Next2());
+        optix::EmitterSampleRecord emitter_sample_record;
+        emitter.SampleDirect(emitter_sample_record, geo, record->random.Next2());
 
         Reservoir::Sample x_i;
         x_i.pos = emitter_sample_record.pos;

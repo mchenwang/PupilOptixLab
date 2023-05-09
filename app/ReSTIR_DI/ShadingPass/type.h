@@ -23,7 +23,3 @@ struct ShadingPassLaunchParams {
 
     Pupil::cuda::RWArrayView<float4> frame_buffer;
 };
-
-struct ShadingPassRayGenData {};
-struct ShadingPassMissData {};
-struct ShadingPassHitGroupData {};

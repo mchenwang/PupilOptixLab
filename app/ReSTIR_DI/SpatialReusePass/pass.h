@@ -9,10 +9,7 @@
 
 #include "type.h"
 
-struct SpatialReusePassSBTType {
-    using RayGenDataType = SpatialReusePassRayGenData;
-    using MissDataType = SpatialReusePassMissData;
-    using HitGroupDataType = SpatialReusePassHitGroupData;
+struct SpatialReusePassSBTType : public Pupil::optix::EmptySBT {
 };
 
 class SpatialReusePass : public Pupil::Pass {

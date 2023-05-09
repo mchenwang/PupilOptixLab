@@ -26,7 +26,3 @@ struct SpatialReusePassLaunchParams {
     Pupil::cuda::ConstArrayView<Reservoir> reservoirs;
     Pupil::cuda::RWArrayView<Reservoir> final_reservoirs;
 };
-
-struct SpatialReusePassRayGenData {};
-struct SpatialReusePassMissData {};
-struct SpatialReusePassHitGroupData {};

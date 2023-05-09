@@ -24,7 +24,3 @@ struct TemporalReusePassLaunchParams {
         mat4x4 prev_proj_view;
     } camera;
 };
-
-struct TemporalReusePassRayGenData {};
-struct TemporalReusePassMissData {};
-struct TemporalReusePassHitGroupData {};

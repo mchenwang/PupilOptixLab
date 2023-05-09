@@ -74,23 +74,21 @@ void ShadingPass::SetScene(Pupil::World *world) noexcept {
     {
         optix::SBTDesc<ShadingPassSBTType> desc{};
         desc.ray_gen_data = {
-            .program_name = "__raygen__main",
-            .data = ShadingPassSBTType::RayGenDataType{}
+            .program = "__raygen__main",
         };
         {
-            using HitGroupDataRecord = decltype(desc)::Pair<ShadingPassSBTType::HitGroupDataType>;
+            using HitGroupDataRecord = optix::ProgDataDescPair<ShadingPassSBTType::HitGroupDataType>;
             for (auto &&shape : world->scene->shapes) {
                 HitGroupDataRecord hit_default_data{};
-                hit_default_data.program_name = "__closesthit__default";
+                hit_default_data.program = "__closesthit__default";
 
                 desc.hit_datas.push_back(hit_default_data);
                 desc.hit_datas.push_back(hit_default_data);
             }
         }
         {
-            decltype(desc)::Pair<ShadingPassSBTType::MissDataType> miss_data = {
-                .program_name = "__miss__default",
-                .data = ShadingPassSBTType::MissDataType{}
+            optix::ProgDataDescPair<ShadingPassSBTType::MissDataType> miss_data = {
+                .program = "__miss__default"
             };
             desc.miss_datas.push_back(miss_data);
             desc.miss_datas.push_back(miss_data);
@@ -102,29 +100,35 @@ void ShadingPass::SetScene(Pupil::World *world) noexcept {
 void ShadingPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
     auto rt_module = module_mngr->GetModule(g_restir_di_shading_ptx);
-    auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
+    auto sphere_module = module_mngr->GetModule(optix::EModuleBuiltinType::SpherePrimitive);
 
     optix::PipelineDesc pipeline_desc;
     {
         // for mesh(triangle) geo
-        optix::ProgramDesc desc{
+        optix::RayTraceProgramDesc desc{
             .module_ptr = rt_module,
             .ray_gen_entry = "__raygen__main",
-            .hit_miss = "__miss__default",
+            .miss_entry = "__miss__default",
             .hit_group = { .ch_entry = "__closesthit__default" },
         };
-        pipeline_desc.programs.push_back(desc);
+        pipeline_desc.ray_trace_programs.push_back(desc);
     }
 
     {
         // for sphere geo
-        optix::ProgramDesc desc{
+        optix::RayTraceProgramDesc desc{
             .module_ptr = rt_module,
             .hit_group = { .ch_entry = "__closesthit__default",
                            .intersect_module = sphere_module },
         };
-        pipeline_desc.programs.push_back(desc);
+        pipeline_desc.ray_trace_programs.push_back(desc);
     }
+    // {
+    //     auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+    //     pipeline_desc.callable_programs.insert(
+    //         pipeline_desc.callable_programs.end(),
+    //         mat_programs.begin(), mat_programs.end());
+    // }
     m_optix_pass->InitPipeline(pipeline_desc);
 }
 
