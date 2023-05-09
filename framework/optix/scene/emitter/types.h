@@ -4,13 +4,13 @@
 #include "cuda/texture.h"
 
 namespace Pupil::optix {
-enum class EEmitterType {
+enum class EEmitterType : unsigned int {
     None,
     TriArea,
     Sphere,
-    // Point,
+    ConstEnv,
     EnvMap,
-    ConstEnv
+    // Point,
 };
 
 struct EmitterSampleRecord {

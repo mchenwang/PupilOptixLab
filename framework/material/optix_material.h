@@ -43,62 +43,14 @@ struct Material {
         return make_float3(0.f);
     }
 
-    CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 tex) const noexcept {
-       /* return optixDirectCall<BsdfSampleRecord, Material &, float2, float3, float2>(
-            (unsigned int)type, *this, xi, wo, tex);*/
-         BsdfSampleRecord ret;
-         switch (type) {
-             case EMatType::Diffuse:
-                 ret = diffuse.Sample(xi, wo, tex);
-                 break;
-             case EMatType::Dielectric:
-                 ret = dielectric.Sample(xi, wo, tex);
-                 break;
-             case EMatType::Conductor:
-                 ret = conductor.Sample(xi, wo, tex);
-                 break;
-             case EMatType::RoughConductor:
-                 ret = rough_conductor.Sample(xi, wo, tex);
-                 break;
-             case EMatType::Plastic:
-                 ret = plastic.Sample(xi, wo, tex);
-                 break;
-             case EMatType::RoughPlastic:
-                 ret = rough_plastic.Sample(xi, wo, tex);
-                 break;
-         }
-         return ret;
+    CUDA_HOSTDEVICE void Sample(BsdfSampleRecord &ret, float2 xi, float3 wo, float2 tex) const noexcept {
+        optixDirectCall<void, BsdfSampleRecord &, const Material &, float2, float3, float2>(
+            ((unsigned int)type - 1) * 2, ret, *this, xi, wo, tex);
     }
 
-    CUDA_HOSTDEVICE BsdfEvalRecord Eval(float3 wi, float3 wo, float2 tex) const noexcept {
-        BsdfEvalRecord ret;
-        switch (type) {
-            case EMatType::Diffuse:
-                ret.f = diffuse.GetBsdf(tex, wi, wo);
-                ret.pdf = diffuse.GetPdf(wi, wo);
-                break;
-            case EMatType::Dielectric:
-                ret.f = dielectric.GetBsdf(tex, wi, wo);
-                ret.pdf = dielectric.GetPdf(wi, wo);
-                break;
-            case EMatType::Conductor:
-                ret.f = conductor.GetBsdf();
-                ret.pdf = conductor.GetPdf();
-                break;
-            case EMatType::RoughConductor:
-                ret.f = rough_conductor.GetBsdf(tex, wi, wo);
-                ret.pdf = rough_conductor.GetPdf(wi, wo);
-                break;
-            case EMatType::Plastic:
-                ret.f = plastic.GetBsdf(tex, wi, wo);
-                ret.pdf = plastic.GetPdf(wi, wo);
-                break;
-            case EMatType::RoughPlastic:
-                ret.f = rough_plastic.GetBsdf(tex, wi, wo);
-                ret.pdf = rough_plastic.GetPdf(wi, wo);
-                break;
-        }
-        return ret;
+    CUDA_HOSTDEVICE void Eval(BsdfEvalRecord &ret, float3 wi, float3 wo, float2 tex) const noexcept {
+        optixDirectCall<void, BsdfEvalRecord &, const Material &, float3, float3, float2>(
+            ((unsigned int)type - 1) * 2 + 1, ret, *this, wi, wo, tex);
     }
 #endif
 };

@@ -8,6 +8,8 @@
 
 #include <fstream>
 #include <filesystem>
+#include <unordered_map>
+
 // typedef enum OptixPrimitiveType
 // {
 //     /// Custom primitive.
@@ -26,52 +28,48 @@
 // } OptixPrimitiveType;
 
 namespace {
-//built-in module
-std::unique_ptr<Pupil::optix::Module> s_custom;
-std::unique_ptr<Pupil::optix::Module> s_round_quadratic_bspline;
-std::unique_ptr<Pupil::optix::Module> s_round_cubic_bspline;
-std::unique_ptr<Pupil::optix::Module> s_round_linear;
-std::unique_ptr<Pupil::optix::Module> s_round_catmullrom;
-std::unique_ptr<Pupil::optix::Module> s_sphere;
-std::unique_ptr<Pupil::optix::Module> s_triangle;
+//built-in modules
+std::unordered_map<Pupil::optix::EModuleBuiltinType,
+                   std::unique_ptr<Pupil::optix::Module>>
+    s_builtin_modules;
 }// namespace
 
+//pupil built-in modules
+extern "C" char g_pupil_material_embedded_ptx_code[];
+
 namespace Pupil::optix {
-[[nodiscard]] Module *ModuleManager::GetModule(OptixPrimitiveType builtin_type) noexcept {
-    auto *temp = &s_custom;
-    switch (builtin_type) {
-        case OPTIX_PRIMITIVE_TYPE_CUSTOM:
-            if (s_custom != nullptr) return s_custom.get();
-            break;
-        case OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE:
-            if (s_round_quadratic_bspline != nullptr) return s_round_quadratic_bspline.get();
-            temp = &s_round_quadratic_bspline;
-            break;
-        case OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE:
-            if (s_round_cubic_bspline != nullptr) return s_round_cubic_bspline.get();
-            temp = &s_round_cubic_bspline;
-            break;
-        case OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR:
-            if (s_round_linear != nullptr) return s_round_linear.get();
-            temp = &s_round_linear;
-            break;
-        case OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM:
-            if (s_round_catmullrom != nullptr) return s_round_catmullrom.get();
-            temp = &s_round_catmullrom;
-            break;
-        case OPTIX_PRIMITIVE_TYPE_SPHERE:
-            if (s_sphere != nullptr) return s_sphere.get();
-            temp = &s_sphere;
-            break;
-        case OPTIX_PRIMITIVE_TYPE_TRIANGLE:
-            if (s_triangle != nullptr) return s_triangle.get();
-            temp = &s_triangle;
-            break;
-    }
+[[nodiscard]] Module *ModuleManager::GetModule(EModuleBuiltinType builtin_type) noexcept {
+    if (s_builtin_modules.find(builtin_type) != s_builtin_modules.end())
+        return s_builtin_modules[builtin_type].get();
 
     auto context = util::Singleton<Context>::instance();
-    *temp = std::make_unique<Module>(*context, builtin_type);
-    return temp->get();
+    switch (builtin_type) {
+        case Pupil::optix::EModuleBuiltinType::CustomPrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_CUSTOM);
+            break;
+        case Pupil::optix::EModuleBuiltinType::RoundQuadraticBsplinePrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE);
+            break;
+        case Pupil::optix::EModuleBuiltinType::RoundCubicBsplinePrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE);
+            break;
+        case Pupil::optix::EModuleBuiltinType::RoundLinearPrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR);
+            break;
+        case Pupil::optix::EModuleBuiltinType::RoundCatmullromPrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM);
+            break;
+        case Pupil::optix::EModuleBuiltinType::SpherePrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_SPHERE);
+            break;
+        case Pupil::optix::EModuleBuiltinType::TrianglePrimitive:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, OPTIX_PRIMITIVE_TYPE_TRIANGLE);
+            break;
+        case Pupil::optix::EModuleBuiltinType::Material:
+            s_builtin_modules[builtin_type] = std::make_unique<Module>(*context, g_pupil_material_embedded_ptx_code);
+            break;
+    }
+    return s_builtin_modules[builtin_type].get();
 }
 
 [[nodiscard]] Module *ModuleManager::GetModule(std::string_view embedded_ptx_code) noexcept {
@@ -87,13 +85,7 @@ namespace Pupil::optix {
 
 void ModuleManager::Clear() noexcept {
     m_modules.clear();
-    s_custom.reset();
-    s_round_quadratic_bspline.reset();
-    s_round_cubic_bspline.reset();
-    s_round_linear.reset();
-    s_round_catmullrom.reset();
-    s_sphere.reset();
-    s_triangle.reset();
+    s_builtin_modules.clear();
 }
 
 Module::Module(OptixDeviceContext context, OptixPrimitiveType builtin_type) noexcept {

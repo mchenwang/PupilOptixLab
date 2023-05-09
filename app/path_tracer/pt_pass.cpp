@@ -63,7 +63,7 @@ void PTPass::Run() noexcept {
 void PTPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
 
-    auto sphere_module = module_mngr->GetModule(OPTIX_PRIMITIVE_TYPE_SPHERE);
+    auto sphere_module = module_mngr->GetModule(optix::EModuleBuiltinType::SpherePrimitive);
     auto pt_module = module_mngr->GetModule(embedded_ptx_code);
 
     optix::PipelineDesc pipeline_desc;
@@ -98,6 +98,18 @@ void PTPass::InitOptixPipeline() noexcept {
                            .intersect_module = sphere_module },
         };
         pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    }
+    {
+        // optix::CallableProgramDesc desc{
+        //     .module_ptr = pt_module,
+        //     .cc_entry = nullptr,
+        //     .dc_entry = "__direct_callable__diffuse_sample",
+        // };
+        // pipeline_desc.callable_programs.push_back(desc);
+        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        pipeline_desc.callable_programs.insert(
+            pipeline_desc.callable_programs.end(),
+            mat_programs.begin(), mat_programs.end());
     }
     m_optix_pass->InitPipeline(pipeline_desc);
 }
@@ -171,6 +183,23 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
             .program = "__miss__shadow"
         };
         desc.miss_datas.push_back(miss_shadow_data);
+    }
+    {
+        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        for (auto &mat_prog : mat_programs) {
+            if (mat_prog.cc_entry) {
+                optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {
+                    .program = mat_prog.cc_entry
+                };
+                desc.callables_datas.push_back(cc_data);
+            }
+            if (mat_prog.dc_entry) {
+                optix::ProgDataDescPair<SBTTypes::CallablesDataType> dc_data = {
+                    .program = mat_prog.dc_entry
+                };
+                desc.callables_datas.push_back(dc_data);
+            }
+        }
     }
     m_optix_pass->InitSBT(desc);
 }
