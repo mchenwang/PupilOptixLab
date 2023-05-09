@@ -18,7 +18,7 @@ struct EmitterSampleRecord {
     float3 wi;
 
     float distance;
-    float pdf;
+    float pdf = 0.f;
     bool is_delta;
 };
 struct EmitEvalRecord {
