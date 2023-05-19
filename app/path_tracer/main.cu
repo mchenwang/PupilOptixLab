@@ -85,15 +85,13 @@ extern "C" __global__ void __raygen__main() {
     int depth = 0;
     auto local_hit = record.hit;
 
-    while (!record.done) {
-        if (depth == 0) {
-            if (record.hit.emitter_index >= 0) {
-                auto &emitter = optix_launch_params.emitters.areas[local_hit.emitter_index];
-                auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
-                record.radiance += emission;
-            }
-        }
+    if (!record.done && record.hit.emitter_index >= 0) {
+        auto &emitter = optix_launch_params.emitters.areas[local_hit.emitter_index];
+        auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
+        record.radiance += emission;
+    }
 
+    while (!record.done) {
         ++depth;
         if (depth >= optix_launch_params.config.max_depth)
             break;
