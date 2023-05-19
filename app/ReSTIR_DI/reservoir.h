@@ -41,7 +41,7 @@ struct Reservoir {
                 y = x_i;
             else// 第一个样本选择的概率为0，去掉该样本
                 M = 0;
-        } else if (random.Next() < w_i / max(0.0001f, w_sum))
+        } else if (random.Next() * w_sum < w_i)
             y = x_i;
     }
 

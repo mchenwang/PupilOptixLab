@@ -38,7 +38,7 @@ ShadingPass::ShadingPass(std::string_view name) noexcept
 void ShadingPass::Run() noexcept {
     m_timer.Start();
     {
-        m_params.type = m_show_type;
+        m_params.debug_type = m_show_type;
 
         auto &frame_buffer =
             util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
@@ -140,6 +140,6 @@ void ShadingPass::BindingEventCallback() noexcept {
 
 void ShadingPass::Inspector() noexcept {
     ImGui::Text("cost: %d ms", (int)m_time_cost);
-    constexpr auto show_type = std::array{ "albedo", "normal" };
-    ImGui::Combo("result", &m_show_type, show_type.data(), (int)show_type.size());
+    constexpr auto show_type = std::array{ "shading", "y.radiance", "p_hat", "W", "M", "w_sum" };
+    ImGui::Combo("show type", &m_show_type, show_type.data(), (int)show_type.size());
 }

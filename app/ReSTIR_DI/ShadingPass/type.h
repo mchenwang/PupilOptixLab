@@ -13,7 +13,7 @@ struct ShadingPassLaunchParams {
         unsigned int height;
     } frame;
 
-    unsigned int type;
+    unsigned int debug_type;
     OptixTraversableHandle handle;
     Pupil::cuda::ConstArrayView<float4> position;
     Pupil::cuda::ConstArrayView<float4> normal;

@@ -31,13 +31,13 @@ extern "C" __global__ void __raygen__main() {
 
     auto normal_depth = optix_launch_params.normal[pixel_index];
     auto normal = make_float3(normal_depth);
-    float3 wo = optix::ToLocal(normalize(pos - optix_launch_params.camera.pos), normal);
-
     auto albedo_flag = optix_launch_params.albedo[pixel_index];
     if (albedo_flag.w > 0.f) {
         optix_launch_params.final_reservoirs[pixel_index] = optix_launch_params.reservoirs[pixel_index];
         return;
     }
+
+    float3 wo = optix::ToLocal(-normalize(pos - optix_launch_params.camera.pos), normal);
 
     auto albedo = make_float3(albedo_flag);
 
@@ -61,7 +61,7 @@ extern "C" __global__ void __raygen__main() {
             continue;
 
         auto &neighbor_reservoir = optix_launch_params.reservoirs[neighbor_pixel_index];
-        float3 wi = optix::ToLocal(normalize(pos - neighbor_reservoir.y.pos), normal);
+        float3 wi = optix::ToLocal(normalize(neighbor_reservoir.y.pos - pos), normal);
 
         float3 f = make_float3(0.f);
         if (wi.z > 0.f && wo.z > 0.f) {
@@ -80,12 +80,13 @@ extern "C" __global__ void __raygen__main() {
         reservoir.Update(x_i, w_i, random);
 
         M += neighbor_reservoir.M;
-        // ++M;
     }
     reservoir.M = M;
-
-    reservoir.Combine(optix_launch_params.reservoirs[pixel_index], random);
-    optix_launch_params.final_reservoirs[pixel_index] = reservoir;
+    optix_launch_params.final_reservoirs[pixel_index] = optix_launch_params.reservoirs[pixel_index];
+    reservoir.CalcW();
+    if (reservoir.W > 0.f) {
+        optix_launch_params.final_reservoirs[pixel_index].Combine(reservoir, random);
+    }
     return;
 }
 

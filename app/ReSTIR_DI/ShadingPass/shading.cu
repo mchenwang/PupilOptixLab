@@ -33,8 +33,19 @@ extern "C" __global__ void __raygen__main() {
             // float3 L = normalize(reservoir.y.pos - hit_pos);
             // float dist = length(reservoir.y.pos - hit_pos);
             // float NoL = max(0.f, dot(L, hit_nor));
-
-            color = reservoir.y.radiance * reservoir.W;
+            if (optix_launch_params.debug_type == 0) {
+                color = reservoir.y.radiance * reservoir.W;
+            } else if (optix_launch_params.debug_type == 1) {
+                color = reservoir.y.radiance;
+            } else if (optix_launch_params.debug_type == 2) {
+                color = make_float3(1.f, 1.f, 1.f) * reservoir.y.p_hat;
+            } else if (optix_launch_params.debug_type == 3) {
+                color = make_float3(1.f, 1.f, 1.f) * reservoir.W;
+            } else if (optix_launch_params.debug_type == 4) {
+                color = make_float3(1.f, 1.f, 1.f) * reservoir.M;
+            } else if (optix_launch_params.debug_type == 5) {
+                color = make_float3(1.f, 1.f, 1.f) * reservoir.w_sum;
+            }
             // color = make_float3(reservoir.M);
             // color = hit_nor * 0.5f + 0.5f;
             // color = reservoir.y.radiance;
