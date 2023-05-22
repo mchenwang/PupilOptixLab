@@ -98,13 +98,13 @@ CUDA_INLINE CUDA_HOSTDEVICE float DiffuseReflectance(float eta) {
              * Max rel. error in 1.0 - 2.0   : 0.1%
              * Max rel. error in 2.0 - 10.0  : 0.2%
              */
-        float invEta = 1.0f / eta;
-        float invEta2 = invEta * invEta;
-        float invEta3 = invEta2 * invEta;
-        float invEta4 = invEta3 * invEta;
-        float invEta5 = invEta4 * invEta;
+        float inv_eta = 1.0f / eta;
+        float inv_eta2 = inv_eta * inv_eta;
+        float inv_eta3 = inv_eta2 * inv_eta;
+        float inv_eta4 = inv_eta3 * inv_eta;
+        float inv_eta5 = inv_eta4 * inv_eta;
 
-        return 0.919317f - 3.4793f * invEta + 6.75335f * invEta2 - 7.80989f * invEta3 + 4.98554f * invEta4 - 1.36881f * invEta5;
+        return 0.919317f - 3.4793f * inv_eta + 6.75335f * inv_eta2 - 7.80989f * inv_eta3 + 4.98554f * inv_eta4 - 1.36881f * inv_eta5;
     }
 }
 }// namespace Pupil::optix::material::fresnel

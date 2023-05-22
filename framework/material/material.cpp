@@ -73,7 +73,7 @@ struct MaterialLoader<EMatType::RoughConductor> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
         mat.type = EMatType::RoughConductor;
-        scene::xml::LoadFloat(obj, "alpha", mat.rough_conductor.alpha, 0.1f);
+        //scene::xml::LoadFloat(obj, "alpha", mat.rough_conductor.alpha, 0.1f);
 
         auto conductor_mat_name = obj->GetProperty("material");
         util::Float3 eta, k;
@@ -81,6 +81,7 @@ struct MaterialLoader<EMatType::RoughConductor> {
             eta = { 0.f };
             k = { 1.f };
         }
+        scene::xml::LoadTextureOrRGB(obj, scene, "alpha", mat.rough_conductor.alpha, { 0.1f });
         scene::xml::LoadTextureOrRGB(obj, scene, "eta", mat.rough_conductor.eta, eta);
         scene::xml::LoadTextureOrRGB(obj, scene, "k", mat.rough_conductor.k, k);
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.rough_conductor.specular_reflectance, { 1.f });
@@ -122,7 +123,8 @@ struct MaterialLoader<EMatType::RoughPlastic> {
             mat.rough_plastic.nonlinear = true;
         else
             mat.rough_plastic.nonlinear = false;
-        scene::xml::LoadFloat(obj, "alpha", mat.rough_plastic.alpha, 0.1f);
+        //scene::xml::LoadFloat(obj, "alpha", mat.rough_plastic.alpha, 0.1f);
+        scene::xml::LoadTextureOrRGB(obj, scene, "alpha", mat.rough_plastic.alpha, { 0.1f });
         scene::xml::LoadTextureOrRGB(obj, scene, "diffuse_reflectance", mat.rough_plastic.diffuse_reflectance, { 0.5f });
         scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.rough_plastic.specular_reflectance, { 1.f });
         return mat;

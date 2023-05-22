@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda/preprocessor.h"
+#include "cuda/random.h"
 
 namespace Pupil::optix {
 enum class EBsdfLobeType : unsigned int {
@@ -11,18 +12,30 @@ enum class EBsdfLobeType : unsigned int {
     GlossyReflection = 1 << 3,
     GlossyTransmission = 1 << 4,
     DeltaReflection = 1 << 5,
-    DeltaTransmission = 1 << 6
+    DeltaTransmission = 1 << 6,
+
+    Reflection = DiffuseReflection | GlossyReflection | DeltaReflection,
+    Transmission = DiffuseTransmission | GlossyTransmission | DeltaTransmission,
+    Diffuse = DiffuseReflection | DiffuseTransmission,
+    Glossy = GlossyReflection | GlossyTransmission,
+    Delta = DeltaReflection | DeltaTransmission,
+
+    All = Reflection | Transmission | Null
 };
 
-struct BsdfSampleRecord {
-    float3 f;
+struct BsdfSamplingRecord {
+    float2 sampled_tex;
     float3 wi;
-    float pdf;
-    EBsdfLobeType lobe_type;
-};
-struct BsdfEvalRecord {
-    float3 f;
-    float pdf;
+    float3 wo;
+    float3 f = make_float3(0.f);
+    float pdf = 0.f;
+
+    cuda::Random *sampler = nullptr;
+
+    EBsdfLobeType type_mask = EBsdfLobeType::All;
+    EBsdfLobeType sampled_type = EBsdfLobeType::Unknown;
+    int component = -1;
+    int sampled_component = -1;
 };
 
 CUDA_INLINE CUDA_HOSTDEVICE bool BsdfLobeTypeMatch(EBsdfLobeType target, EBsdfLobeType type) {

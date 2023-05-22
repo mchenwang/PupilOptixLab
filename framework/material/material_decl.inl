@@ -26,4 +26,13 @@ PUPIL_MATERIAL_NAME_DEFINE(roughconductor)
 PUPIL_MATERIAL_NAME_DEFINE(plastic)
 PUPIL_MATERIAL_NAME_DEFINE(roughplastic)
 #endif
+
+#ifdef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Diffuse,         diffuse)
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Conductor,       conductor)
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Dielectric,      dielectric)
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(RoughConductor,  rough_conductor)
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Plastic,         plastic)
+PUPIL_MATERIAL_TYPE_ATTR_DEFINE(RoughPlastic,    rough_plastic)
+#endif
 // clang-format on

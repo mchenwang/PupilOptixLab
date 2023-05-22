@@ -66,7 +66,7 @@ MATERIAL_LOAD_FUNC(Conductor) {
 MATERIAL_LOAD_FUNC(RoughConductor) {
     Pupil::optix::material::RoughConductor ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.alpha = mat.alpha;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
     ret.eta = tex_mngr->GetCudaTexture(mat.eta);
     ret.k = tex_mngr->GetCudaTexture(mat.k);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
@@ -94,7 +94,7 @@ MATERIAL_LOAD_FUNC(RoughPlastic) {
     ret.int_ior = mat.int_ior;
     ret.ext_ior = mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
-    ret.alpha = mat.alpha;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
 
@@ -109,26 +109,12 @@ void Material::LoadMaterial(::material::Material mat) noexcept {
     type = mat.type;
     twosided = mat.twosided;
     switch (type) {
-        case EMatType::Diffuse:
-            diffuse = ::LoadMaterial(mat.diffuse);
-            break;
-        case EMatType::Dielectric:
-            dielectric = ::LoadMaterial(mat.dielectric);
-            break;
-        case EMatType::Conductor:
-            conductor = ::LoadMaterial(mat.conductor);
-            break;
-        case EMatType::RoughConductor:
-            rough_conductor = ::LoadMaterial(mat.rough_conductor);
-            break;
-        case EMatType::Plastic:
-            plastic = ::LoadMaterial(mat.plastic);
-            break;
-        case EMatType::RoughPlastic:
-            rough_plastic = ::LoadMaterial(mat.rough_plastic);
-            break;
-
-            // case new material
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, mat_attr) \
+    case EMatType::##enum_type:                              \
+        mat_attr = ::LoadMaterial(mat.mat_attr);             \
+        break;
+#include "material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
     }
 }
 }// namespace Pupil::optix::material

@@ -9,24 +9,35 @@ namespace Pupil::optix::material {
 struct Diffuse {
     cuda::Texture reflectance;
 
-    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
-        if (wi.z <= 0.f || wo.z <= 0.f) return make_float3(0.f);
-        return reflectance.Sample(tex) * M_1_PIf;
-    }
+    struct Local {
+        float3 reflectance;
+        CUDA_HOSTDEVICE void GetBsdf(BsdfSamplingRecord &record) const noexcept {
+            float3 f = make_float3(0.f);
+            if (record.wi.z > 0.f && record.wo.z > 0.f)
+                f = reflectance * M_1_PIf;
+            record.f = f;
+        }
 
-    CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
-        if (wi.z <= 0.f || wo.z <= 0.f) return 0.f;
-        return Pupil::optix::CosineSampleHemispherePdf(wi);
-    }
+        CUDA_HOSTDEVICE void GetPdf(BsdfSamplingRecord &record) const noexcept {
+            float pdf = 0.f;
+            if (record.wi.z > 0.f && record.wo.z > 0.f)
+                pdf = optix::CosineSampleHemispherePdf(record.wi);
+            record.pdf = pdf;
+        }
 
-    CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 sampled_tex) const noexcept {
-        BsdfSampleRecord ret;
-        ret.wi = Pupil::optix::CosineSampleHemisphere(xi.x, xi.y);
-        ret.pdf = GetPdf(ret.wi, wo);
-        ret.f = GetBsdf(sampled_tex, ret.wi, wo);
-        ret.lobe_type = EBsdfLobeType::DiffuseReflection;
+        CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+            float2 xi = record.sampler->Next2();
+            record.wi = Pupil::optix::CosineSampleHemisphere(xi.x, xi.y);
+            GetPdf(record);
+            GetBsdf(record);
+            record.sampled_type = EBsdfLobeType::DiffuseReflection;
+        }
+    };
 
-        return ret;
+    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+        Local local_bsdf;
+        local_bsdf.reflectance = reflectance.Sample(sampled_tex);
+        return local_bsdf;
     }
 };
 

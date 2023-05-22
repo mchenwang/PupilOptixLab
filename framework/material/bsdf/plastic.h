@@ -14,66 +14,125 @@ struct Plastic {
     cuda::Texture diffuse_reflectance;
     cuda::Texture specular_reflectance;
 
-    // pretreatment var
+    // pre compute
+    float m_int_fdr;
+    // float m_ext_fdr;
     float m_specular_sampling_weight;
 
-    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
-        if (wi.z <= 0.f || wo.z <= 0.f) return make_float3(0.f);
+    struct Local {
+        float eta;
+        float int_fdr;
+        // float ext_fdr;
+        float specular_sampling_weight;
+        bool nonlinear;
+        float3 diffuse_reflectance;
+        float3 specular_reflectance;
 
-        float3 specular_contribution = make_float3(0.f);
-        if (Pupil::optix::IsZero(abs(dot(Pupil::optix::Reflect(wi), wo) - 1.f))) {
-            specular_contribution = specular_reflectance.Sample(tex) / wi.z;
+        CUDA_HOSTDEVICE void GetBsdf(BsdfSamplingRecord &record) const noexcept {
+            record.f = make_float3(0.f);
+            if (record.wi.z <= 0.f || record.wo.z <= 0.f) return;
+
+            bool has_specular = (record.type_mask & EBsdfLobeType::DeltaReflection) && (record.component == -1 || record.component == 0);
+            bool has_diffuse = (record.type_mask & EBsdfLobeType::DiffuseReflection) && (record.component == -1 || record.component == 1);
+
+            float fresnel_o = fresnel::DielectricReflectance(eta, record.wo.z);
+
+            if (has_specular) {
+                if (optix::IsZero(abs(dot(optix::Reflect(record.wi), record.wo) - 1.f))) {
+                    record.f = fresnel_o * specular_reflectance;
+                }
+            } else if (has_diffuse) {
+                float fresnel_i = fresnel::DielectricReflectance(eta, record.wi.z);
+                float3 diff = diffuse_reflectance / (1.f - (nonlinear ? diff * int_fdr : make_float3(int_fdr)));
+                record.f = diff * optix::CosineSampleHemispherePdf(record.wi) * (1.f - fresnel_i) * (1.f - fresnel_o) / (eta * eta);
+            }
         }
 
-        float eta = int_ior / ext_ior;
-        float fresnel_i = fresnel::DielectricReflectance(eta, wi.z);
-        float fresnel_o = fresnel::DielectricReflectance(eta, wo.z);
+        CUDA_HOSTDEVICE void GetPdf(BsdfSamplingRecord &record) const noexcept {
+            record.pdf = 0.f;
+            if (record.wi.z <= 0.f || record.wo.z <= 0.f) return;
 
-        float3 local_albedo = diffuse_reflectance.Sample(tex);
-        float3 diffuse_contribution = local_albedo * (1.f - fresnel_o) * (1.f - fresnel_i) *
-                                      (1.f / (eta * eta)) * M_1_PIf;
-        // float fdr_int = fresnel::DiffuseReflectance(1.f / eta);
-        // if (nonlinear) {
-        //     diffuse_contribution *= 1.f / (1.f - local_albedo * fdr_int);
-        // } else {
-        //     diffuse_contribution *= 1.f / (1.f - fdr_int);
-        // }
+            bool has_specular = (record.type_mask & EBsdfLobeType::DeltaReflection) && (record.component == -1 || record.component == 0);
+            bool has_diffuse = (record.type_mask & EBsdfLobeType::DiffuseReflection) && (record.component == -1 || record.component == 1);
 
-        return diffuse_contribution + specular_contribution;
-    }
+            float specular_prob = has_specular ? 1.f : 0.f;
+            if (has_specular && has_diffuse) {
+                float fresnel_o = fresnel::DielectricReflectance(eta, record.wo.z);
+                specular_prob = (fresnel_o * specular_sampling_weight) /
+                                (fresnel_o * specular_sampling_weight +
+                                 (1 - fresnel_o) * (1.f - specular_sampling_weight));
+            }
 
-    CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
-        if (wi.z <= 0.f || wo.z <= 0.f) return 0.f;
-        if (m_specular_sampling_weight < 0.f) return 0.f;
-        float specular_prob = m_specular_sampling_weight;
-        float diffuse_prob = 1.f - specular_prob;
-
-        if (!Pupil::optix::IsZero(abs(dot(Pupil::optix::Reflect(wi), wo) - 1.f))) {
-            specular_prob = 0.f;
-        }
-        return specular_prob + diffuse_prob * Pupil::optix::CosineSampleHemispherePdf(wi);
-    }
-
-    CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 sampled_tex) const noexcept {
-        BsdfSampleRecord ret;
-
-        if (m_specular_sampling_weight <= 0.f || wo.z <= 0.f) {
-            ret.pdf = 0.f;
-            return ret;
+            if (has_specular) {
+                if (optix::IsZero(abs(dot(optix::Reflect(record.wi), record.wo) - 1.f))) {
+                    record.pdf = specular_prob;
+                }
+            } else {
+                record.pdf = optix::CosineSampleHemispherePdf(record.wi) * (1.f - specular_prob);
+            }
         }
 
-        if (xi.x < m_specular_sampling_weight) {
-            ret.wi = Pupil::optix::Reflect(wo);
-            ret.lobe_type = EBsdfLobeType::DeltaReflection;
-        } else {
-            xi.x = (xi.x - m_specular_sampling_weight) / (1.f - m_specular_sampling_weight);
-            ret.wi = Pupil::optix::CosineSampleHemisphere(xi.x, xi.y);
-            ret.lobe_type = EBsdfLobeType::DiffuseReflection;
-        }
+        CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+            bool has_specular = (record.type_mask & EBsdfLobeType::DeltaReflection) && (record.component == -1 || record.component == 0);
+            bool has_diffuse = (record.type_mask & EBsdfLobeType::DiffuseReflection) && (record.component == -1 || record.component == 1);
 
-        ret.pdf = GetPdf(ret.wi, wo);
-        ret.f = GetBsdf(sampled_tex, ret.wi, wo);
-        return ret;
+            float fresnel_o = fresnel::DielectricReflectance(eta, record.wo.z);
+
+            float2 xi = record.sampler->Next2();
+
+            if (has_diffuse && has_specular) {
+                float specular_prob = (fresnel_o * specular_sampling_weight) /
+                                      (fresnel_o * specular_sampling_weight +
+                                       (1 - fresnel_o) * (1.f - specular_sampling_weight));
+
+                if (xi.x < specular_prob) {
+                    record.sampled_component = 0;
+                    record.sampled_type = EBsdfLobeType::DeltaReflection;
+                    record.wi = optix::Reflect(record.wo);
+
+                    record.f = specular_reflectance * fresnel_o / specular_prob;
+                    record.pdf = specular_prob;
+                } else {
+                    record.sampled_component = 1;
+                    record.sampled_type = EBsdfLobeType::DiffuseReflection;
+                    record.wi = optix::CosineSampleHemisphere(
+                        (xi.x - specular_prob) / (1.f - specular_prob), xi.y);
+
+                    float fresnel_i = fresnel::DielectricReflectance(eta, record.wi.z);
+                    float3 diff = diffuse_reflectance / (1.f - (nonlinear ? diff * int_fdr : make_float3(int_fdr)));
+                    record.f = diff * optix::CosineSampleHemispherePdf(record.wi) * (1.f - fresnel_i) * (1.f - fresnel_o) / (eta * eta);
+                    record.pdf = optix::CosineSampleHemispherePdf(record.wi) * (1.f - specular_prob);
+                }
+            } else if (has_specular) {
+                record.sampled_component = 0;
+                record.sampled_type = EBsdfLobeType::DeltaReflection;
+                record.wi = optix::Reflect(record.wo);
+
+                record.f = specular_reflectance * fresnel_o;
+                record.pdf = 1.f;
+            } else {
+                record.sampled_component = 1;
+                record.sampled_type = EBsdfLobeType::DiffuseReflection;
+                record.wi = optix::CosineSampleHemisphere(xi.x, xi.y);
+
+                float fresnel_i = fresnel::DielectricReflectance(eta, record.wi.z);
+                float3 diff = diffuse_reflectance / (1.f - (nonlinear ? diff * int_fdr : make_float3(int_fdr)));
+                record.f = diff * (1.f - fresnel_i) * (1.f - fresnel_o) / (eta * eta);
+                record.pdf = optix::CosineSampleHemispherePdf(record.wi);
+            }
+        }
+    };
+
+    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+        Local local_bsdf;
+        local_bsdf.eta = int_ior / ext_ior;
+        local_bsdf.nonlinear = nonlinear;
+        local_bsdf.int_fdr = m_int_fdr;
+        // local_bsdf.ext_fdr = m_ext_fdr;
+        local_bsdf.specular_sampling_weight = m_specular_sampling_weight;
+        local_bsdf.diffuse_reflectance = diffuse_reflectance.Sample(sampled_tex);
+        local_bsdf.specular_reflectance = specular_reflectance.Sample(sampled_tex);
+        return local_bsdf;
     }
 };
 

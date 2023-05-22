@@ -33,7 +33,7 @@ struct Conductor {
 };
 
 struct RoughConductor {
-    float alpha;
+    util::Texture alpha;
     util::Texture eta;
     util::Texture k;
     util::Texture specular_reflectance;
@@ -48,11 +48,10 @@ struct Plastic {
 };
 
 struct RoughPlastic {
-    float alpha;
     float int_ior;
     float ext_ior;
     bool nonlinear;
-    // bool sample_visible;
+    util::Texture alpha;
     util::Texture diffuse_reflectance;
     util::Texture specular_reflectance;
 };
@@ -65,7 +64,7 @@ struct Material {
     bool twosided = false;
 
     union {
-        Diffuse diffuse;
+        Diffuse diffuse{};
         Dielectric dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
