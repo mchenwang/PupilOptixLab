@@ -22,15 +22,18 @@ struct Material {
 
     struct LocalBsdf {
         EMatType type;
-        Diffuse::Local diffuse;
-        Dielectric::Local dielectric;
-        Conductor::Local conductor;
-        RoughConductor::Local rough_conductor;
-        Plastic::Local plastic;
-        RoughPlastic::Local rough_plastic;
+        union {
+            Diffuse::Local diffuse;
+            Dielectric::Local dielectric;
+            Conductor::Local conductor;
+            RoughConductor::Local rough_conductor;
+            Plastic::Local plastic;
+            RoughPlastic::Local rough_plastic;
+        };
 
 #ifndef PUPIL_OPTIX_LAUNCHER_SIDE
-        CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+        CUDA_HOSTDEVICE void
+        Sample(BsdfSamplingRecord &record) const noexcept {
             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
                 ((unsigned int)type - 1) * 2, record, *this);
         }
@@ -51,9 +54,10 @@ struct Material {
         LocalBsdf local_bsdf;
         local_bsdf.type = type;
         switch (type) {
-#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, mat_attr) \
-    case EMatType::##enum_type:                              \
-        local_bsdf.mat_attr = mat_attr.GetLocal(sampled_tex);
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, mat_attr)  \
+    case EMatType::##enum_type:                               \
+        local_bsdf.mat_attr = mat_attr.GetLocal(sampled_tex); \
+        break;
 #include "material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
         }
