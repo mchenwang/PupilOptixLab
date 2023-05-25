@@ -19,28 +19,22 @@ struct RoughConductor {
         float3 specular_reflectance;
 
         CUDA_HOSTDEVICE void GetBsdf(BsdfSamplingRecord &record) const noexcept {
-            float3 f = make_float3(0.f);
-            if (record.wi.z > 0.f && record.wo.z > 0.f) {
-                float3 wh = record.wi + record.wo;
-                if (!optix::IsZero(wh)) {
-                    wh = normalize(wh);
-                    float3 fresnel_o = fresnel::ConductorReflectance(eta, k, dot(record.wo, wh));
-                    f = specular_reflectance * ggx::D(wh, alpha) * fresnel_o * ggx::G(record.wi, record.wo, alpha) / (4.f * record.wi.z * record.wo.z);
-                }
-            }
-            record.f = f;
+            record.f = make_float3(0.f);
+            if (record.wi.z <= 0.f || record.wo.z <= 0.f) return;
+
+            float3 wh = normalize(record.wi + record.wo);
+            float3 fresnel_o = fresnel::ConductorReflectance(eta, k, dot(record.wo, wh));
+            record.f = specular_reflectance *
+                       ggx::D(wh, alpha) * fresnel_o * ggx::G(record.wi, record.wo, alpha) /
+                       (4.f * record.wi.z * record.wo.z);
         }
 
         CUDA_HOSTDEVICE void GetPdf(BsdfSamplingRecord &record) const noexcept {
-            float pdf = 0.f;
-            if (record.wi.z > 0.f && record.wo.z > 0.f) {
-                float3 wh = record.wi + record.wo;
-                if (!optix::IsZero(wh)) {
-                    wh = normalize(wh);
-                    pdf = ggx::Pdf(record.wo, wh, alpha) / (4.f * dot(record.wo, wh));
-                }
-            }
-            record.pdf = pdf;
+            record.pdf = 0.f;
+            if (record.wi.z <= 0.f || record.wo.z <= 0.f) return;
+            float3 wh = normalize(record.wi + record.wo);
+            wh = normalize(wh);
+            record.pdf = ggx::Pdf(record.wo, wh, alpha) / (4.f * dot(record.wo, wh));
         }
 
         CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {

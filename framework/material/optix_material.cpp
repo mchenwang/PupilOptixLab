@@ -1,6 +1,7 @@
 #include "optix_material.h"
 #include "cuda/texture.h"
 #include "optix/util.h"
+#include "fresnel.h"
 
 namespace {
 using namespace Pupil;
@@ -76,8 +77,9 @@ MATERIAL_LOAD_FUNC(RoughConductor) {
 MATERIAL_LOAD_FUNC(Plastic) {
     Pupil::optix::material::Plastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.int_ior = mat.int_ior;
-    ret.ext_ior = mat.ext_ior;
+    // ret.int_ior = mat.int_ior;
+    // ret.ext_ior = mat.ext_ior;
+    ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
@@ -85,14 +87,17 @@ MATERIAL_LOAD_FUNC(Plastic) {
     float diffuse_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
     float specular_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.specular_reflectance));
     ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
+
+    ret.m_int_fdr = Pupil::optix::material::fresnel::DiffuseReflectance(1.f / ret.eta);
     return ret;
 }
 
 MATERIAL_LOAD_FUNC(RoughPlastic) {
     Pupil::optix::material::RoughPlastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.int_ior = mat.int_ior;
-    ret.ext_ior = mat.ext_ior;
+    // ret.int_ior = mat.int_ior;
+    // ret.ext_ior = mat.ext_ior;
+    ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
     ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
@@ -101,6 +106,8 @@ MATERIAL_LOAD_FUNC(RoughPlastic) {
     float diffuse_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
     float specular_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.specular_reflectance));
     ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
+
+    ret.m_int_fdr = Pupil::optix::material::fresnel::DiffuseReflectance(1.f / ret.eta);
     return ret;
 }
 

@@ -99,7 +99,7 @@ struct MaterialLoader<EMatType::Plastic> {
         value = obj->GetProperty("ext_ior");
         mat.plastic.ext_ior = material::LoadDielectricIor(value, 1.000277f);
         value = obj->GetProperty("nonlinear");
-        if (value.compare("true"))
+        if (value.compare("true") == 0)
             mat.plastic.nonlinear = true;
         else
             mat.plastic.nonlinear = false;
@@ -119,7 +119,7 @@ struct MaterialLoader<EMatType::RoughPlastic> {
         value = obj->GetProperty("ext_ior");
         mat.rough_plastic.ext_ior = material::LoadDielectricIor(value, 1.000277f);
         value = obj->GetProperty("nonlinear");
-        if (value.compare("true"))
+        if (value.compare("true") == 0)
             mat.rough_plastic.nonlinear = true;
         else
             mat.rough_plastic.nonlinear = false;

@@ -32,10 +32,7 @@ struct BsdfSamplingRecord {
 
     cuda::Random *sampler = nullptr;
 
-    EBsdfLobeType type_mask = EBsdfLobeType::All;
     EBsdfLobeType sampled_type = EBsdfLobeType::Unknown;
-    int component = -1;
-    int sampled_component = -1;
 };
 
 CUDA_INLINE CUDA_HOSTDEVICE bool BsdfLobeTypeMatch(EBsdfLobeType target, EBsdfLobeType type) {
