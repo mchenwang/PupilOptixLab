@@ -26,7 +26,6 @@ struct Dielectric {
         }
 
         CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
-            float eta = record.wo.z > 0.f ? this->eta : 1.f / this->eta;
             float cos_theta_t;
             float fresnel = fresnel::DielectricReflectance(eta, record.wo.z, cos_theta_t);
             if (record.sampler->Next() < fresnel) {
