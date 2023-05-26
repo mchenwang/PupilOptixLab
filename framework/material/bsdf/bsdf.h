@@ -45,6 +45,7 @@ CUDA_INLINE CUDA_HOSTDEVICE bool operator&(EBsdfLobeType target, EBsdfLobeType t
 
 #include "diffuse.h"
 #include "dielectric.h"
+#include "rough_dielectric.h"
 #include "conductor.h"
 #include "rough_conductor.h"
 #include "plastic.h"

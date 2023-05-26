@@ -9,8 +9,6 @@
 namespace Pupil::optix::material {
 
 struct RoughPlastic {
-    // float int_ior;
-    // float ext_ior;
     float eta;
     bool nonlinear;
     cuda::Texture alpha;

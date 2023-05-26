@@ -116,7 +116,7 @@ extern "C" __global__ void __raygen__main() {
                 float3 f = eval_record.f;
                 float pdf = eval_record.pdf;
                 if (!optix::IsZero(f * emitter_sample_record.pdf)) {
-                    float NoL = dot(local_hit.geo.normal, emitter_sample_record.wi);
+                    float NoL = abs(dot(local_hit.geo.normal, emitter_sample_record.wi));
                     float mis = emitter_sample_record.is_delta ? 1.f : optix::MISWeight(emitter_sample_record.pdf, pdf);
                     emitter_sample_record.pdf *= emitter.select_probability;
                     record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
@@ -164,7 +164,7 @@ extern "C" __global__ void __raygen__main() {
                 emitter.Eval(emit_record, record.hit.geo, ray_origin);
 
                 if (!optix::IsZero(emit_record.pdf)) {
-                    float mis = bsdf_sample_record.sampled_type & optix::EBsdfLobeType::DeltaReflection ?
+                    float mis = bsdf_sample_record.sampled_type & optix::EBsdfLobeType::Delta ?
                                     1.f :
                                     optix::MISWeight(bsdf_sample_record.pdf, emit_record.pdf * emitter.select_probability);
                     record.radiance += record.throughput * emit_record.radiance * mis;
@@ -212,7 +212,6 @@ extern "C" __global__ void __closesthit__default() {
     } else {
         record->hit.emitter_index = -1;
     }
-
     record->hit.bsdf = sbt_data->mat.GetLocalBsdf(record->hit.geo.texcoord);
 }
 extern "C" __global__ void __closesthit__shadow() {

@@ -26,6 +26,14 @@ struct Dielectric {
     util::Texture specular_transmittance;
 };
 
+struct RoughDielectric {
+    float int_ior;
+    float ext_ior;
+    util::Texture alpha;
+    util::Texture specular_reflectance;
+    util::Texture specular_transmittance;
+};
+
 struct Conductor {
     util::Texture eta;
     util::Texture k;
@@ -66,11 +74,11 @@ struct Material {
     union {
         Diffuse diffuse{};
         Dielectric dielectric;
+        RoughDielectric rough_dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
         Plastic plastic;
         RoughPlastic rough_plastic;
-        // PrincipledBSDF principled;
     };
 
     Material() noexcept {}

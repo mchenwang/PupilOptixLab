@@ -14,6 +14,7 @@ struct Material {
     union {
         Diffuse diffuse;
         Dielectric dielectric;
+        RoughDielectric rough_dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
         Plastic plastic;
@@ -25,6 +26,7 @@ struct Material {
         union {
             Diffuse::Local diffuse;
             Dielectric::Local dielectric;
+            RoughDielectric::Local rough_dielectric;
             Conductor::Local conductor;
             RoughConductor::Local rough_conductor;
             Plastic::Local plastic;

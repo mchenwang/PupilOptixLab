@@ -50,6 +50,22 @@ struct MaterialLoader<EMatType::Dielectric> {
 };
 
 template<>
+struct MaterialLoader<EMatType::RoughDielectric> {
+    Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+        Material mat{};
+        mat.type = EMatType::RoughDielectric;
+        std::string value = obj->GetProperty("int_ior");
+        mat.rough_dielectric.int_ior = material::LoadDielectricIor(value, 1.5046f);
+        value = obj->GetProperty("ext_ior");
+        mat.rough_dielectric.ext_ior = material::LoadDielectricIor(value, 1.000277f);
+        scene::xml::LoadTextureOrRGB(obj, scene, "alpha", mat.rough_dielectric.alpha, { 0.1f });
+        scene::xml::LoadTextureOrRGB(obj, scene, "specular_reflectance", mat.rough_dielectric.specular_reflectance, { 1.f });
+        scene::xml::LoadTextureOrRGB(obj, scene, "specular_transmittance", mat.rough_dielectric.specular_transmittance, { 1.f });
+        return mat;
+    }
+};
+
+template<>
 struct MaterialLoader<EMatType::Conductor> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};

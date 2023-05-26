@@ -55,6 +55,16 @@ MATERIAL_LOAD_FUNC(Dielectric) {
     return ret;
 }
 
+MATERIAL_LOAD_FUNC(RoughDielectric) {
+    Pupil::optix::material::RoughDielectric ret;
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    ret.eta = mat.int_ior / mat.ext_ior;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
+    ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+    ret.specular_transmittance = tex_mngr->GetCudaTexture(mat.specular_transmittance);
+    return ret;
+}
+
 MATERIAL_LOAD_FUNC(Conductor) {
     Pupil::optix::material::Conductor ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
@@ -77,8 +87,6 @@ MATERIAL_LOAD_FUNC(RoughConductor) {
 MATERIAL_LOAD_FUNC(Plastic) {
     Pupil::optix::material::Plastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    // ret.int_ior = mat.int_ior;
-    // ret.ext_ior = mat.ext_ior;
     ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
@@ -95,8 +103,6 @@ MATERIAL_LOAD_FUNC(Plastic) {
 MATERIAL_LOAD_FUNC(RoughPlastic) {
     Pupil::optix::material::RoughPlastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    // ret.int_ior = mat.int_ior;
-    // ret.ext_ior = mat.ext_ior;
     ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
     ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
