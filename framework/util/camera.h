@@ -43,6 +43,8 @@ public:
 
     Camera() noexcept = default;
 
+    Float3 GetPosition() const noexcept { return m_position; }
+
     Mat4 GetSampleToCameraMatrix() noexcept;
     Mat4 GetProjectionMatrix() noexcept;
     Mat4 GetToWorldMatrix() noexcept;

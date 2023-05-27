@@ -59,4 +59,5 @@ add_sub_target(pugixml pugixml-shared ${3rdparty_folder} "")
 
 add_sub_target(spdlog spdlog ${3rdparty_folder} "")
 
-add_sub_target(exr tinyexr ${3rdparty_folder} "")
+add_sub_target(exr tinyexr ${3rdparty_folder}/tinyexr "")
+set_ide_folder(miniz ${3rdparty_folder}/tinyexr)

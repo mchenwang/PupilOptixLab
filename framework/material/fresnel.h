@@ -5,23 +5,13 @@
 
 namespace Pupil::optix::material::fresnel {
 CUDA_INLINE CUDA_HOSTDEVICE float DielectricReflectance(float eta, float cos_theta_i, float &cos_theta_t) {
-    // if (cos_theta_i < 0.f) {
-    //     eta = 1.f / eta;
-    //     cos_theta_i = -cos_theta_i;
-    // }
-    // float sinThetaTSq = eta * eta * (1.f - cos_theta_i * cos_theta_i);
-    // if (sinThetaTSq > 1.f) {
-    //     cos_theta_t = 0.f;
-    //     return 1.f;
-    // }
-    // cos_theta_t = sqrtf(max(1.f - sinThetaTSq, 0.f));
-
-    // float Rs = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t);
-    // float Rp = (eta * cos_theta_t - cos_theta_i) / (eta * cos_theta_t + cos_theta_i);
-
-    // return (Rs * Rs + Rp * Rp) * 0.5f;
     float scale = cos_theta_i > 0.f ? 1.f / eta : eta;
     float cos_theta_t2 = 1.f - (1.f - cos_theta_i * cos_theta_i) * (scale * scale);
+
+    if (cos_theta_t2 <= 0.0f) {
+        cos_theta_t = 0.0f;
+        return 1.0f;
+    }
 
     float o_cos_theta_i = cos_theta_i;
     cos_theta_i = abs(cos_theta_i);
@@ -39,20 +29,6 @@ CUDA_INLINE CUDA_HOSTDEVICE float DielectricReflectance(float eta, float cos_the
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float ConductorReflectance(float eta, float k, float cos_theta_i) {
-    // float cos_theta_i_sq = cos_theta_i * cos_theta_i;
-    // float sin_theta_i_sq = max(1.f - cos_theta_i_sq, 0.f);
-    // float sin_theta_i_qu = sin_theta_i_sq * sin_theta_i_sq;
-
-    // float inner = eta * eta - k * k - sin_theta_i_sq;
-    // float a_sq_plus_b_sq = sqrtf(max(inner * inner + 4.f * eta * eta * k * k, 0.f));
-    // float a = sqrtf(max((a_sq_plus_b_sq + inner) * 0.5f, 0.f));
-
-    // float Rs = ((a_sq_plus_b_sq + cos_theta_i_sq) - (2.f * a * cos_theta_i)) /
-    //            ((a_sq_plus_b_sq + cos_theta_i_sq) + (2.f * a * cos_theta_i));
-    // float Rp = ((cos_theta_i_sq * a_sq_plus_b_sq + sin_theta_i_qu) - (2.f * a * cos_theta_i * sin_theta_i_sq)) /
-    //            ((cos_theta_i_sq * a_sq_plus_b_sq + sin_theta_i_qu) + (2.f * a * cos_theta_i * sin_theta_i_sq));
-
-    // return 0.5f * (Rs + Rs * Rp);
     float cos_theta_i2 = cos_theta_i * cos_theta_i;
     float sin_theta_i2 = 1.f - cos_theta_i2;
     float sin_theta_i4 = sin_theta_i2 * sin_theta_i2;
@@ -98,13 +74,13 @@ CUDA_INLINE CUDA_HOSTDEVICE float DiffuseReflectance(float eta) {
              * Max rel. error in 1.0 - 2.0   : 0.1%
              * Max rel. error in 2.0 - 10.0  : 0.2%
              */
-        float invEta = 1.0f / eta;
-        float invEta2 = invEta * invEta;
-        float invEta3 = invEta2 * invEta;
-        float invEta4 = invEta3 * invEta;
-        float invEta5 = invEta4 * invEta;
+        float inv_eta = 1.0f / eta;
+        float inv_eta2 = inv_eta * inv_eta;
+        float inv_eta3 = inv_eta2 * inv_eta;
+        float inv_eta4 = inv_eta3 * inv_eta;
+        float inv_eta5 = inv_eta4 * inv_eta;
 
-        return 0.919317f - 3.4793f * invEta + 6.75335f * invEta2 - 7.80989f * invEta3 + 4.98554f * invEta4 - 1.36881f * invEta5;
+        return 0.919317f - 3.4793f * inv_eta + 6.75335f * inv_eta2 - 7.80989f * inv_eta3 + 4.98554f * inv_eta4 - 1.36881f * inv_eta5;
     }
 }
 }// namespace Pupil::optix::material::fresnel

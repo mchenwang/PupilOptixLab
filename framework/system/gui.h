@@ -8,7 +8,7 @@
 #include <d3d12.h>
 #include <winrt/base.h>
 
-#include <unordered_map>
+#include <vector>
 #include <functional>
 #include <memory>
 #include <array>
@@ -69,7 +69,8 @@ protected:
     void InitRenderToTexturePipeline() noexcept;
     void RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 
-    std::unordered_map<std::string, CustomInspector> m_inspectors;
+    // std::unordered_map<std::string, CustomInspector> m_inspectors;
+    std::vector<std::pair<std::string, CustomInspector>> m_inspectors;
     bool m_init_flag = false;
     bool m_copy_after_flip_flag = false;
 

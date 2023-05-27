@@ -1,6 +1,7 @@
 #include "optix_material.h"
 #include "cuda/texture.h"
 #include "optix/util.h"
+#include "fresnel.h"
 
 namespace {
 using namespace Pupil;
@@ -54,6 +55,16 @@ MATERIAL_LOAD_FUNC(Dielectric) {
     return ret;
 }
 
+MATERIAL_LOAD_FUNC(RoughDielectric) {
+    Pupil::optix::material::RoughDielectric ret;
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    ret.eta = mat.int_ior / mat.ext_ior;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
+    ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
+    ret.specular_transmittance = tex_mngr->GetCudaTexture(mat.specular_transmittance);
+    return ret;
+}
+
 MATERIAL_LOAD_FUNC(Conductor) {
     Pupil::optix::material::Conductor ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
@@ -66,7 +77,7 @@ MATERIAL_LOAD_FUNC(Conductor) {
 MATERIAL_LOAD_FUNC(RoughConductor) {
     Pupil::optix::material::RoughConductor ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.alpha = mat.alpha;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
     ret.eta = tex_mngr->GetCudaTexture(mat.eta);
     ret.k = tex_mngr->GetCudaTexture(mat.k);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
@@ -76,8 +87,7 @@ MATERIAL_LOAD_FUNC(RoughConductor) {
 MATERIAL_LOAD_FUNC(Plastic) {
     Pupil::optix::material::Plastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.int_ior = mat.int_ior;
-    ret.ext_ior = mat.ext_ior;
+    ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
@@ -85,22 +95,25 @@ MATERIAL_LOAD_FUNC(Plastic) {
     float diffuse_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
     float specular_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.specular_reflectance));
     ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
+
+    ret.m_int_fdr = Pupil::optix::material::fresnel::DiffuseReflectance(1.f / ret.eta);
     return ret;
 }
 
 MATERIAL_LOAD_FUNC(RoughPlastic) {
     Pupil::optix::material::RoughPlastic ret;
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-    ret.int_ior = mat.int_ior;
-    ret.ext_ior = mat.ext_ior;
+    ret.eta = mat.int_ior / mat.ext_ior;
     ret.nonlinear = mat.nonlinear;
-    ret.alpha = mat.alpha;
+    ret.alpha = tex_mngr->GetCudaTexture(mat.alpha);
     ret.diffuse_reflectance = tex_mngr->GetCudaTexture(mat.diffuse_reflectance);
     ret.specular_reflectance = tex_mngr->GetCudaTexture(mat.specular_reflectance);
 
     float diffuse_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.diffuse_reflectance));
     float specular_luminance = Pupil::optix::GetLuminance(GetPixelAverage(mat.specular_reflectance));
     ret.m_specular_sampling_weight = specular_luminance / (specular_luminance + diffuse_luminance);
+
+    ret.m_int_fdr = Pupil::optix::material::fresnel::DiffuseReflectance(1.f / ret.eta);
     return ret;
 }
 
@@ -109,26 +122,12 @@ void Material::LoadMaterial(::material::Material mat) noexcept {
     type = mat.type;
     twosided = mat.twosided;
     switch (type) {
-        case EMatType::Diffuse:
-            diffuse = ::LoadMaterial(mat.diffuse);
-            break;
-        case EMatType::Dielectric:
-            dielectric = ::LoadMaterial(mat.dielectric);
-            break;
-        case EMatType::Conductor:
-            conductor = ::LoadMaterial(mat.conductor);
-            break;
-        case EMatType::RoughConductor:
-            rough_conductor = ::LoadMaterial(mat.rough_conductor);
-            break;
-        case EMatType::Plastic:
-            plastic = ::LoadMaterial(mat.plastic);
-            break;
-        case EMatType::RoughPlastic:
-            rough_plastic = ::LoadMaterial(mat.rough_plastic);
-            break;
-
-            // case new material
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, mat_attr) \
+    case EMatType::##enum_type:                              \
+        mat_attr = ::LoadMaterial(mat.mat_attr);             \
+        break;
+#include "material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
     }
 }
 }// namespace Pupil::optix::material

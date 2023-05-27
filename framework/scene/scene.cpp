@@ -81,6 +81,15 @@ Scene::Scene() noexcept {
 
             auto transform_obj = obj->GetUniqueSubObject("transform");
             InvokeXmlObjLoadCallBack(transform_obj, &sensor->transform);
+
+            // Mitsuba 3: +X points left, +Y points up, +Z points view
+            // Pupil Transform: +X points right, +Y points up, +Z points -view
+            sensor->transform.matrix.re[0][0] *= -1;
+            sensor->transform.matrix.re[1][0] *= -1;
+            sensor->transform.matrix.re[2][0] *= -1;
+            sensor->transform.matrix.re[0][2] *= -1;
+            sensor->transform.matrix.re[1][2] *= -1;
+            sensor->transform.matrix.re[2][2] *= -1;
         });
 
     SetXmlObjLoadCallBack(

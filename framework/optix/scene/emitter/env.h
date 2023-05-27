@@ -19,6 +19,10 @@ struct ConstEnvEmitter {
         ret.distance = Pupil::optix::MAX_DISTANCE;
         ret.radiance = color;
         ret.is_delta = false;
+
+        // TODO
+        // ret.pos = position;
+        // ret.normal = normal;
     }
 
     CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {

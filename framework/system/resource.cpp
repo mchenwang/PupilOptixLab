@@ -40,6 +40,8 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
             CUDA_CHECK(cudaMalloc(
                 reinterpret_cast<void **>(&buffer->cuda_res.ptr),
                 desc.size));
+            CUDA_CHECK(cudaMemset(
+                reinterpret_cast<void *>(buffer->cuda_res.ptr), 0, desc.size));
         } break;
         case EBufferType::SharedCudaWithDX12: {
             auto d3d12_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(

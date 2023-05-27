@@ -11,27 +11,35 @@ struct Conductor {
     cuda::Texture k;
     cuda::Texture specular_reflectance;
 
-    CUDA_HOSTDEVICE float3 GetBsdf(float2 tex, float3 wi, float3 wo) const noexcept {
-        return make_float3(0.f);
-    }
+    struct Local {
+        float3 eta;
+        float3 k;
+        float3 specular_reflectance;
 
-    CUDA_HOSTDEVICE float GetPdf(float3 wi, float3 wo) const noexcept {
-        return 0.f;
-    }
+        CUDA_HOSTDEVICE void GetBsdf(BsdfSamplingRecord &record) const noexcept {
+            record.f = make_float3(0.f);
+        }
 
-    CUDA_HOSTDEVICE BsdfSampleRecord Sample(float2 xi, float3 wo, float2 sampled_tex) const noexcept {
-        BsdfSampleRecord ret;
-        ret.wi = Pupil::optix::Reflect(wo);
-        ret.pdf = 1.f;
+        CUDA_HOSTDEVICE void GetPdf(BsdfSamplingRecord &record) const noexcept {
+            record.pdf = 0.f;
+        }
 
-        float3 local_eta = eta.Sample(sampled_tex);
-        float3 local_k = k.Sample(sampled_tex);
-        float3 local_albedo = specular_reflectance.Sample(sampled_tex);
+        CUDA_HOSTDEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+            record.wi = Pupil::optix::Reflect(record.wo);
+            record.pdf = 1.f;
 
-        float3 fresnel = fresnel::ConductorReflectance(local_eta, local_k, wo.z);
-        ret.f = local_albedo * fresnel / abs(ret.wi.z);
-        ret.lobe_type = EBsdfLobeType::DeltaReflection;
-        return ret;
+            float3 fresnel = fresnel::ConductorReflectance(eta, k, record.wo.z);
+            record.f = specular_reflectance * fresnel / abs(record.wi.z);
+            record.sampled_type = EBsdfLobeType::DeltaReflection;
+        }
+    };
+
+    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+        Local local_bsdf;
+        local_bsdf.eta = eta.Sample(sampled_tex);
+        local_bsdf.k = k.Sample(sampled_tex);
+        local_bsdf.specular_reflectance = specular_reflectance.Sample(sampled_tex);
+        return local_bsdf;
     }
 };
 

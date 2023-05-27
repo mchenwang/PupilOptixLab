@@ -83,7 +83,12 @@ CUDA_INLINE CUDA_HOSTDEVICE float3 Reflect(float3 v, float3 normal) noexcept {
 
 CUDA_INLINE CUDA_HOSTDEVICE float3 Refract(float3 v, float cos_theta_t, float eta) noexcept {
     float scale = -(cos_theta_t < 0.f ? 1.f / eta : eta);
-    return make_float3(scale * v.x, scale * v.y, cos_theta_t);
+    return normalize(make_float3(scale * v.x, scale * v.y, cos_theta_t));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 Refract(float3 v, float3 normal, float cos_theta_t, float eta) {
+    if (cos_theta_t < 0) eta = 1 / eta;
+    return normal * (dot(v, normal) * eta + cos_theta_t) - v * eta;
 }
 
 // https://graphics.pixar.com/library/OrthonormalB/paper.pdf

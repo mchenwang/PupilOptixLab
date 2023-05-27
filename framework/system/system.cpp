@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <format>
+#include <condition_variable>
 
 namespace {
 bool m_system_run_flag = false;
@@ -85,6 +86,9 @@ void System::Run() noexcept {
         EventDispatcher<ESystemEvent::StopRendering>();
     }
 
+    std::mutex quit_cv_mtx;
+    std::condition_variable quit_cv;
+    bool render_quit = false;
     util::Singleton<util::ThreadPool>::instance()->AddTask(
         [&]() {
             while (!quit_flag) {
@@ -97,11 +101,16 @@ void System::Run() noexcept {
                     EventDispatcher<ESystemEvent::FrameFinished>(m_render_timer.ElapsedMilliseconds());
                 }
             }
+            render_quit = true;
+            quit_cv.notify_all();
         });
 
     while (!quit_flag) {
         if (m_gui_pass) m_gui_pass->Run();
     }
+
+    std::unique_lock quit_lock(quit_cv_mtx);
+    quit_cv.wait(quit_lock, [&] { return render_quit; });
 }
 void System::Destroy() noexcept {
     util::Singleton<util::ThreadPool>::instance()->Destroy();

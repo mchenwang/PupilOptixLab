@@ -32,5 +32,8 @@ public:
     void Destroy() noexcept;
 
     bool LoadScene(std::filesystem::path) noexcept;
+
+    Pupil::util::Camera &GetUtilCamera() noexcept { return camera->GetUtilCamera(); }
+    Pupil::optix::Camera &GetOptixCamera() noexcept { return camera->GetOptixCamera(); }
 };
 }// namespace Pupil

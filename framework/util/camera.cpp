@@ -102,7 +102,7 @@ void Camera::SetWorldTransform(Transform to_world) noexcept {
 
 void Camera::Rotate(float delta_x, float delta_y) noexcept {
     Transform pitch;
-    pitch.Rotate(X.x, X.y, X.z, -delta_y);
+    pitch.Rotate(X.x, X.y, X.z, delta_y);
     Transform yaw;
     yaw.Rotate(Y.x, Y.y, Y.z, delta_x);
 

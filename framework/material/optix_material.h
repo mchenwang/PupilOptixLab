@@ -14,10 +14,37 @@ struct Material {
     union {
         Diffuse diffuse;
         Dielectric dielectric;
+        RoughDielectric rough_dielectric;
         Conductor conductor;
         RoughConductor rough_conductor;
         Plastic plastic;
         RoughPlastic rough_plastic;
+    };
+
+    struct LocalBsdf {
+        EMatType type;
+        union {
+            Diffuse::Local diffuse;
+            Dielectric::Local dielectric;
+            RoughDielectric::Local rough_dielectric;
+            Conductor::Local conductor;
+            RoughConductor::Local rough_conductor;
+            Plastic::Local plastic;
+            RoughPlastic::Local rough_plastic;
+        };
+
+#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+        CUDA_HOSTDEVICE void
+        Sample(BsdfSamplingRecord &record) const noexcept {
+            optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
+                ((unsigned int)type - 1) * 2, record, *this);
+        }
+
+        CUDA_HOSTDEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
+            optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
+                ((unsigned int)type - 1) * 2 + 1, record, *this);
+        }
+#endif
     };
 
     CUDA_HOSTDEVICE Material() noexcept {}
@@ -25,32 +52,36 @@ struct Material {
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
     void LoadMaterial(Pupil::material::Material mat) noexcept;
 #else
-    CUDA_HOSTDEVICE float3 GetColor(float2 tex) const noexcept {
+    CUDA_HOSTDEVICE LocalBsdf GetLocalBsdf(float2 sampled_tex) const noexcept {
+        LocalBsdf local_bsdf;
+        local_bsdf.type = type;
+        switch (type) {
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, mat_attr)  \
+    case EMatType::##enum_type:                               \
+        local_bsdf.mat_attr = mat_attr.GetLocal(sampled_tex); \
+        break;
+#include "material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
+        }
+        return local_bsdf;
+    }
+
+    CUDA_HOSTDEVICE float3 GetColor(float2 sampled_tex) const noexcept {
         switch (type) {
             case EMatType::Diffuse:
-                return diffuse.reflectance.Sample(tex);
+                return diffuse.reflectance.Sample(sampled_tex);
             case EMatType::Dielectric:
-                return dielectric.specular_reflectance.Sample(tex);
+                return dielectric.specular_reflectance.Sample(sampled_tex);
             case EMatType::Conductor:
-                return conductor.specular_reflectance.Sample(tex);
+                return conductor.specular_reflectance.Sample(sampled_tex);
             case EMatType::RoughConductor:
-                return rough_conductor.specular_reflectance.Sample(tex);
+                return rough_conductor.specular_reflectance.Sample(sampled_tex);
             case EMatType::Plastic:
-                return plastic.diffuse_reflectance.Sample(tex);
+                return plastic.diffuse_reflectance.Sample(sampled_tex);
             case EMatType::RoughPlastic:
-                return rough_plastic.diffuse_reflectance.Sample(tex);
+                return rough_plastic.diffuse_reflectance.Sample(sampled_tex);
         }
         return make_float3(0.f);
-    }
-
-    CUDA_HOSTDEVICE void Sample(BsdfSampleRecord &ret, float2 xi, float3 wo, float2 tex) const noexcept {
-        optixDirectCall<void, BsdfSampleRecord &, const Material &, float2, float3, float2>(
-            ((unsigned int)type - 1) * 2, ret, *this, xi, wo, tex);
-    }
-
-    CUDA_HOSTDEVICE void Eval(BsdfEvalRecord &ret, float3 wi, float3 wo, float2 tex) const noexcept {
-        optixDirectCall<void, BsdfEvalRecord &, const Material &, float3, float3, float2>(
-            ((unsigned int)type - 1) * 2 + 1, ret, *this, wi, wo, tex);
     }
 #endif
 };

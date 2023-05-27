@@ -26,6 +26,9 @@ struct SphereEmitter {
             ret.pdf = distance * distance / (LNoL * area);
             ret.distance = distance;
         }
+
+        ret.pos = position;
+        ret.normal = normal;
     }
 
     CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
