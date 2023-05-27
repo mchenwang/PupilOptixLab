@@ -61,5 +61,5 @@ endmacro()
 add_subdirectory(3rdparty)
 add_subdirectory(framework)
 
-option(pupil_build_example "build framework examples" OFF)
+option(pupil_build_example "build framework examples" ON)
 add_subdirectory(example)
