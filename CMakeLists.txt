@@ -6,16 +6,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+if(NOT DEFINED pupil_target_output_dir)
+    set(pupil_target_output_dir ${PROJECT_SOURCE_DIR}/target)
+endif()
+
 # set target folder
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/target/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${pupil_target_output_dir}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${pupil_target_output_dir}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${pupil_target_output_dir}/lib)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set(pupil_framework_root ${CMAKE_CURRENT_SOURCE_DIR}/framework)
-set(3rdparty_target third-party-targets)
-set(pupil_framework_name PupilOptixLab)
+set(pupil_framework_root ${CMAKE_CURRENT_SOURCE_DIR}/framework CACHE INTERNAL "")
+set(3rdparty_target third-party-targets CACHE INTERNAL "")
+set(pupil_framework_name PupilOptixLab CACHE INTERNAL "")
 
 find_package(OptiX REQUIRED)
 
@@ -56,4 +60,6 @@ endmacro()
 
 add_subdirectory(3rdparty)
 add_subdirectory(framework)
-add_subdirectory(app)
+
+option(pupil_build_example "build framework examples" OFF)
+add_subdirectory(example)
