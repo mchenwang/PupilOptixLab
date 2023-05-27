@@ -4,6 +4,7 @@
 #include "optix/util.h"
 #include "optix/geometry.h"
 #include "optix/scene/emitter.h"
+#include "material/bsdf/bsdf.h"
 
 #include "cuda/random.h"
 
@@ -100,31 +101,35 @@ extern "C" __global__ void __raygen__main() {
         // direct light sampling
         {
             auto &emitter = optix_launch_params.emitters.SelectOneEmiiter(record.random.Next());
-            auto emitter_sample_record = emitter.SampleDirect(local_hit.geo, record.random.Next2());
+            optix::EmitterSampleRecord emitter_sample_record;
+            emitter.SampleDirect(emitter_sample_record, local_hit.geo, record.random.Next2());
 
-            if (!optix::IsZero(emitter_sample_record.pdf)) {
-                bool occluded =
-                    optix::Emitter::TraceShadowRay(
-                        optix_launch_params.handle,
-                        local_hit.geo.position, emitter_sample_record.wi,
-                        0.001f, emitter_sample_record.distance - 0.001f);
-                if (!occluded) {
-                    float3 wi = optix::ToLocal(emitter_sample_record.wi, local_hit.geo.normal);
-                    float3 wo = optix::ToLocal(-ray_direction, local_hit.geo.normal);
-                    auto [f, pdf] = record.hit.mat.Eval(wi, wo, local_hit.geo.texcoord);
-                    if (!optix::IsZero(f)) {
-                        float NoL = dot(local_hit.geo.normal, emitter_sample_record.wi);
-                        float mis = emitter_sample_record.is_delta ? 1.f : optix::MISWeight(emitter_sample_record.pdf, pdf);
-                        emitter_sample_record.pdf *= emitter.select_probability;
-                        record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
-                    }
+            bool occluded =
+                optix::Emitter::TraceShadowRay(
+                    optix_launch_params.handle,
+                    local_hit.geo.position, emitter_sample_record.wi,
+                    0.001f, emitter_sample_record.distance - 0.001f);
+            if (!occluded) {
+                float3 wi = optix::ToLocal(emitter_sample_record.wi, local_hit.geo.normal);
+                float3 wo = optix::ToLocal(-ray_direction, local_hit.geo.normal);
+                optix::BsdfEvalRecord eval_ret;
+                record.hit.mat.Eval(eval_ret, wi, wo, local_hit.geo.texcoord);
+                auto [f, pdf] = eval_ret;
+                if (!optix::IsZero(f * emitter_sample_record.pdf)) {
+                    float NoL = dot(local_hit.geo.normal, emitter_sample_record.wi);
+                    float mis = emitter_sample_record.is_delta ? 1.f : optix::MISWeight(emitter_sample_record.pdf, pdf);
+                    // mis = 0.f;
+                    emitter_sample_record.pdf *= emitter.select_probability;
+                    record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
                 }
             }
         }
         // bsdf sampling
         {
             float3 wo = optix::ToLocal(-ray_direction, local_hit.geo.normal);
-            auto bsdf_sample_record = record.hit.mat.Sample(record.random.Next2(), wo, local_hit.geo.texcoord);
+            optix::BsdfSampleRecord bsdf_sample_record;
+            record.hit.mat.Sample(bsdf_sample_record, record.random.Next2(), wo, local_hit.geo.texcoord);
+            // auto bsdf_sample_record = ;
             if (optix::IsZero(bsdf_sample_record.f * abs(bsdf_sample_record.wi.z)) || optix::IsZero(bsdf_sample_record.pdf))
                 break;
 
@@ -154,13 +159,14 @@ extern "C" __global__ void __raygen__main() {
             local_hit = record.hit;
             if (record.hit.emitter_index >= 0) {
                 auto &emitter = optix_launch_params.emitters.areas[record.hit.emitter_index];
-                auto emit_record = emitter.Eval(record.hit.geo, ray_origin);
+                optix::EmitEvalRecord emit_record;
+                emitter.Eval(emit_record, record.hit.geo, ray_origin);
 
                 if (!optix::IsZero(emit_record.pdf)) {
                     float mis = bsdf_sample_record.lobe_type & optix::EBsdfLobeType::DeltaReflection ?
                                     1.f :
                                     optix::MISWeight(bsdf_sample_record.pdf, emit_record.pdf * emitter.select_probability);
-
+                    // mis = 1.f;
                     record.radiance += record.throughput * emit_record.radiance * mis;
                 }
             }
@@ -183,7 +189,8 @@ extern "C" __global__ void __miss__default() {
         optix::LocalGeometry temp;
         temp.position = optixGetWorldRayDirection();
         float3 scatter_pos = make_float3(0.f);
-        auto env_emit_record = optix_launch_params.emitters.env->Eval(temp, scatter_pos);
+        optix::EmitEvalRecord env_emit_record;
+        optix_launch_params.emitters.env->Eval(env_emit_record, temp, scatter_pos);
         record->env_radiance = env_emit_record.radiance;
         record->env_pdf = env_emit_record.pdf;
     }
@@ -199,7 +206,7 @@ extern "C" __global__ void __closesthit__default() {
     const auto ray_dir = optixGetWorldRayDirection();
     const auto ray_o = optixGetWorldRayOrigin();
 
-    record->hit.geo = sbt_data->geo.GetHitLocalGeometry(ray_dir, sbt_data->mat.twosided);
+    sbt_data->geo.GetHitLocalGeometry(record->hit.geo, ray_dir, sbt_data->mat.twosided);
     if (sbt_data->emitter_index_offset >= 0) {
         record->hit.emitter_index = sbt_data->emitter_index_offset + optixGetPrimitiveIndex();
     } else {

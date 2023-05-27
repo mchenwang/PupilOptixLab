@@ -28,8 +28,6 @@ struct OptixLaunchParams {
     OptixTraversableHandle handle;
 };
 
-struct RayGenData {};
-struct MissData {};
 struct HitGroupData {
     optix::material::Material mat;
     optix::Geometry geo;

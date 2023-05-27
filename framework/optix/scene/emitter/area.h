@@ -14,8 +14,7 @@ struct TriAreaEmitter {
         } v0, v1, v2;
     } geo;
 
-    CUDA_HOSTDEVICE EmitterSampleRecord SampleDirect(LocalGeometry hit_geo, float2 xi) const noexcept {
-        EmitterSampleRecord ret{};
+    CUDA_HOSTDEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
         float3 t = Pupil::optix::UniformSampleTriangle(xi.x, xi.y);
         float3 position = geo.v0.pos * t.x + geo.v1.pos * t.y + geo.v2.pos * t.z;
         float3 normal = normalize(geo.v0.normal * t.x + geo.v1.normal * t.y + geo.v2.normal * t.z);
@@ -30,12 +29,9 @@ struct TriAreaEmitter {
             ret.pdf = distance * distance / (LNoL * area);
             ret.distance = distance;
         }
-
-        return ret;
     }
 
-    CUDA_HOSTDEVICE EmitEvalRecord Eval(LocalGeometry emit_local_geo, float3 scatter_pos) const noexcept {
-        EmitEvalRecord ret{};
+    CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         float3 dir = normalize(scatter_pos - emit_local_geo.position);
         float LNoL = dot(emit_local_geo.normal, dir);
         if (LNoL > 0.f) {
@@ -43,7 +39,6 @@ struct TriAreaEmitter {
             ret.pdf = distance * distance / (LNoL * area);
             ret.radiance = radiance.Sample(emit_local_geo.texcoord);
         }
-        return ret;
     }
 };
 }// namespace Pupil::optix

@@ -6,7 +6,9 @@
 namespace Pupil {
 class Log : public util::Singleton<Log> {
 public:
-    void Init() noexcept { spdlog::set_pattern("[%l] %v"); }
+    void Init() noexcept {
+        spdlog::set_pattern("[%^%l%$] %v");
+    }
     void Destroy() noexcept {}
 
     template<typename... Args>

@@ -25,20 +25,20 @@ struct MaterialLoader {
 };
 
 template<>
-struct MaterialLoader<EMatType::_diffuse> {
+struct MaterialLoader<EMatType::Diffuse> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_diffuse;
+        mat.type = EMatType::Diffuse;
         scene::xml::LoadTextureOrRGB(obj, scene, "reflectance", mat.diffuse.reflectance, { 0.5f });
         return mat;
     }
 };
 
 template<>
-struct MaterialLoader<EMatType::_dielectric> {
+struct MaterialLoader<EMatType::Dielectric> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_dielectric;
+        mat.type = EMatType::Dielectric;
         std::string value = obj->GetProperty("int_ior");
         mat.dielectric.int_ior = material::LoadDielectricIor(value, 1.5046f);
         value = obj->GetProperty("ext_ior");
@@ -50,10 +50,10 @@ struct MaterialLoader<EMatType::_dielectric> {
 };
 
 template<>
-struct MaterialLoader<EMatType::_conductor> {
+struct MaterialLoader<EMatType::Conductor> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_conductor;
+        mat.type = EMatType::Conductor;
         auto conductor_mat_name = obj->GetProperty("material");
 
         util::Float3 eta, k;
@@ -69,10 +69,10 @@ struct MaterialLoader<EMatType::_conductor> {
 };
 
 template<>
-struct MaterialLoader<EMatType::_roughconductor> {
+struct MaterialLoader<EMatType::RoughConductor> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_roughconductor;
+        mat.type = EMatType::RoughConductor;
         scene::xml::LoadFloat(obj, "alpha", mat.rough_conductor.alpha, 0.1f);
 
         auto conductor_mat_name = obj->GetProperty("material");
@@ -89,10 +89,10 @@ struct MaterialLoader<EMatType::_roughconductor> {
 };
 
 template<>
-struct MaterialLoader<EMatType::_plastic> {
+struct MaterialLoader<EMatType::Plastic> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_plastic;
+        mat.type = EMatType::Plastic;
         std::string value = obj->GetProperty("int_ior");
         mat.plastic.int_ior = material::LoadDielectricIor(value, 1.49f);
         value = obj->GetProperty("ext_ior");
@@ -109,10 +109,10 @@ struct MaterialLoader<EMatType::_plastic> {
 };
 
 template<>
-struct MaterialLoader<EMatType::_roughplastic> {
+struct MaterialLoader<EMatType::RoughPlastic> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat{};
-        mat.type = EMatType::_roughplastic;
+        mat.type = EMatType::RoughPlastic;
         std::string value = obj->GetProperty("int_ior");
         mat.rough_plastic.int_ior = material::LoadDielectricIor(value, 1.49f);
         value = obj->GetProperty("ext_ior");
@@ -130,7 +130,7 @@ struct MaterialLoader<EMatType::_roughplastic> {
 };
 
 template<>
-struct MaterialLoader<EMatType::_twosided> {
+struct MaterialLoader<EMatType::Twosided> {
     Material operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Material mat = material::LoadMaterialFromXml(obj->GetUniqueSubObject("bsdf"), scene);
         mat.twosided = true;
@@ -141,11 +141,17 @@ struct MaterialLoader<EMatType::_twosided> {
 using LoaderType = std::function<material::Material(const scene::xml::Object *, scene::Scene *)>;
 
 #define MAT_LOADER(mat) MaterialLoader<EMatType::##_##mat>()
-#define MAT_LOADER_DEFINE(...)                             \
-    const std::array<LoaderType, (size_t)EMatType::_count> \
+#define MAT_LOADER_DEFINE(...)                            \
+    const std::array<LoaderType, (size_t)EMatType::Count> \
         S_MAT_LOADER = { MAP_LIST(MAT_LOADER, __VA_ARGS__) };
 
-MAT_LOADER_DEFINE(PUPIL_RENDER_MATERIAL);
+//MAT_LOADER_DEFINE(PUPIL_RENDER_MATERIAL);
+const std::array<LoaderType, (size_t)EMatType::Count> S_MAT_LOADER = {
+#define PUPIL_MATERIAL_TYPE_DEFINE(type) MaterialLoader<EMatType::##type>(),
+#include "material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_DEFINE
+    MaterialLoader<EMatType::Twosided>()
+};
 }// namespace
 
 namespace Pupil::material {

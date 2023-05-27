@@ -1,7 +1,10 @@
 #pragma once
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
 
 #include "util/texture.h"
 #include "predefine.h"
+#include "optix/pipeline.h"
+#include "optix/module.h"
 
 namespace Pupil::scene {
 class Scene;
@@ -58,7 +61,7 @@ struct RoughPlastic {
 // };
 
 struct Material {
-    EMatType type = EMatType::_unknown;
+    EMatType type = EMatType::Unknown;
     bool twosided = false;
 
     union {
@@ -75,4 +78,30 @@ struct Material {
 };
 
 Material LoadMaterialFromXml(const Pupil::scene::xml::Object *, Pupil::scene::Scene *) noexcept;
+
+inline auto GetMaterialProgramDesc() noexcept {
+    auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
+    auto mat_module_ptr = module_mngr->GetModule(optix::EModuleBuiltinType::Material);
+    return std::array{
+#define _PUPIL_TO_STRING(var) #var
+#define PUPIL_TO_STRING(var) _PUPIL_TO_STRING(var)
+#define PUPIL_MATERIAL_ATTR_DEFINE(attr)                            \
+    optix::CallableProgramDesc{                                     \
+        .module_ptr = mat_module_ptr,                               \
+        .cc_entry = nullptr,                                        \
+        .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_SAMPLE_CALL(attr)),   \
+    },                                                              \
+        optix::CallableProgramDesc{                                 \
+            .module_ptr = mat_module_ptr,                           \
+            .cc_entry = nullptr,                                    \
+            .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_EVAL_CALL(attr)), \
+        },
+#include "material_decl.inl"
+#undef PUPIL_MATERIAL_ATTR_DEFINE
+#undef PUPIL_TO_STRING
+#undef _PUPIL_TO_STRING
+    };
+}
 }// namespace Pupil::material
+
+#endif// PUPIL_OPTIX_LAUNCHER_SIDE

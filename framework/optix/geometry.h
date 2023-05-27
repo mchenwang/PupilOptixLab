@@ -34,7 +34,7 @@ struct LocalGeometry {
 };
 
 struct Geometry {
-    enum class EType {
+    enum class EType : unsigned int {
         TriMesh,
         Sphere
     } type;
@@ -49,8 +49,7 @@ struct Geometry {
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
     void LoadGeometry(const Pupil::scene::Shape &) noexcept;
 #else
-    CUDA_HOSTDEVICE LocalGeometry GetHitLocalGeometry() const noexcept {
-        LocalGeometry ret;
+    CUDA_HOSTDEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {
         switch (type) {
             case EType::TriMesh: {
                 const auto face_index = optixGetPrimitiveIndex();
@@ -94,14 +93,12 @@ struct Geometry {
                 ret.texcoord = Pupil::optix::GetSphereTexcoord(ret.normal);
             } break;
         }
-        return ret;
     }
 
-    CUDA_HOSTDEVICE LocalGeometry GetHitLocalGeometry(float3 ray_dir, bool twosided) const noexcept {
-        auto ret = GetHitLocalGeometry();
+    CUDA_HOSTDEVICE void GetHitLocalGeometry(LocalGeometry &ret, float3 ray_dir, bool twosided) const noexcept {
+        GetHitLocalGeometry(ret);
         if (dot(-ray_dir, ret.normal) < 0.f && twosided)
             ret.normal = -ret.normal;
-        return ret;
     }
 #endif
 };
