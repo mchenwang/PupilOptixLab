@@ -28,9 +28,9 @@ PSInput VSMain(VSInput input) {
 
 float4 GammaCorrection(float4 color, float gamma) {
     float4 ret;
-    ret.x = pow(color.x, 1.f / gamma);
-    ret.y = pow(color.y, 1.f / gamma);
-    ret.z = pow(color.z, 1.f / gamma);
+    ret.x = pow(max(color.x,0.f), 1.f / gamma);
+    ret.y = pow(max(color.y,0.f), 1.f / gamma);
+    ret.z = pow(max(color.z,0.f), 1.f / gamma);
     ret.w = color.w;
     return ret;
 }
