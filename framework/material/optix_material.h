@@ -44,6 +44,26 @@ struct Material {
             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
                 ((unsigned int)type - 1) * 2 + 1, record, *this);
         }
+
+        CUDA_HOSTDEVICE float3 GetAlbedo() const noexcept {
+            switch (type) {
+                case EMatType::Diffuse:
+                    return diffuse.reflectance;
+                case EMatType::Dielectric:
+                    return dielectric.specular_reflectance;
+                case EMatType::RoughDielectric:
+                    return rough_dielectric.specular_reflectance;
+                case EMatType::Conductor:
+                    return conductor.specular_reflectance;
+                case EMatType::RoughConductor:
+                    return rough_conductor.specular_reflectance;
+                case EMatType::Plastic:
+                    return plastic.diffuse_reflectance;
+                case EMatType::RoughPlastic:
+                    return rough_plastic.diffuse_reflectance;
+            }
+            return make_float3(0.f);
+        }
 #endif
     };
 
@@ -72,6 +92,8 @@ struct Material {
                 return diffuse.reflectance.Sample(sampled_tex);
             case EMatType::Dielectric:
                 return dielectric.specular_reflectance.Sample(sampled_tex);
+            case EMatType::RoughDielectric:
+                return rough_dielectric.specular_reflectance.Sample(sampled_tex);
             case EMatType::Conductor:
                 return conductor.specular_reflectance.Sample(sampled_tex);
             case EMatType::RoughConductor:
