@@ -1,6 +1,7 @@
 #include "mesh.h"
 #include "optix/context.h"
 #include "optix/check.h"
+#include "optix/scene/scene.h"
 
 #include "cuda/util.h"
 
@@ -180,23 +181,74 @@ void CreateAccel(Context *context, SphereEntity *sphere, RenderObject *ro) {
 }
 }// namespace
 
-RenderObject::RenderObject(EMeshEntityType type, void *mesh, unsigned int v_mask) noexcept
-    : gas_handle(0), gas_buffer(0), visibility_mask(v_mask), transform() {
+RenderObject::RenderObject(EMeshEntityType type, void *mesh, std::string_view id, unsigned int v_mask) noexcept
+    : id(id), gas_handle(0), gas_buffer(0), visibility_mask(v_mask), transform() {
     auto context = util::Singleton<Context>::instance();
 
     switch (type) {
         case Pupil::optix::EMeshEntityType::Custom: {
             auto m = static_cast<MeshEntity *>(mesh);
             CreateAccel(context, m, this);
-            std::memcpy(transform, m->transform, 12 * sizeof(float));
+            std::memcpy(transform.matrix.e, m->transform, 12 * sizeof(float));
         } break;
         case Pupil::optix::EMeshEntityType::BuiltinSphere: {
             auto m = static_cast<SphereEntity *>(mesh);
             CreateAccel(context, m, this);
-            std::memcpy(transform, m->transform, 12 * sizeof(float));
+            std::memcpy(transform.matrix.e, m->transform, 12 * sizeof(float));
         } break;
         default:
             break;
+    }
+}
+
+void RenderObject::BindScene(Scene *scene, int instance_index) noexcept {
+    if (scene == nullptr) {
+        Log::Error("RenderObject bind with null scene.");
+        return;
+    }
+
+    if (instance_index < 0 || instance_index >= scene->m_instances.size()) {
+        Log::Error("RenderObject instance index[{}] out of range[0, {}].",
+                   instance_index, scene->m_instances.size() - 1);
+        return;
+    }
+
+    this->scene = scene;
+    this->instance_index = instance_index;
+}
+
+void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {
+    transform = new_transform;
+    if (scene && instance_index != -1) {
+        memcpy(scene->m_instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
+
+        if (scene->m_instances_memory)
+            CUDA_CHECK(cudaMemcpy(
+                reinterpret_cast<void **>(
+                    scene->m_instances_memory +
+                    instance_index * sizeof(scene->m_instances[instance_index])),
+                &scene->m_instances[instance_index],
+                sizeof(scene->m_instances[instance_index]),
+                cudaMemcpyHostToDevice));
+
+        scene->m_scene_dirty = true;
+    }
+}
+void RenderObject::ApplyTransform(const util::Transform &new_transform) noexcept {
+    transform.matrix = new_transform.matrix * transform.matrix;
+    if (scene && instance_index != -1) {
+        memcpy(scene->m_instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
+
+        if (scene->m_instances_memory)
+            CUDA_CHECK(cudaMemcpy(
+                reinterpret_cast<void **>(
+                    scene->m_instances_memory +
+                    instance_index * sizeof(scene->m_instances[instance_index])),
+                &scene->m_instances[instance_index],
+                sizeof(scene->m_instances[instance_index]),
+                cudaMemcpyHostToDevice));
+
+        scene->m_scene_dirty = true;
     }
 }
 

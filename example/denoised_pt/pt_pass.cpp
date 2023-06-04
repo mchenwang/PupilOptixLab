@@ -6,6 +6,7 @@
 #include "cuda/context.h"
 #include "optix/context.h"
 #include "optix/module.h"
+#include "optix/scene/mesh.h"
 
 #include "util/event.h"
 #include "system/system.h"
@@ -17,6 +18,13 @@ extern "C" char embedded_ptx_code[];
 namespace {
 int m_max_depth;
 bool m_accumulated_flag;
+
+size_t m_frame_cnt = 0;
+
+Pupil::optix::Scene *m_optix_scene = nullptr;
+bool m_allow_animation = false;
+Pupil::optix::RenderObject *m_s1 = nullptr;
+Pupil::optix::RenderObject *m_s2 = nullptr;
 }// namespace
 
 namespace Pupil::pt {
@@ -38,8 +46,24 @@ void PTPass::Run() noexcept {
             m_optix_launch_params.config.max_depth = m_max_depth;
             m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
             m_optix_launch_params.sample_cnt = 0;
-            m_optix_launch_params.random_seed = 0;
             m_dirty = false;
+        }
+
+        if (m_allow_animation && (m_s1 || m_s2)) {
+            m_optix_launch_params.sample_cnt = 0;
+            m_optix_launch_params.random_seed = 0;
+            if (m_s1) {
+                util::Transform transform;
+                transform.Translate(0.f, 0.5f + 0.5f * std::sinf((float)m_frame_cnt / (10 * M_PIf)), 0.f);
+                m_s1->UpdateTransform(transform);
+            }
+            if (m_s2) {
+                util::Transform transform;
+                transform.Translate(std::cosf((float)m_frame_cnt / (10 * M_PIf)) * 0.5f, 0.5f - std::sinf((float)m_frame_cnt / (10 * M_PIf)), 0.f);
+                m_s2->UpdateTransform(transform);
+            }
+            m_frame_cnt++;
+            m_optix_launch_params.handle = m_optix_scene->GetIASHandle();
         }
 
         if (DenoisePass::s_enabled_flag) {
@@ -115,6 +139,8 @@ void PTPass::InitOptixPipeline() noexcept {
 void PTPass::SetScene(World *world) noexcept {
     m_world_camera = world->camera.get();
 
+    m_optix_scene = world->optix_scene.get();
+
     m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
     m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
     m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
@@ -162,6 +188,9 @@ void PTPass::SetScene(World *world) noexcept {
     m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
     SetSBT(world->scene.get());
+
+    m_s1 = world->optix_scene->GetRenderObject("movable_s1");
+    m_s2 = world->optix_scene->GetRenderObject("movable_s2");
 
     m_dirty = true;
 }
@@ -243,5 +272,7 @@ void PTPass::Inspector() noexcept {
     if (ImGui::Checkbox("accumulate radiance", &m_accumulated_flag)) {
         m_dirty = true;
     }
+
+    ImGui::Checkbox("allow sphere animation", &m_allow_animation);
 }
 }// namespace Pupil::pt

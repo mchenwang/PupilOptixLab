@@ -74,6 +74,8 @@ struct Rectangle {
 struct Shape {
     EShapeType type = EShapeType::_sphere;
 
+    std::string id;
+
     material::Material mat;
     union {
         ObjShape obj;
