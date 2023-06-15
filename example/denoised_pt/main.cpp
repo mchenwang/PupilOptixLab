@@ -15,7 +15,7 @@ int main() {
         system->AddPass(denoise_pass.get());
 
         std::filesystem::path scene_file_path{ Pupil::DATA_DIR };
-        scene_file_path /= "default.xml";
+        scene_file_path /= "static/denoised_scene.xml";
         system->SetScene(scene_file_path);
 
         system->Run();
