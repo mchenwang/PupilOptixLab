@@ -4,6 +4,6 @@ target/
 .vscode/
 *.ptx
 data/*
+!data/static/*
 imgui.ini
 framework/static.h
-!data/restir_test.xml
