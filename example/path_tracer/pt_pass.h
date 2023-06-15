@@ -23,12 +23,12 @@ struct SBTTypes : public optix::EmptySBT {
 
 class PTPass : public Pass {
 public:
-    PTPass(std::string_view name = "Path Tracing") noexcept;
-    virtual void Run() noexcept override;
-    virtual void Inspector() noexcept override;
+    explicit PTPass(std::string_view name = "Path Tracing") noexcept;
+    void Run() noexcept override;
+    void Inspector() noexcept override;
 
-    virtual void BeforeRunning() noexcept override {}
-    virtual void AfterRunning() noexcept override {}
+    void BeforeRunning() noexcept override {}
+    void AfterRunning() noexcept override {}
 
     void SetScene(World *) noexcept;
 

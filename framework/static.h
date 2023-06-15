@@ -4,7 +4,7 @@
 
 namespace Pupil {
 
-constexpr std::string_view ROOT_DIR = "D:/work/optix/PupilOptixLab";
-constexpr std::string_view DATA_DIR = "D:/work/optix/PupilOptixLab/data";
+constexpr std::string_view ROOT_DIR = "D:/repos/PupilOptixLab";
+constexpr std::string_view DATA_DIR = "D:/repos/PupilOptixLab/data";
 
 }// namespace Pupil

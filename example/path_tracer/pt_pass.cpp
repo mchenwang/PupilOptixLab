@@ -1,7 +1,6 @@
 #include "pt_pass.h"
 #include "imgui.h"
 
-#include "cuda/context.h"
 #include "optix/context.h"
 #include "optix/module.h"
 
@@ -20,13 +19,13 @@ extern uint32_t g_window_h;
 namespace {
 int m_max_depth;
 bool m_accumulated_flag;
+bool m_use_path_guiding;
 }// namespace
 
 namespace Pupil::pt {
 PTPass::PTPass(std::string_view name) noexcept
     : Pass(name) {
     auto optix_ctx = util::Singleton<optix::Context>::instance();
-    auto cuda_ctx = util::Singleton<cuda::Context>::instance();
     m_stream = std::make_unique<cuda::Stream>();
     m_optix_pass = std::make_unique<optix::Pass<SBTTypes, OptixLaunchParams>>(optix_ctx->context, m_stream->GetStream());
     InitOptixPipeline();
@@ -45,14 +44,34 @@ void PTPass::Run() noexcept {
             m_dirty = false;
         }
 
-        auto &frame_buffer =
-            util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+        auto &frame_buffer = util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
+        m_optix_launch_params.frame_buffer.SetData(frame_buffer.cuda_ptr, m_output_pixel_num);
 
-        m_optix_launch_params.frame_buffer.SetData(
-            frame_buffer.cuda_ptr, m_output_pixel_num);
-        m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
-                          m_optix_launch_params.config.frame.height);
+        // save the transformation for temporal reuse
+        mat4x4 cur_proj_view_mat;
+        auto proj = m_world_camera->GetUtilCamera().GetProjectionMatrix();
+        auto view = m_world_camera->GetUtilCamera().GetViewMatrix();
+        util::Mat4 proj_view = proj * view;
+        cur_proj_view_mat.r0 = make_float4(proj_view.r0.x, proj_view.r0.y, proj_view.r0.z, proj_view.r0.w);
+        cur_proj_view_mat.r1 = make_float4(proj_view.r1.x, proj_view.r1.y, proj_view.r1.z, proj_view.r1.w);
+        cur_proj_view_mat.r2 = make_float4(proj_view.r2.x, proj_view.r2.y, proj_view.r2.z, proj_view.r2.w);
+        cur_proj_view_mat.r3 = make_float4(proj_view.r3.x, proj_view.r3.y, proj_view.r3.z, proj_view.r3.w);
+
+        m_optix_launch_params.update_pass = false;
+        m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,m_optix_launch_params.config.frame.height);
         m_optix_pass->Synchronize();
+
+        if (m_optix_launch_params.config.use_path_guiding) {
+            // update the models
+            m_optix_launch_params.update_pass = true;
+            m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,m_optix_launch_params.config.frame.height);
+            m_optix_pass->Synchronize();
+
+            // swap the model buffer
+            std::swap(m_optix_launch_params.pre_model_buffer, m_optix_launch_params.new_model_buffer);
+
+            m_optix_launch_params.pre_proj_view_mat = cur_proj_view_mat;
+        }
 
         m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
         ++m_optix_launch_params.random_seed;
@@ -121,9 +140,11 @@ void PTPass::SetScene(World *world) noexcept {
     m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
     m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
     m_optix_launch_params.config.accumulated_flag = true;
+    m_optix_launch_params.config.use_path_guiding = false;
 
     m_max_depth = m_optix_launch_params.config.max_depth;
     m_accumulated_flag = m_optix_launch_params.config.accumulated_flag;
+    m_use_path_guiding = m_optix_launch_params.config.use_path_guiding;
 
     m_optix_launch_params.random_seed = 0;
     m_optix_launch_params.sample_cnt = 0;
@@ -131,13 +152,44 @@ void PTPass::SetScene(World *world) noexcept {
     m_output_pixel_num = m_optix_launch_params.config.frame.width *
                          m_optix_launch_params.config.frame.height;
     auto buf_mngr = util::Singleton<BufferManager>::instance();
-    BufferDesc desc{
+    BufferDesc desc4{
         .type = EBufferType::Cuda,
         .name = "pt accum buffer",
         .size = m_output_pixel_num * sizeof(float4)
     };
-    m_accum_buffer = buf_mngr->AllocBuffer(desc);
+    m_accum_buffer = buf_mngr->AllocBuffer(desc4);
     m_optix_launch_params.accum_buffer.SetData(m_accum_buffer->cuda_res.ptr, m_output_pixel_num);
+
+    BufferDesc desc3{
+        .type = EBufferType::Cuda,
+        .size = m_output_pixel_num * sizeof(float3)
+    };
+    desc3.name = "pt normal buffer";
+    m_optix_launch_params.normal_buffer.SetData(buf_mngr->AllocBuffer(desc3)->cuda_res.ptr, m_output_pixel_num);
+    desc3.name = "pt position buffer";
+    m_optix_launch_params.position_buffer.SetData(buf_mngr->AllocBuffer(desc3)->cuda_res.ptr, m_output_pixel_num);
+    desc3.name = "pt target buffer";
+    m_optix_launch_params.target_buffer.SetData(buf_mngr->AllocBuffer(desc3)->cuda_res.ptr, m_output_pixel_num);
+
+    BufferDesc desc1{
+        .type = EBufferType::Cuda,
+        .size = m_output_pixel_num * sizeof(float)
+    };
+    desc1.name = "pt depth buffer";
+    m_optix_launch_params.depth_buffer.SetData(buf_mngr->AllocBuffer(desc1)->cuda_res.ptr, m_output_pixel_num);
+    desc1.name = "pt pdf buffer";
+    m_optix_launch_params.pdf_buffer.SetData(buf_mngr->AllocBuffer(desc1)->cuda_res.ptr, m_output_pixel_num);
+    desc1.name = "pt radiance buffer";
+    m_optix_launch_params.radiance_buffer.SetData(buf_mngr->AllocBuffer(desc1)->cuda_res.ptr, m_output_pixel_num);
+
+    BufferDesc descM{
+        .type = EBufferType::Cuda,
+        .size = m_output_pixel_num * sizeof(vMF)
+    };
+    descM.name = "pt pre model buffer";
+    m_optix_launch_params.pre_model_buffer.SetData(buf_mngr->AllocBuffer(descM)->cuda_res.ptr, m_output_pixel_num);
+    descM.name = "pt new model buffer";
+    m_optix_launch_params.new_model_buffer.SetData(buf_mngr->AllocBuffer(descM)->cuda_res.ptr, m_output_pixel_num);
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
     m_optix_launch_params.handle = world->optix_scene->ias_handle;
@@ -223,6 +275,17 @@ void PTPass::Inspector() noexcept {
     }
 
     if (ImGui::Checkbox("accumulate radiance", &m_accumulated_flag)) {
+        m_dirty = true;
+    }
+
+    if (ImGui::Checkbox("path guiding", &m_use_path_guiding)) {
+        m_optix_launch_params.config.use_path_guiding = m_use_path_guiding;
+
+        // invalidate the model history
+        size_t count = m_output_pixel_num * sizeof(vMF);
+        CUDA_CHECK(cudaMemset(m_optix_launch_params.pre_model_buffer.GetDataPtr(), 0, count));
+        CUDA_CHECK(cudaMemset(m_optix_launch_params.new_model_buffer.GetDataPtr(), 0, count));
+
         m_dirty = true;
     }
 }
