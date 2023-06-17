@@ -7,7 +7,6 @@ PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. 
 ## Features
 
 - mistuba3-style scenes format
-
 - pt with mis
 - OptiX7 denoiser
 - material: diffuse, conductor, rough conductor, dielectric, rough dielectric, plastic, rough plastic
