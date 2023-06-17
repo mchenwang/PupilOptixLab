@@ -2,7 +2,7 @@
 
 PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. A basic path tracer has been implemented on PupilOptixLab.
 
-![](.\image\PupilOptixLab.jpg)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/PupilOptixLab.jpg)
 
 ## Features
 
@@ -25,44 +25,44 @@ PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. 
 
 ### bathroom
 
-![](./image/bathroom1.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/bathroom1.png)
 
 ### bathroom2
 
-![](./image/bathroom2.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/bathroom2.png)
 
 ### bedroom
 
-![](./image/bedroom.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/bedroom.png)
 
 ### kitchen
 
-![](./image/kitchen.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/kitchen.png)
 
 ### living-room-2
 
-![](./image/livingroom2.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/livingroom2.png)
 
 ### living-room-3
 
-![](./image/livingroom3.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/livingroom3.png)
 
 ### staircase
 
-![](./image/staircase.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/staircase.png)
 
 ### staircase2
 
-![](./image/staircase2.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/staircase2.png)
 
 ### veach-ajar
 
-![](./image/veach-ajar.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/veach-ajar.png)
 
 ### veach-mis
 
-![](./image/veach-mis.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/veach-mis.png)
 
 ### lamp
 
-![](./image/lamp.png)
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/lamp.png)
