@@ -1,9 +1,13 @@
+#include "kernel.h"
+
 #include "pass.h"
-#include "test.h"
 #include "system/gui.h"
 #include "cuda/data_view.h"
 
 using namespace Pupil;
+
+unsigned int m_frame_cnt = 0;
+cuda::RWArrayView<float4> m_output;
 
 CudaPass::CudaPass(std::string_view name) noexcept
     : Pass(name) {
@@ -17,9 +21,10 @@ void CudaPass::Run() noexcept {
         auto &frame_buffer =
             util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
 
-        cuda::RWArrayView<float4> output;
-        output.SetData(frame_buffer.cuda_ptr, 512 * 512);
-        CudaSetColor(m_stream->GetStream(), output, make_uint2(512, 512), m_frame_cnt);
+        m_output.SetData(frame_buffer.cuda_ptr, 512 * 512);
+
+        SetColor(m_frame_cnt, m_output, m_stream.get());
+        
         m_stream->Synchronize();
     }
     m_timer.Stop();

@@ -4,8 +4,8 @@ add_executable(${target_name}
     main.cpp
     pass.h
     pass.cpp
-    test.h
-    test.cu
+    kernel.h
+    kernel.cu
 )
 
 set_target_properties(${target_name} PROPERTIES CUDA_ARCHITECTURES ${pupil_cuda_architectures})

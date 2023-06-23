@@ -19,5 +19,4 @@ private:
     Pupil::Timer m_timer;
 
     std::unique_ptr<Pupil::cuda::Stream> m_stream = nullptr;
-    unsigned int m_frame_cnt = 0;
 };
