@@ -35,7 +35,7 @@ struct Emitter {
     CUDA_HOSTDEVICE Emitter() noexcept {}
 
 #ifndef PUPIL_OPTIX_LAUNCHER_SIDE
-    CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
+    CUDA_DEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
                 area.Eval(ret, emit_local_geo, scatter_pos);
@@ -49,7 +49,7 @@ struct Emitter {
         }
     }
 
-    CUDA_HOSTDEVICE float3 GetRadiance(float2 tex) const noexcept {
+    CUDA_DEVICE float3 GetRadiance(float2 tex) const noexcept {
         float3 ret;
         switch (type) {
             case EEmitterType::TriArea:
@@ -65,7 +65,7 @@ struct Emitter {
         return ret;
     }
 
-    CUDA_HOSTDEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
+    CUDA_DEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
                 area.SampleDirect(ret, hit_geo, xi);
@@ -79,9 +79,9 @@ struct Emitter {
         }
     }
 
-    CUDA_HOSTDEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
-                                               float3 ray_o, float3 ray_dir,
-                                               float t_min, float t_max) noexcept {
+    CUDA_DEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
+                                           float3 ray_o, float3 ray_dir,
+                                           float t_min, float t_max) noexcept {
         unsigned int occluded = 0u;
         optixTrace(ias, ray_o, ray_dir,
                    t_min, t_max, 0.f,

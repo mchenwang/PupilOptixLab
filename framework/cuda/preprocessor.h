@@ -2,6 +2,9 @@
 
 // clang-format off
 #if defined(__CUDACC__) || defined(__CUDABE__)
+#   ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#       undef PUPIL_OPTIX_LAUNCHER_SIDE
+#   endif// !PUPIL_OPTIX_LAUNCHER_SIDE
 #   define CUDA_HOST __host__
 #   define CUDA_DEVICE __device__
 #   define CUDA_HOSTDEVICE __host__ __device__

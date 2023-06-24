@@ -34,18 +34,17 @@ struct Material {
         };
 
 #ifndef PUPIL_OPTIX_LAUNCHER_SIDE
-        CUDA_HOSTDEVICE void
-        Sample(BsdfSamplingRecord &record) const noexcept {
+        CUDA_DEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
                 ((unsigned int)type - 1) * 2, record, *this);
         }
 
-        CUDA_HOSTDEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
+        CUDA_DEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
                 ((unsigned int)type - 1) * 2 + 1, record, *this);
         }
 
-        CUDA_HOSTDEVICE float3 GetAlbedo() const noexcept {
+        CUDA_DEVICE float3 GetAlbedo() const noexcept {
             switch (type) {
                 case EMatType::Diffuse:
                     return diffuse.reflectance;
@@ -72,7 +71,7 @@ struct Material {
 #ifdef PUPIL_OPTIX_LAUNCHER_SIDE
     void LoadMaterial(Pupil::material::Material mat) noexcept;
 #else
-    CUDA_HOSTDEVICE LocalBsdf GetLocalBsdf(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE LocalBsdf GetLocalBsdf(float2 sampled_tex) const noexcept {
         LocalBsdf local_bsdf;
         local_bsdf.type = type;
         switch (type) {
@@ -86,7 +85,7 @@ struct Material {
         return local_bsdf;
     }
 
-    CUDA_HOSTDEVICE float3 GetColor(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE float3 GetColor(float2 sampled_tex) const noexcept {
         switch (type) {
             case EMatType::Diffuse:
                 return diffuse.reflectance.Sample(sampled_tex);

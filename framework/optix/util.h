@@ -5,8 +5,8 @@
 #include "cuda/vec_math.h"
 
 namespace Pupil::optix {
-CUDA_DEVICE static const float EPS = 0.000001f;
-CUDA_DEVICE static const float MAX_DISTANCE = 1e16f;
+constexpr float EPS = 0.000001f;
+constexpr const float MAX_DISTANCE = 1e16f;
 
 CUDA_INLINE CUDA_DEVICE void PackPointer(void *target, uint32_t &u0, uint32_t &u1) noexcept {
     const uint64_t ptr = reinterpret_cast<uint64_t>(target);

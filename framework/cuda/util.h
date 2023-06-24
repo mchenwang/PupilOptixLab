@@ -5,6 +5,7 @@
 
 #include "vec_math.h"
 
+#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
 #include "util/log.h"
 
 #include <sstream>
@@ -61,3 +62,4 @@ inline void CudaMemcpyToHost(void *dst, const void *src, size_t size) {
     CUDA_CHECK(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
 }
 }// namespace Pupil::cuda
+#endif

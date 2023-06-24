@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 project(PupilOptixLab LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -23,8 +24,8 @@ set(pupil_framework_name PupilOptixLab CACHE INTERNAL "")
 
 find_package(OptiX REQUIRED)
 
-set(pupil_cuda_architectures ${CMAKE_CUDA_ARCHITECTURES})
-set(pupil_cuda_version ${CUDA_VERSION})
+set(pupil_cuda_architectures ${CMAKE_CUDA_ARCHITECTURES} CACHE INTERNAL "")
+set(pupil_cuda_version ${CUDA_VERSION} CACHE INTERNAL "")
 message(STATUS "cuda arch: ${pupil_cuda_architectures} ")
 message(STATUS "cuda version: ${pupil_cuda_version} ")
 
