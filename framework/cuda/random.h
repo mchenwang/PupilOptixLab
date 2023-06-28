@@ -24,6 +24,8 @@ public:
 
         m_seed = v0;
     }
+
+    CUDA_HOSTDEVICE unsigned int GetSeed() const noexcept { return m_seed; }
     CUDA_HOSTDEVICE void SetSeed(unsigned int seed) noexcept { m_seed = seed; }
 
     CUDA_HOSTDEVICE float Next() noexcept {

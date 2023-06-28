@@ -2,8 +2,10 @@
 
 #include "preprocessor.h"
 #include "stream.h"
+
 #include <unordered_map>
 #include <device_launch_parameters.h>
+#include <cuda_runtime.h>
 
 namespace Pupil::cuda {
 namespace detail {
@@ -29,14 +31,7 @@ __global__ void Execute(uint2 task_size, Func kernel) {
 
 template<typename Func>
 void LaunchKernel1D(unsigned int task_size, Func kernel, Stream *stream) {
-    static bool query_size = true;
-    static int block_size = 0;
-    if (query_size) {
-        int min_grid_size;
-        CUDA_CHECK(cudaOccupancyMaxPotentialBlockSize(&min_grid_size, &block_size, kernel, 0, 0));
-    
-        query_size = false;
-    }
+    static int block_size = 32;
     int grid_size = (task_size + block_size - 1) / block_size;
     detail::Execute<<<grid_size, block_size, 0, *stream>>>(task_size, kernel);
 }
