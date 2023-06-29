@@ -10,6 +10,11 @@
 namespace Pupil::cuda {
 namespace detail {
 template<typename Func>
+__global__ void Execute(Func kernel) {
+    kernel();
+}
+
+template<typename Func>
 __global__ void Execute(unsigned int task_size, Func kernel) {
     unsigned int task_id = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -28,6 +33,11 @@ __global__ void Execute(uint2 task_size, Func kernel) {
     kernel(task_id, task_size);
 }
 }// namespace detail
+
+template<typename Func>
+void LaunchKernel(Func kernel, Stream *stream) {
+    detail::Execute<<<1, 1, 0, *stream>>>(kernel);
+}
 
 template<typename Func>
 void LaunchKernel1D(unsigned int task_size, Func kernel, Stream *stream) {

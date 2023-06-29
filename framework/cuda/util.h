@@ -88,6 +88,7 @@ public:
 #ifdef PUPIL_CPP
     CUDA_HOSTDEVICE CUdeviceptr GetNum() const noexcept { return m_num; }
 #else
+    CUDA_DEVICE void Clear() noexcept { *reinterpret_cast<unsigned int *>(m_num) = 0; }
     CUDA_HOSTDEVICE unsigned int GetNum() const noexcept { return *reinterpret_cast<unsigned int *>(m_num); }
 
     CUDA_DEVICE unsigned int Push(const T &item) noexcept {

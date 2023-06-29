@@ -38,7 +38,7 @@ public:
     }
 
     void SetExternalLaunchParamPtr(CUdeviceptr cuda_memory) noexcept {
-        m_param_cuda_memory = cuda_memory;
+        m_param_cuda_memory = reinterpret_cast<void *>(cuda_memory);
         m_use_inner_param = false;
     }
 
