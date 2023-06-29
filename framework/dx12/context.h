@@ -7,6 +7,7 @@
 #include <dxgi1_6.h>
 #include <winrt/base.h>
 #include <comdef.h>
+#include <mutex>
 
 namespace Pupil::DirectX {
 
@@ -56,6 +57,7 @@ public:
         D3D12_CPU_DESCRIPTOR_HANDLE handle;
     };
     [[nodiscard]] Frame GetCurrentFrame() noexcept {
+        std::scoped_lock lock{ m_flip_model_mutex };
         return Frame{ m_back_buffers[m_current_index], m_back_buffer_handles[m_current_index] };
     }
     [[nodiscard]] uint32_t GetCurrentFrameIndex() noexcept { return m_current_index; }
@@ -93,6 +95,7 @@ private:
     std::queue<CmdContext> m_context_pool;
 
     uint32_t m_current_index;
+    std::mutex m_flip_model_mutex;
     std::array<winrt::com_ptr<ID3D12Resource>, Context::FRAMES_NUM> m_back_buffers{};
     std::array<D3D12_CPU_DESCRIPTOR_HANDLE, Context::FRAMES_NUM> m_back_buffer_handles{};
 

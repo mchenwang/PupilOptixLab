@@ -300,9 +300,10 @@ void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspect
 
 void GuiPass::FlipSwapBuffer() noexcept {
     std::scoped_lock lock{ m_flip_model_mutex };
-    m_ready_buffer_index = m_current_buffer_index;
-    m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
-    m_copy_after_flip_flag = true;
+    m_current_buffer_index = m_ready_buffer_index.exchange(m_current_buffer_index);
+    // m_ready_buffer_index = m_current_buffer_index;
+    // m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
+    m_copy_after_flip_flag.exchange(true);
 }
 
 void GuiPass::Run() noexcept {
@@ -413,7 +414,7 @@ void GuiPass::OnDraw() noexcept {
         if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("GUI average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::Text("Canvas Rendering:");
-            ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index);
+            ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index.load());
             ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
@@ -479,9 +480,9 @@ void GuiPass::OnDraw() noexcept {
         if (!m_waiting_scene_load) {
             if (auto buffer = GetReadyOutputBuffer();
                 buffer.res) {
-                if (m_copy_after_flip_flag) {
+                if (m_copy_after_flip_flag.load()) {
                     RenderFlipBufferToTexture(cmd_list);
-                    m_copy_after_flip_flag = false;
+                    m_copy_after_flip_flag.exchange(false);
                 }
                 float screen_w = ImGui::GetContentRegionAvail().x;
                 float screen_h = ImGui::GetContentRegionAvail().y;
@@ -564,6 +565,7 @@ void GuiPass::OnDraw() noexcept {
     }
 
     dx_ctx->Present(cmd_list);
+    dx_ctx->Flush();
 }
 
 void GuiPass::InitRenderToTexturePipeline() noexcept {
