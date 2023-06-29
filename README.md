@@ -12,6 +12,7 @@ PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. 
 - material: diffuse, conductor, rough conductor, dielectric, rough dielectric, plastic, rough plastic
 - asynchronous GUI thread
 - support native cuda code
+- [wavefront path tracer](https://github.com/mchenwang/WavefrontPathTracer): about 3x performance improvement
 
 ## Prerequisites
 
