@@ -1,5 +1,5 @@
 #pragma once
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 
 #include "util/texture.h"
 #include "predefine.h"
@@ -111,4 +111,4 @@ inline auto GetMaterialProgramDesc() noexcept {
 }
 }// namespace Pupil::material
 
-#endif// PUPIL_OPTIX_LAUNCHER_SIDE
+#endif

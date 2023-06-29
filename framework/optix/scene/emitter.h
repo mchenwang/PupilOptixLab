@@ -8,7 +8,7 @@
 #include "optix/util.h"
 #include "optix/scene/emitter/types.h"
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include <vector>
 
 namespace Pupil::scene {
@@ -34,7 +34,7 @@ struct Emitter {
 
     CUDA_HOSTDEVICE Emitter() noexcept {}
 
-#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_CPP
     CUDA_DEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
@@ -78,7 +78,8 @@ struct Emitter {
                 break;
         }
     }
-
+#endif
+#ifdef PUPIL_OPTIX
     CUDA_DEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
                                            float3 ray_o, float3 ray_dir,
                                            float t_min, float t_max) noexcept {
@@ -127,7 +128,7 @@ struct EmitterGroup {
     }
 };
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 
 class EmitterHelper {
 private:

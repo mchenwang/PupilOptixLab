@@ -44,6 +44,7 @@ macro(cuda_compile_and_embed output_var cuda_file)
             -ptx -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file}.ptx
             -std=c++20 --generate-line-info -use_fast_math --keep
             --keep-device-functions --relocatable-device-code=true # for separate .cu files
+            -D PUPIL_OPTIX
             -I ${OptiX_ROOT_DIR}/include
             -I ${CMAKE_CURRENT_SOURCE_DIR}
             -I ${pupil_framework_root}

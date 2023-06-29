@@ -19,14 +19,14 @@ CUDA_INLINE CUDA_DEVICE void *UnpackPointer(uint32_t u0, uint32_t u1) noexcept {
     return reinterpret_cast<void *>(ptr);
 }
 
-#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifdef PUPIL_OPTIX
 template<typename T>
 CUDA_INLINE CUDA_DEVICE T *GetPRD() noexcept {
     const uint32_t u0 = optixGetPayload_0();
     const uint32_t u1 = optixGetPayload_1();
     return reinterpret_cast<T *>(UnpackPointer(u0, u1));
 }
-#endif// PUPIL_OPTIX_LAUNCHER_SIDE
+#endif
 
 // https://math.stackexchange.com/questions/18686/uniform-random-point-in-triangle-in-3d
 // return interpolation factor for triangle vertex

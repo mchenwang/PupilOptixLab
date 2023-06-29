@@ -3,7 +3,7 @@
 #include "cuda/data_view.h"
 #include <vector_types.h>
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include "scene/shape.h"
 #else
 #include <optix.h>
@@ -46,7 +46,7 @@ struct Geometry {
 
     CUDA_HOSTDEVICE Geometry() noexcept {}
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
     void LoadGeometry(const Pupil::scene::Shape &) noexcept;
 #else
     CUDA_DEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {

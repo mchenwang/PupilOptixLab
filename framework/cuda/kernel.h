@@ -3,7 +3,7 @@
 #include "preprocessor.h"
 #include "stream.h"
 
-#include <unordered_map>
+#ifdef PUPIL_CUDA
 #include <device_launch_parameters.h>
 #include <cuda_runtime.h>
 
@@ -47,3 +47,4 @@ void LaunchKernel2D(uint2 task_size, Func kernel, Stream *stream) {
                       0, *stream>>>(task_size, kernel);
 }
 }// namespace Pupil::cuda
+#endif

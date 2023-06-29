@@ -5,7 +5,7 @@
 
 #include "vec_math.h"
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include "util/log.h"
 
 #include <sstream>
@@ -86,9 +86,7 @@ public:
         return *reinterpret_cast<T *>(m_data + index * sizeof(T));
     }
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-    CUDA_HOSTDEVICE CUdeviceptr GetNum() const noexcept { return m_num; }
-#else
+#ifdef PUPIL_OPTIX
     CUDA_HOSTDEVICE unsigned int GetNum() const noexcept { return *reinterpret_cast<unsigned int *>(m_num); }
 
     CUDA_DEVICE unsigned int Push(const T &item) noexcept {
@@ -97,11 +95,12 @@ public:
         (*this)[index] = item;
         return index;
     }
-
+#else
+    CUDA_HOSTDEVICE CUdeviceptr GetNum() const noexcept { return m_num; }
 #endif
 };
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 class DynamicArrayManager : public util::Singleton<DynamicArrayManager> {
 private:
     std::unordered_map<CUdeviceptr, CUdeviceptr> m_cuda_dynamic_array_size;
