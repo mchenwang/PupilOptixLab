@@ -45,6 +45,7 @@ macro(cuda_compile_and_embed output_var cuda_file)
             -std=c++20 --generate-line-info -use_fast_math --keep
             --keep-device-functions --relocatable-device-code=true # for separate .cu files
             -D PUPIL_OPTIX
+            -Xcompiler "/utf-8"
             -I ${OptiX_ROOT_DIR}/include
             -I ${CMAKE_CURRENT_SOURCE_DIR}
             -I ${pupil_framework_root}

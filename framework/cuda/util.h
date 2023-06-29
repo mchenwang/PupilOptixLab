@@ -2,7 +2,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-
 #include "vec_math.h"
 
 #ifndef PUPIL_OPTIX
@@ -86,7 +85,9 @@ public:
         return *reinterpret_cast<T *>(m_data + index * sizeof(T));
     }
 
-#ifdef PUPIL_OPTIX
+#ifdef PUPIL_CPP
+    CUDA_HOSTDEVICE CUdeviceptr GetNum() const noexcept { return m_num; }
+#else
     CUDA_HOSTDEVICE unsigned int GetNum() const noexcept { return *reinterpret_cast<unsigned int *>(m_num); }
 
     CUDA_DEVICE unsigned int Push(const T &item) noexcept {
@@ -95,8 +96,6 @@ public:
         (*this)[index] = item;
         return index;
     }
-#else
-    CUDA_HOSTDEVICE CUdeviceptr GetNum() const noexcept { return m_num; }
 #endif
 };
 

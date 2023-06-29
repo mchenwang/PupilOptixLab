@@ -26,7 +26,7 @@ target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUA
 target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/await>")
 target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
 target_compile_options(${pupil_framework_name} BEFORE PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/MP>")
-target_compile_options(${pupil_framework_name} BEFORE PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler "/wd4819 /await" >)
+target_compile_options(${pupil_framework_name} BEFORE PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler "/utf-8 /wd4819 /await" >)
 target_compile_options(${pupil_framework_name} BEFORE PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>)
 
 target_compile_definitions(${pupil_framework_name} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:PUPIL_CPP>")
