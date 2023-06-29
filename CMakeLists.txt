@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.25.2)
 project(PupilOptixLab LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -42,7 +42,7 @@ macro(cuda_compile_and_embed output_var cuda_file)
         COMMAND
             nvcc ${CMAKE_CURRENT_LIST_DIR}/${cuda_file}
             -ptx -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file}.ptx
-            -std=c++17 --generate-line-info -use_fast_math --keep
+            -std=c++20 --generate-line-info -use_fast_math --keep
             --keep-device-functions --relocatable-device-code=true # for separate .cu files
             -I ${OptiX_ROOT_DIR}/include
             -I ${CMAKE_CURRENT_SOURCE_DIR}

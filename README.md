@@ -17,8 +17,8 @@ PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. 
 
 - Visual Studio 2022
 - NVIDIA graphics card with OptiX7 support
-- CUDA 11.6+ (tested on 11.6 and 12.1)
-- OptiX 7.5+ (for built-in sphere intersection)
+- CUDA 12.0+ (tested on 12.1)
+- OptiX 7.5 (for the built-in sphere intersection and higher versions are currently not supported due to APIs changes)
 
 ## Rendering Example
 

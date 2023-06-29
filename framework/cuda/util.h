@@ -91,10 +91,11 @@ public:
 #else
     CUDA_HOSTDEVICE unsigned int GetNum() const noexcept { return *reinterpret_cast<unsigned int *>(m_num); }
 
-    CUDA_DEVICE void Push(const T &item) noexcept {
+    CUDA_DEVICE unsigned int Push(const T &item) noexcept {
         unsigned int *num = reinterpret_cast<unsigned int *>(m_num);
         auto index = atomicAdd(num, 1);
         (*this)[index] = item;
+        return index;
     }
 
 #endif
