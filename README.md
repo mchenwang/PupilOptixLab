@@ -1,6 +1,8 @@
 # PupilOptixLab
 
-PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. A basic path tracer has been implemented on PupilOptixLab.
+PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7 which is designed for rapid implementation of ray tracing algorithms on GPU.
+
+A basic path tracer has been implemented in [`example/path_tracer`](https://github.com/mchenwang/PupilOptixLab/tree/main/example/path_tracer).
 
 ![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/PupilOptixLab.jpg)
 
@@ -16,6 +18,7 @@ PupilOptixLab is a lightweight real-time ray tracing framework based on OptiX7. 
 
 ## Prerequisites
 
+- CMake 3.25.2+ (to support `-std=c++20` option for nvcc)
 - Visual Studio 2022
 - NVIDIA graphics card with OptiX7 support
 - CUDA 12.0+ (tested on 12.1)
