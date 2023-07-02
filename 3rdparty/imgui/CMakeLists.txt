@@ -1,7 +1,7 @@
 set(imgui_header
     imgui/imconfig.h
     imgui/imgui.h
-    imgui/backends/imgui_impl_dx12.h
+    imgui_impl_dx12.h
     imgui/backends/imgui_impl_win32.h
     imgui-filebrowser/imfilebrowser.h
 )
@@ -11,7 +11,7 @@ set(imgui_source
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-    imgui/backends/imgui_impl_dx12.cpp
+    imgui_impl_dx12.cpp
     imgui/backends/imgui_impl_win32.cpp
 )
 add_library(imgui SHARED ${imgui_header} ${imgui_source})
