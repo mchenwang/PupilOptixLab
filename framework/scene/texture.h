@@ -18,6 +18,10 @@ private:
         size_t h;
         std::unique_ptr<float[]> data;
 
+        ImageData(size_t w, size_t h, float *data) noexcept : w(w), h(h) {
+            this->data.reset(data);
+        }
+
         ImageData(size_t w, size_t h) noexcept : w(w), h(h) {
             size_t data_size = w * h * 4;
             data = std::make_unique<float[]>(data_size);

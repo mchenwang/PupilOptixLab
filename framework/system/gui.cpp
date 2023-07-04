@@ -452,7 +452,7 @@ void GuiPass::OnDraw() noexcept {
                     memset(image, 0, size);
                     auto &buffer = GetReadyOutputBuffer();
                     cuda::CudaMemcpyToHost(image, buffer.shared_buffer.cuda_ptr, size * sizeof(float));
-                    util::BitmapTexture::Save(image, m_output_w, m_output_h, path.string().c_str(), (util::BitmapTexture::FileFormat)item_current);
+                    util::BitmapTexture::Save(image, m_output_w, m_output_h, path.string(), (util::BitmapTexture::FileFormat)item_current);
                     delete[] image;
                 }
                 ImGui::PopItemWidth();
