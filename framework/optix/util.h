@@ -177,4 +177,8 @@ CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float2 v) noexcept {
 CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
 }
+
+CUDA_INLINE CUDA_HOSTDEVICE float Lerp(const float &a, const float &b, const float t) noexcept {
+    return a + t * (b - a);
+}
 }// namespace Pupil::optix

@@ -162,13 +162,33 @@ Scene::Scene() noexcept {
             if (obj->type.compare("area") == 0) {
                 emitter->type = EEmitterType::Area;
                 xml::LoadTextureOrRGB(obj, this, "radiance", emitter->area.radiance);
+            } else if (obj->type.compare("point") == 0) {
+                emitter->type = EEmitterType::Point;
+                util::Float3 pos;
+                xml::Load3Float(obj, "position", pos);
+                emitter->point.pos = pos;
+
+                util::Float3 intensity;
+                xml::LoadFloat3(obj, "intensity", intensity);
+                emitter->point.intensity = intensity;
             } else if (obj->type.compare("constant") == 0) {
                 emitter->type = EEmitterType::ConstEnv;
                 util::Float3 color;
                 xml::LoadFloat3(obj, "radiance", color);
                 emitter->const_env.radiance = color;
             } else if (obj->type.compare("envmap") == 0) {
-                // TODO:
+                emitter->type = EEmitterType::EnvMap;
+                xml::LoadFloat(obj, "scale", emitter->env_map.scale, 1.f);
+                auto value = obj->GetProperty("filename");
+                auto path = (scene_root_path / value).make_preferred();
+                emitter->env_map.radiance = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
+                emitter->env_map.radiance.bitmap.filter_mode = util::ETextureFilterMode::Linear;
+                emitter->env_map.radiance.bitmap.address_mode = util::ETextureAddressMode::Wrap;
+
+                auto transform_obj = obj->GetUniqueSubObject("transform");
+                emitter->env_map.transform = {};
+                InvokeXmlObjLoadCallBack(transform_obj, &emitter->env_map.transform);
+
             } else {
                 Pupil::Log::Warn("unknown emitter type [{}].", obj->type);
             }
@@ -202,11 +222,11 @@ void Scene::LoadFromXML(std::filesystem::path file) noexcept {
                 //Shape shape;
                 shapes.push_back({});
                 InvokeXmlObjLoadCallBack(xml_obj, &shapes.back());
-                // Pupil::Log::Info("shape [{}] AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
-                //                  xml_obj->id,
-                //                  shapes.back().aabb.min.x, shapes.back().aabb.min.y, shapes.back().aabb.min.z,
-                //                  shapes.back().aabb.max.x, shapes.back().aabb.max.y, shapes.back().aabb.max.z);
-                aabb.Merge(shapes.back().aabb);
+                if (shapes.back().type == EShapeType::_unknown) {
+                    shapes.pop_back();
+                } else {
+                    aabb.Merge(shapes.back().aabb);
+                }
                 break;
             case xml::ETag::_emitter:
                 //Emitter emitter;

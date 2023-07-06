@@ -72,7 +72,7 @@ struct Rectangle {
 };
 
 struct Shape {
-    EShapeType type = EShapeType::_sphere;
+    EShapeType type = EShapeType::_unknown;
 
     std::string id;
 

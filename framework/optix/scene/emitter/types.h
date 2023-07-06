@@ -11,6 +11,7 @@ enum class EEmitterType : unsigned int {
     ConstEnv,
     EnvMap,
     // Point,
+    // DistDir
 };
 
 struct EmitterSampleRecord {
