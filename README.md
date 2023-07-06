@@ -26,6 +26,10 @@ A basic path tracer has been implemented in [`example/path_tracer`](https://gith
 
 ## Rendering Example
 
+### classroom
+
+![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/classroom.png)
+
 ### bathroom
 
 ![](https://github.com/mchenwang/PupilOptixLab/raw/main/image/bathroom1.png)
