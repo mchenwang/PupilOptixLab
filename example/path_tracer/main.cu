@@ -96,6 +96,11 @@ extern "C" __global__ void __raygen__main() {
         if (depth >= optix_launch_params.config.max_depth)
             break;
 
+        float rr = depth > 2 ? 0.95 : 1.0;
+        if (record.random.Next() > rr)
+            break;
+        record.throughput /= rr;
+
         // direct light sampling
         {
             auto &emitter = optix_launch_params.emitters.SelectOneEmiiter(record.random.Next());
@@ -116,10 +121,12 @@ extern "C" __global__ void __raygen__main() {
                 float3 f = eval_record.f;
                 float pdf = eval_record.pdf;
                 if (!optix::IsZero(f * emitter_sample_record.pdf)) {
-                    float NoL = abs(dot(local_hit.geo.normal, emitter_sample_record.wi));
-                    float mis = emitter_sample_record.is_delta ? 1.f : optix::MISWeight(emitter_sample_record.pdf, pdf);
-                    emitter_sample_record.pdf *= emitter.select_probability;
-                    record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
+                    float NoL = dot(local_hit.geo.normal, emitter_sample_record.wi);
+                    if (NoL > 0.f) {
+                        float mis = emitter_sample_record.is_delta ? 1.f : optix::MISWeight(emitter_sample_record.pdf, pdf);
+                        emitter_sample_record.pdf *= emitter.select_probability;
+                        record.radiance += record.throughput * emitter_sample_record.radiance * f * NoL * mis / emitter_sample_record.pdf;
+                    }
                 }
             }
         }
@@ -135,11 +142,6 @@ extern "C" __global__ void __raygen__main() {
                 break;
 
             record.throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
-
-            float rr = depth > 2 ? 0.95 : 1.0;
-            if (record.random.Next() > rr)
-                break;
-            record.throughput /= rr;
 
             ray_origin = record.hit.geo.position;
             ray_direction = optix::ToWorld(bsdf_sample_record.wi, local_hit.geo.normal);
@@ -162,7 +164,6 @@ extern "C" __global__ void __raygen__main() {
                 auto &emitter = optix_launch_params.emitters.areas[record.hit.emitter_index];
                 optix::EmitEvalRecord emit_record;
                 emitter.Eval(emit_record, record.hit.geo, ray_origin);
-
                 if (!optix::IsZero(emit_record.pdf)) {
                     float mis = bsdf_sample_record.sampled_type & optix::EBsdfLobeType::Delta ?
                                     1.f :
@@ -186,13 +187,17 @@ extern "C" __global__ void __raygen__main() {
 extern "C" __global__ void __miss__default() {
     auto record = optix::GetPRD<PathPayloadRecord>();
     if (optix_launch_params.emitters.env) {
-        optix::LocalGeometry temp;
-        temp.position = optixGetWorldRayDirection();
-        float3 scatter_pos = make_float3(0.f);
-        optix::EmitEvalRecord env_emit_record;
-        optix_launch_params.emitters.env->Eval(env_emit_record, temp, scatter_pos);
-        record->env_radiance = env_emit_record.radiance;
-        record->env_pdf = env_emit_record.pdf;
+        auto &env = *optix_launch_params.emitters.env.GetDataPtr();
+
+        const auto ray_dir = normalize(optixGetWorldRayDirection());
+        const auto ray_o = optixGetWorldRayOrigin();
+
+        optix::LocalGeometry env_local;
+        env_local.position = ray_o + ray_dir;
+        optix::EmitEvalRecord emit_record;
+        env.Eval(emit_record, env_local, ray_o);
+        record->env_radiance = emit_record.radiance;
+        record->env_pdf = emit_record.pdf;
     }
     record->done = true;
 }
