@@ -13,6 +13,7 @@
 #include <memory>
 #include <array>
 #include <mutex>
+#include <atomic>
 
 namespace Pupil {
 struct Buffer;
@@ -59,10 +60,10 @@ public:
     [[nodiscard]] bool IsInitialized() noexcept { return m_init_flag; }
 
     void FlipSwapBuffer() noexcept;
-    [[nodiscard]] uint32_t GetCurrentRenderOutputBufferIndex() const noexcept { return m_current_buffer_index; }
-    [[nodiscard]] auto &GetCurrentRenderOutputBuffer() const noexcept { return m_flip_buffers[m_current_buffer_index]; }
-    [[nodiscard]] uint32_t GetReadyOutputBufferIndex() const noexcept { return m_ready_buffer_index; }
-    [[nodiscard]] auto &GetReadyOutputBuffer() const noexcept { return m_flip_buffers[m_ready_buffer_index]; }
+    [[nodiscard]] uint32_t GetCurrentRenderOutputBufferIndex() const noexcept { return m_current_buffer_index.load(); }
+    [[nodiscard]] auto &GetCurrentRenderOutputBuffer() const noexcept { return m_flip_buffers[m_current_buffer_index.load()]; }
+    [[nodiscard]] uint32_t GetReadyOutputBufferIndex() const noexcept { return m_ready_buffer_index.load(); }
+    [[nodiscard]] auto &GetReadyOutputBuffer() const noexcept { return m_flip_buffers[m_ready_buffer_index.load()]; }
 
 protected:
     void OnDraw() noexcept;
@@ -72,7 +73,7 @@ protected:
     // std::unordered_map<std::string, CustomInspector> m_inspectors;
     std::vector<std::pair<std::string, CustomInspector>> m_inspectors;
     bool m_init_flag = false;
-    bool m_copy_after_flip_flag = false;
+    std::atomic_bool m_copy_after_flip_flag = false;
 
     // one for rendering output, the other for showing on gui
     struct FlipBuffer {
@@ -85,8 +86,10 @@ protected:
 
     FlipBuffer m_flip_buffers[SWAP_BUFFER_NUM];
 
-    uint32_t m_current_buffer_index = 0;
-    uint32_t m_ready_buffer_index = 1;
+    std::atomic<uint32_t> m_current_buffer_index = 0;
+    std::atomic<uint32_t> m_ready_buffer_index = 1;
+    // uint32_t m_current_buffer_index = 0;
+    // uint32_t m_ready_buffer_index = 1;
     std::mutex m_flip_model_mutex;
     uint32_t m_output_w = 0;
     uint32_t m_output_h = 0;

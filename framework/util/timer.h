@@ -17,7 +17,7 @@ public:
     double ElapsedMilliseconds() noexcept {
         std::chrono::time_point<std::chrono::system_clock> end_time =
             m_is_running ? std::chrono::system_clock::now() : m_end_time;
-        return std::chrono::duration_cast<std::chrono::milliseconds>(end_time - m_start_time).count();
+        return std::chrono::duration_cast<std::chrono::microseconds>(end_time - m_start_time).count() / 1000.;
     }
 
     double ElapsedSeconds() noexcept {

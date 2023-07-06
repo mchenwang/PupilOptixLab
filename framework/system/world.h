@@ -3,18 +3,13 @@
 #include "util/util.h"
 #include "camera.h"
 
+#include "scene/scene.h"
+#include "optix/scene/scene.h"
+
 #include <filesystem>
 #include <memory>
 
 namespace Pupil {
-namespace scene {
-class Scene;
-}
-namespace optix {
-class Scene;
-class CameraHelper;
-}// namespace optix
-
 enum class EWorldEvent {
     CameraChange,
     CameraMove,

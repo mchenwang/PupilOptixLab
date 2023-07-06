@@ -27,10 +27,10 @@ struct Texture {
 
     CUDA_HOSTDEVICE Texture() noexcept {}
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
-    CUDA_HOSTDEVICE float3 Sample(float2 texcoord) const noexcept { return {}; }
+#ifdef PUPIL_CPP
+    float3 Sample(float2 texcoord) const noexcept { return {}; }
 #else
-    CUDA_HOSTDEVICE float3 Sample(float2 texcoord) const noexcept {
+    CUDA_DEVICE float3 Sample(float2 texcoord) const noexcept {
         const float4 tex = make_float4(texcoord, 0.f, 1.f);
         float tex_x = dot(transform.r0, tex);
         float tex_y = dot(transform.r1, tex);
@@ -59,7 +59,7 @@ struct Texture {
 };
 }// namespace Pupil::cuda
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include "util/util.h"
 
 namespace Pupil::cuda {

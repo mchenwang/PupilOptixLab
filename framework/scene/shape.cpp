@@ -83,6 +83,7 @@ template<>
 struct ShapeLoader<EShapeType::_cube> {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetCube();
+        shape.id = obj->id;
         scene::xml::LoadBool(obj, "flip_normals", shape.cube.flip_normals, false);
 
         return shape;
@@ -93,6 +94,7 @@ template<>
 struct ShapeLoader<EShapeType::_rectangle> {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetRectangle();
+        shape.id = obj->id;
         scene::xml::LoadBool(obj, "flip_normals", shape.rect.flip_normals, false);
 
         return shape;
@@ -109,6 +111,7 @@ struct ShapeLoader<EShapeType::_sphere> {
         if (!value.empty()) radius = std::stof(value);
 
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetSphere(radius, center);
+        shape.id = obj->id;
         scene::xml::LoadBool(obj, "flip_normals", shape.sphere.flip_normals, false);
 
         return shape;
@@ -118,10 +121,10 @@ struct ShapeLoader<EShapeType::_sphere> {
 template<>
 struct ShapeLoader<EShapeType::_obj> {
     Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
-
         auto value = obj->GetProperty("filename");
         auto path = (scene->scene_root_path / value).make_preferred();
         Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetShape(path.string());
+        shape.id = obj->id;
 
         scene::xml::LoadBool(obj, "face_normals", shape.obj.face_normals, false);
         scene::xml::LoadBool(obj, "flip_tex_coords", shape.obj.flip_tex_coords, true);

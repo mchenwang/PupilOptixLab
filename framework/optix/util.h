@@ -5,8 +5,8 @@
 #include "cuda/vec_math.h"
 
 namespace Pupil::optix {
-CUDA_DEVICE static const float EPS = 0.000001f;
-CUDA_DEVICE static const float MAX_DISTANCE = 1e16f;
+constexpr float EPS = 0.000001f;
+constexpr const float MAX_DISTANCE = 1e16f;
 
 CUDA_INLINE CUDA_DEVICE void PackPointer(void *target, uint32_t &u0, uint32_t &u1) noexcept {
     const uint64_t ptr = reinterpret_cast<uint64_t>(target);
@@ -19,14 +19,14 @@ CUDA_INLINE CUDA_DEVICE void *UnpackPointer(uint32_t u0, uint32_t u1) noexcept {
     return reinterpret_cast<void *>(ptr);
 }
 
-#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifdef PUPIL_OPTIX
 template<typename T>
 CUDA_INLINE CUDA_DEVICE T *GetPRD() noexcept {
     const uint32_t u0 = optixGetPayload_0();
     const uint32_t u1 = optixGetPayload_1();
     return reinterpret_cast<T *>(UnpackPointer(u0, u1));
 }
-#endif// PUPIL_OPTIX_LAUNCHER_SIDE
+#endif
 
 // https://math.stackexchange.com/questions/18686/uniform-random-point-in-triangle-in-3d
 // return interpolation factor for triangle vertex
@@ -176,5 +176,9 @@ CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float2 v) noexcept {
 
 CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
     return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float Lerp(const float &a, const float &b, const float t) noexcept {
+    return a + t * (b - a);
 }
 }// namespace Pupil::optix

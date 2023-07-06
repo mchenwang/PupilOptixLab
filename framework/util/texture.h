@@ -4,6 +4,7 @@
 #include "type.h"
 
 #include <array>
+#include <string_view>
 
 namespace Pupil::util {
 enum class ETextureAddressMode : unsigned int {
@@ -45,11 +46,12 @@ struct BitmapTexture {
         HDR,
         EXR
     };
-    constexpr static std::array S_FILE_FORMAT_NAME {
+    constexpr static std::array S_FILE_FORMAT_NAME{
         "hdr", "exr"
     };
 
-    static bool Save(float *data, size_t w, size_t h, const char *, FileFormat) noexcept;
+    static bool Save(float *data, size_t w, size_t h, std::string_view file_path, FileFormat) noexcept;
+    static BitmapTexture Load(std::string_view file_path) noexcept;
 };
 
 struct Texture {

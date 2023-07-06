@@ -1,7 +1,5 @@
 #pragma once
 
-#include "util.h"
-
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -17,7 +15,7 @@ public:
     //[[nodiscard]] cudaEvent_t GetEvent() const noexcept { return m_event; }
     //[[nodiscard]] bool IsAvailable() noexcept { return cudaSuccess == cudaEventQuery(m_event); }
 
-    void Synchronize() noexcept { CUDA_CHECK(cudaStreamSynchronize(m_stream)); }
+    void Synchronize() noexcept;
     //void Synchronize() noexcept { CUDA_CHECK(cudaEventSynchronize(m_event)); }
     //void Signal() noexcept { CUDA_CHECK(cudaEventRecord(m_event, m_stream)); }
 

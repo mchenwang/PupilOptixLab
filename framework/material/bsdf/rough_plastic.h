@@ -85,7 +85,7 @@ struct RoughPlastic {
         }
     };
 
-    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE Local GetLocal(float2 sampled_tex) const noexcept {
         Local local_bsdf;
         local_bsdf.eta = eta;
         local_bsdf.nonlinear = nonlinear;

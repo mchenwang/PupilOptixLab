@@ -11,7 +11,7 @@ struct SphereEmitter {
         float radius;
     } geo;
 
-    CUDA_HOSTDEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
+    CUDA_DEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
         float3 t = Pupil::optix::UniformSampleSphere(xi.x, xi.y);
         float3 position = t * geo.radius + geo.center;
         float3 normal = normalize(t);
@@ -31,7 +31,7 @@ struct SphereEmitter {
         ret.normal = normal;
     }
 
-    CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
+    CUDA_DEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         float3 dir = normalize(scatter_pos - emit_local_geo.position);
         float LNoL = dot(emit_local_geo.normal, dir);
         if (LNoL > 0.f) {

@@ -34,7 +34,7 @@ struct Conductor {
         }
     };
 
-    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE Local GetLocal(float2 sampled_tex) const noexcept {
         Local local_bsdf;
         local_bsdf.eta = eta.Sample(sampled_tex);
         local_bsdf.k = k.Sample(sampled_tex);

@@ -4,13 +4,7 @@ if(DEFINED ENV{OptiX_INSTALL_DIR})
 elseif(WIN32)
     find_path(OptiX_ROOT_DIR
         NAMES include/optix.h
-        PATHS
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.5.0"
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.4.0"
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.3.0"
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.2.0"
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.1.0"
-            "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.0.0"
+        PATHS "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.5.0"
     )
 else()
     find_path(OptiX_ROOT_DIR NAMES include/optix.h)
@@ -26,8 +20,7 @@ add_library(OptiX INTERFACE IMPORTED)
 target_include_directories(OptiX INTERFACE ${OptiX_ROOT_DIR}/include)
 
 enable_language(CUDA)
-find_package(CUDA 11.6 REQUIRED)
-find_package(CUDAToolkit 11.6 REQUIRED)
+find_package(CUDAToolkit 12.0 REQUIRED)
 
 # Adapted from the CMake source code at https://github.com/Kitware/CMake/blob/master/Modules/FindCUDA/select_compute_arch.cmake
 # Simplified to return a semicolon-separated list of the compute capabilities of installed devices

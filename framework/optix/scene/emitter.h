@@ -8,7 +8,7 @@
 #include "optix/util.h"
 #include "optix/scene/emitter/types.h"
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include <vector>
 
 namespace Pupil::scene {
@@ -34,8 +34,17 @@ struct Emitter {
 
     CUDA_HOSTDEVICE Emitter() noexcept {}
 
-#ifndef PUPIL_OPTIX_LAUNCHER_SIDE
-    CUDA_HOSTDEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
+#ifndef PUPIL_CPP
+    CUDA_DEVICE float3 GetEnvCenter() const noexcept {
+        switch (type) {
+            case EEmitterType::ConstEnv:
+                return const_env.center;
+            case EEmitterType::EnvMap:
+                return env_map.center;
+        }
+        return make_float3(0.f);
+    }
+    CUDA_DEVICE void Eval(EmitEvalRecord &ret, LocalGeometry &emit_local_geo, float3 scatter_pos) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
                 area.Eval(ret, emit_local_geo, scatter_pos);
@@ -46,10 +55,13 @@ struct Emitter {
             case EEmitterType::ConstEnv:
                 const_env.Eval(ret, emit_local_geo, scatter_pos);
                 break;
+            case EEmitterType::EnvMap:
+                env_map.Eval(ret, emit_local_geo, scatter_pos);
+                break;
         }
     }
 
-    CUDA_HOSTDEVICE float3 GetRadiance(float2 tex) const noexcept {
+    CUDA_DEVICE float3 GetRadiance(float2 tex) const noexcept {
         float3 ret;
         switch (type) {
             case EEmitterType::TriArea:
@@ -61,11 +73,14 @@ struct Emitter {
             case EEmitterType::ConstEnv:
                 ret = const_env.color;
                 break;
+            case EEmitterType::EnvMap:
+                ret = env_map.radiance.Sample(tex);
+                break;
         }
         return ret;
     }
 
-    CUDA_HOSTDEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
+    CUDA_DEVICE void SampleDirect(EmitterSampleRecord &ret, LocalGeometry &hit_geo, float2 xi) const noexcept {
         switch (type) {
             case EEmitterType::TriArea:
                 area.SampleDirect(ret, hit_geo, xi);
@@ -76,12 +91,16 @@ struct Emitter {
             case EEmitterType::ConstEnv:
                 const_env.SampleDirect(ret, hit_geo, xi);
                 break;
+            case EEmitterType::EnvMap:
+                env_map.SampleDirect(ret, hit_geo, xi);
+                break;
         }
     }
-
-    CUDA_HOSTDEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
-                                               float3 ray_o, float3 ray_dir,
-                                               float t_min, float t_max) noexcept {
+#endif
+#ifdef PUPIL_OPTIX
+    CUDA_DEVICE static bool TraceShadowRay(OptixTraversableHandle ias,
+                                           float3 ray_o, float3 ray_dir,
+                                           float t_min, float t_max) noexcept {
         unsigned int occluded = 0u;
         optixTrace(ias, ray_o, ray_dir,
                    t_min, t_max, 0.f,
@@ -101,33 +120,29 @@ struct EmitterGroup {
     CUDA_HOSTDEVICE const Emitter &SelectOneEmiiter(float p) noexcept {
         unsigned int i = 0;
         float sum_p = 0.f;
-        const Emitter &cb_emitter =
-            env ? *env.operator->() :
-                  (areas ? areas[0] :
-                           (points ? points[0] : directionals[0]));
         for (; i < areas.GetNum(); ++i) {
-            if (p > sum_p && p < sum_p + areas[i].select_probability) {
+            if (p <= sum_p + areas[i].select_probability) {
                 return areas[i];
             }
             sum_p += areas[i].select_probability;
         }
         for (i = 0; i < points.GetNum(); ++i) {
-            if (p > sum_p && p < sum_p + points[i].select_probability) {
+            if (p <= sum_p + points[i].select_probability) {
                 return points[i];
             }
             sum_p += points[i].select_probability;
         }
         for (i = 0; i < directionals.GetNum(); ++i) {
-            if (p > sum_p && p < sum_p + directionals[i].select_probability) {
+            if (p <= sum_p + directionals[i].select_probability) {
                 return directionals[i];
             }
             sum_p += directionals[i].select_probability;
         }
-        return cb_emitter;
+        return *env.operator->();
     }
 };
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 
 class EmitterHelper {
 private:
@@ -140,6 +155,7 @@ private:
     CUdeviceptr m_points_cuda_memory;
     CUdeviceptr m_directionals_cuda_memory;
     CUdeviceptr m_env_cuda_memory;
+    CUdeviceptr m_env_cdf_weight_cuda_memory;
 
     void GenerateEmitters(scene::Scene *) noexcept;
 

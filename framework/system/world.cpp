@@ -12,7 +12,7 @@
 namespace Pupil {
 void World::Init() noexcept {
     EventBinder<ECanvasEvent::MouseDragging>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
+        if (!util::Singleton<System>::instance()->render_flag || !camera) return;
 
         const struct {
             float x, y;
@@ -24,7 +24,7 @@ void World::Init() noexcept {
     });
 
     EventBinder<ECanvasEvent::MouseWheel>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
+        if (!util::Singleton<System>::instance()->render_flag || !camera) return;
 
         float delta = *(float *)p;
         camera->SetFovDelta(delta);
@@ -33,7 +33,7 @@ void World::Init() noexcept {
     });
 
     EventBinder<ECanvasEvent::CameraMove>([this](void *p) {
-        if (!util::Singleton<System>::instance()->render_flag) return;
+        if (!util::Singleton<System>::instance()->render_flag || !camera) return;
 
         util::Float3 delta = *(util::Float3 *)p;
         camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);

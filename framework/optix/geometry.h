@@ -3,7 +3,7 @@
 #include "cuda/data_view.h"
 #include <vector_types.h>
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
 #include "scene/shape.h"
 #else
 #include <optix.h>
@@ -46,10 +46,10 @@ struct Geometry {
 
     CUDA_HOSTDEVICE Geometry() noexcept {}
 
-#ifdef PUPIL_OPTIX_LAUNCHER_SIDE
+#ifndef PUPIL_OPTIX
     void LoadGeometry(const Pupil::scene::Shape &) noexcept;
 #else
-    CUDA_HOSTDEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {
+    CUDA_DEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {
         switch (type) {
             case EType::TriMesh: {
                 const auto face_index = optixGetPrimitiveIndex();
@@ -95,7 +95,7 @@ struct Geometry {
         }
     }
 
-    CUDA_HOSTDEVICE void GetHitLocalGeometry(LocalGeometry &ret, float3 ray_dir, bool twosided) const noexcept {
+    CUDA_DEVICE void GetHitLocalGeometry(LocalGeometry &ret, float3 ray_dir, bool twosided) const noexcept {
         GetHitLocalGeometry(ret);
         if (dot(-ray_dir, ret.normal) < 0.f && twosided)
             ret.normal = -ret.normal;

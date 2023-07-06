@@ -301,6 +301,7 @@ void Context::StartRenderScreen(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_li
 }
 
 void Context::Present(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
+    std::scoped_lock lock{ m_flip_model_mutex };
     auto &back_buffer = m_back_buffers[m_current_index];
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

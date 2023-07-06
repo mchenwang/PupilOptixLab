@@ -34,7 +34,7 @@ struct Diffuse {
         }
     };
 
-    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE Local GetLocal(float2 sampled_tex) const noexcept {
         Local local_bsdf;
         local_bsdf.reflectance = reflectance.Sample(sampled_tex);
         return local_bsdf;

@@ -44,7 +44,7 @@ struct Dielectric {
         }
     };
 
-    CUDA_HOSTDEVICE Local GetLocal(float2 sampled_tex) const noexcept {
+    CUDA_DEVICE Local GetLocal(float2 sampled_tex) const noexcept {
         Local local_bsdf;
         local_bsdf.eta = int_ior / ext_ior;
         local_bsdf.specular_reflectance = specular_reflectance.Sample(sampled_tex);
