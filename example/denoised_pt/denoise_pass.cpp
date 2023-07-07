@@ -89,7 +89,7 @@ void DenoisePass::SetScene(World *world) noexcept {
 
 void DenoisePass::Inspector() noexcept {
     ImGui::Checkbox("enable", &s_enabled_flag);
-    ImGui::Text("cost: %d ms", m_time_cost);
+    ImGui::Text("cost: %.3f ms", m_time_cost);
     uint32_t mode = m_denoiser_mode;
 
     if (bool albedo = mode & optix::Denoiser::EMode::UseAlbedo;

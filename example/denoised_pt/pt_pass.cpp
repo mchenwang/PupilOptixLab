@@ -63,7 +63,7 @@ void PTPass::Run() noexcept {
                 m_s2->UpdateTransform(transform);
             }
             m_frame_cnt++;
-            m_optix_launch_params.handle = m_optix_scene->GetIASHandle();
+            m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
         }
 
         if (DenoisePass::s_enabled_flag) {
@@ -184,7 +184,7 @@ void PTPass::SetScene(World *world) noexcept {
     }
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
-    m_optix_launch_params.handle = world->optix_scene->ias_handle;
+    m_optix_launch_params.handle = world->optix_scene->GetIASHandle(2, true);
     m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
     SetSBT(world->scene.get());

@@ -1,4 +1,5 @@
 #include "mesh.h"
+#include "ias_manager.h"
 #include "optix/context.h"
 #include "optix/check.h"
 #include "optix/scene/scene.h"
@@ -207,9 +208,11 @@ void RenderObject::BindScene(Scene *scene, int instance_index) noexcept {
         return;
     }
 
-    if (instance_index < 0 || instance_index >= scene->m_instances.size()) {
+    if (instance_index < 0 ||
+        (scene->m_ias_manager &&
+         instance_index >= scene->m_ias_manager->m_instances.size())) {
         Log::Error("RenderObject instance index[{}] out of range[0, {}].",
-                   instance_index, scene->m_instances.size() - 1);
+                   instance_index, scene->m_ias_manager->m_instances.size() - 1);
         return;
     }
 
@@ -219,36 +222,20 @@ void RenderObject::BindScene(Scene *scene, int instance_index) noexcept {
 
 void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {
     transform = new_transform;
-    if (scene && instance_index != -1) {
-        memcpy(scene->m_instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
+    if (scene && instance_index != -1 && scene->m_ias_manager) {
+        auto &instances = scene->m_ias_manager->m_instances;
+        memcpy(instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
 
-        if (scene->m_instances_memory)
-            CUDA_CHECK(cudaMemcpy(
-                reinterpret_cast<void **>(
-                    scene->m_instances_memory +
-                    instance_index * sizeof(scene->m_instances[instance_index])),
-                &scene->m_instances[instance_index],
-                sizeof(scene->m_instances[instance_index]),
-                cudaMemcpyHostToDevice));
-
-        scene->m_scene_dirty = true;
+        scene->m_ias_manager->m_dirty_flag |= (1ll << 32) - 1;
     }
 }
 void RenderObject::ApplyTransform(const util::Transform &new_transform) noexcept {
     transform.matrix = new_transform.matrix * transform.matrix;
     if (scene && instance_index != -1) {
-        memcpy(scene->m_instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
+        auto &instances = scene->m_ias_manager->m_instances;
+        memcpy(instances[instance_index].transform, transform.matrix.e, sizeof(float) * 12);
 
-        if (scene->m_instances_memory)
-            CUDA_CHECK(cudaMemcpy(
-                reinterpret_cast<void **>(
-                    scene->m_instances_memory +
-                    instance_index * sizeof(scene->m_instances[instance_index])),
-                &scene->m_instances[instance_index],
-                sizeof(scene->m_instances[instance_index]),
-                cudaMemcpyHostToDevice));
-
-        scene->m_scene_dirty = true;
+        scene->m_ias_manager->m_dirty_flag |= (1ll << 32) - 1;
     }
 }
 

@@ -1,3 +1,4 @@
+#include "ias_manager.h"
 #include "optix/scene/scene.h"
 #include "scene/scene.h"
 
@@ -6,11 +7,13 @@
 #include "optix/scene/mesh.h"
 #include "cuda/util.h"
 
+#include "system/world.h"
+
 #include <optix_stubs.h>
 
 namespace Pupil::optix {
-Scene::Scene(Pupil::scene::Scene *scene, bool allow_update) noexcept {
-    m_allow_update = allow_update;
+Scene::Scene(Pupil::scene::Scene *scene) noexcept {
+    m_ias_manager = std::make_unique<IASManager>();
     ResetScene(scene);
 }
 
@@ -57,7 +60,13 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
         }
     }
 
-    CreateTopLevelAccel();
+    std::vector<RenderObject *> render_objects;
+    render_objects.reserve(m_ros.size());
+    std::transform(m_ros.begin(), m_ros.end(), std::back_inserter(render_objects), [](const std::unique_ptr<RenderObject> &ro) { return ro.get(); });
+
+    m_ias_manager->SetInstance(render_objects);
+    for (auto i = 0u; auto &&ro : m_ros)
+        ro->BindScene(this, i++);
 
     auto &&sensor = scene->sensor;
     camera_desc = util::CameraDesc{
@@ -74,137 +83,8 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
         emitters->Reset(scene);
 }
 
-void Scene::CreateTopLevelAccel() noexcept {
-    auto context = util::Singleton<Context>::instance();
-
-    m_instances.clear();
-    m_instances.resize(m_ros.size());
-
-    const auto num_instances = m_instances.size();
-
-    for (auto i = 0u; i < num_instances; i++) {
-        memcpy(m_instances[i].transform, m_ros[i]->transform.matrix.e, sizeof(float) * 12);
-        m_instances[i].instanceId = i;
-        m_instances[i].sbtOffset = i * 2;
-        m_instances[i].visibilityMask = m_ros[i]->visibility_mask;
-        m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-        m_instances[i].traversableHandle = m_ros[i]->gas_handle;
-
-        m_ros[i]->BindScene(this, i);
-    }
-
-    const auto instances_size_in_bytes = sizeof(OptixInstance) * num_instances;
-    CUDA_FREE(m_instances_memory);
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_instances_memory), instances_size_in_bytes));
-    CUDA_CHECK(cudaMemcpy(
-        reinterpret_cast<void **>(m_instances_memory),
-        m_instances.data(),
-        instances_size_in_bytes,
-        cudaMemcpyHostToDevice));
-
-    OptixBuildInput instance_input{
-        .type = OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-        .instanceArray = {
-            .instances = m_instances_memory,
-            .numInstances = static_cast<unsigned int>(num_instances) }
-    };
-
-    OptixAccelBuildOptions accel_options{};
-    accel_options.buildFlags = OPTIX_BUILD_FLAG_ALLOW_COMPACTION |
-                               (m_allow_update ? OPTIX_BUILD_FLAG_ALLOW_UPDATE : 0);
-    accel_options.operation = OPTIX_BUILD_OPERATION_BUILD;
-
-    OptixAccelBufferSizes ias_buffer_sizes;
-    OPTIX_CHECK(optixAccelComputeMemoryUsage(
-        *context,
-        &accel_options,
-        &instance_input,
-        1,// num build inputs
-        &ias_buffer_sizes));
-
-    m_ias_update_temp_buffer_size = ias_buffer_sizes.tempUpdateSizeInBytes;
-
-    CUDA_FREE(m_ias_build_update_temp_buffer);
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_ias_build_update_temp_buffer),
-                          std::max(ias_buffer_sizes.tempSizeInBytes, m_ias_update_temp_buffer_size)));
-
-    // non-compacted output
-    CUdeviceptr d_buffer_temp_output_ias_and_compacted_size;
-    size_t compactedSizeOffset = roundUp<size_t>(ias_buffer_sizes.outputSizeInBytes, 8ull);
-    CUDA_CHECK(cudaMalloc(
-        reinterpret_cast<void **>(&d_buffer_temp_output_ias_and_compacted_size),
-        compactedSizeOffset + 8));
-
-    OptixAccelEmitDesc emitProperty = {};
-    emitProperty.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-    emitProperty.result = (CUdeviceptr)((char *)d_buffer_temp_output_ias_and_compacted_size + compactedSizeOffset);
-
-    OPTIX_CHECK(optixAccelBuild(
-        *context,
-        0,
-        &accel_options,
-        &instance_input,
-        1,
-        m_ias_build_update_temp_buffer,
-        ias_buffer_sizes.tempSizeInBytes,
-        d_buffer_temp_output_ias_and_compacted_size,
-        ias_buffer_sizes.outputSizeInBytes,
-        &ias_handle,
-        &emitProperty,
-        1));
-
-    size_t compacted_ias_size;
-    CUDA_CHECK(cudaMemcpy(&compacted_ias_size, (void *)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost));
-
-    if (compacted_ias_size < ias_buffer_sizes.outputSizeInBytes) {
-        CUDA_FREE(m_ias_buffer);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_ias_buffer), compacted_ias_size));
-
-        // use handle as input and output
-        OPTIX_CHECK(optixAccelCompact(*context, 0, ias_handle, m_ias_buffer, compacted_ias_size, &ias_handle));
-        m_ias_buffer_size = compacted_ias_size;
-
-        CUDA_FREE(d_buffer_temp_output_ias_and_compacted_size);
-    } else {
-        m_ias_buffer = d_buffer_temp_output_ias_and_compacted_size;
-        m_ias_buffer_size = ias_buffer_sizes.outputSizeInBytes;
-    }
-}
-
-OptixTraversableHandle Scene::GetIASHandle() noexcept {
-    if (!m_scene_dirty || !m_allow_update) return ias_handle;
-    m_scene_dirty = false;
-
-    auto context = util::Singleton<Context>::instance();
-
-    OptixAccelBuildOptions accel_options{
-        .buildFlags = OPTIX_BUILD_FLAG_ALLOW_COMPACTION | OPTIX_BUILD_FLAG_ALLOW_UPDATE,
-        .operation = OPTIX_BUILD_OPERATION_UPDATE
-    };
-
-    OptixBuildInput instance_input{
-        .type = OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-        .instanceArray = {
-            .instances = m_instances_memory,
-            .numInstances = static_cast<unsigned int>(m_instances.size()) }
-    };
-
-    OPTIX_CHECK(optixAccelBuild(
-        *context,
-        0,
-        &accel_options,
-        &instance_input,
-        1,
-        m_ias_build_update_temp_buffer,
-        m_ias_update_temp_buffer_size,
-        m_ias_buffer,
-        m_ias_buffer_size,
-        &ias_handle,
-        nullptr,
-        0));
-
-    CUDA_SYNC_CHECK();
-    return ias_handle;
+OptixTraversableHandle Scene::GetIASHandle(unsigned int gas_offset, bool allow_update) noexcept {
+    return m_ias_manager->GetIASHandle(gas_offset, allow_update);
 }
 
 RenderObject *Scene::GetRenderObject(std::string_view id) const noexcept {
@@ -226,7 +106,7 @@ RenderObject *Scene::GetRenderObject(size_t index) const noexcept {
 }
 
 Scene::~Scene() noexcept {
-    CUDA_FREE(m_ias_buffer);
+    m_ias_manager.reset();
     emitters.reset();
 }
 }// namespace Pupil::optix

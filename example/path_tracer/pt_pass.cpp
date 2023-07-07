@@ -140,7 +140,7 @@ void PTPass::SetScene(World *world) noexcept {
     m_optix_launch_params.accum_buffer.SetData(m_accum_buffer->cuda_res.ptr, m_output_pixel_num);
 
     m_optix_launch_params.frame_buffer.SetData(0, 0);
-    m_optix_launch_params.handle = world->optix_scene->ias_handle;
+    m_optix_launch_params.handle = world->optix_scene->GetIASHandle();
     m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
     SetSBT(world->scene.get());
