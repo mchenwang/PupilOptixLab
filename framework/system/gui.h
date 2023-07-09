@@ -26,6 +26,7 @@ enum class EWindowEvent {
 
 enum class ECanvasEvent {
     Resize,
+    Display,
     MouseDragging,
     MouseWheel,
     CameraMove

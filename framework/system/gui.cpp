@@ -140,6 +140,11 @@ void GuiPass::Init() noexcept {
                 cudaMemsetAsync(reinterpret_cast<void *>(canvas_buffer->cuda_ptr), 0, size, *m_memcpy_stream.get());
             }
         });
+
+        EventBinder<ECanvasEvent::Display>([this](void *p) {
+            auto buffer_name = reinterpret_cast<std::string_view*>(p);
+            m_canvas_display_buffer_name = *buffer_name;
+        });
     }
 
     // init imgui
@@ -510,8 +515,19 @@ void GuiPass::OnDraw() noexcept {
                 m_canvas_desc.gamma_correct = static_cast<uint32_t>(flag);
             }
             if (ImGui::TreeNode("buffers")) {
-                static int selected = 0;
+                static int selected = -1;
                 auto buffer_mngr = util::Singleton<BufferManager>::instance();
+                if (selected == -1) {
+                    for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
+                        auto buffer = buffer_mngr->GetBuffer(buffer_name);
+                        if (buffer->desc.flag & EBufferFlag::AllowDisplay) {
+                            if (buffer->desc.name == m_canvas_display_buffer_name) {
+                                selected = i;
+                            }
+                            ++i;
+                        }
+                    }
+                }
                 for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
                     auto buffer = buffer_mngr->GetBuffer(buffer_name);
                     if (buffer->desc.flag & EBufferFlag::AllowDisplay) {
