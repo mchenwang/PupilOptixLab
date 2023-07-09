@@ -4,6 +4,7 @@
 
 #include "pass.h"
 #include "resource.h"
+#include "cuda/stream.h"
 
 #include <d3d12.h>
 #include <winrt/base.h>
@@ -52,6 +53,7 @@ public:
     void Destroy() noexcept;
     void Resize(uint32_t, uint32_t) noexcept;
     void ResizeCanvas(uint32_t w, uint32_t h) noexcept;
+    void UpdateCanvasOutput() noexcept;
     void AdjustWindowSize() noexcept;
 
     using CustomInspector = std::function<void()>;
@@ -70,29 +72,25 @@ protected:
     void InitRenderToTexturePipeline() noexcept;
     void RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 
-    // std::unordered_map<std::string, CustomInspector> m_inspectors;
     std::vector<std::pair<std::string, CustomInspector>> m_inspectors;
     bool m_init_flag = false;
-    std::atomic_bool m_copy_after_flip_flag = false;
+    std::atomic_bool m_render_flip_buffer_to_texture_flag = false;
+    std::unique_ptr<cuda::Stream> m_memcpy_stream = nullptr;
 
     // one for rendering output, the other for showing on gui
     struct FlipBuffer {
         winrt::com_ptr<ID3D12Resource> res = nullptr;
+        Buffer *system_buffer = nullptr;
         D3D12_GPU_DESCRIPTOR_HANDLE output_buffer_srv{};
         D3D12_GPU_DESCRIPTOR_HANDLE output_texture_srv{};
         D3D12_CPU_DESCRIPTOR_HANDLE output_rtv{};
-        SharedBuffer shared_buffer{};
     };
 
     FlipBuffer m_flip_buffers[SWAP_BUFFER_NUM];
 
     std::atomic<uint32_t> m_current_buffer_index = 0;
     std::atomic<uint32_t> m_ready_buffer_index = 1;
-    // uint32_t m_current_buffer_index = 0;
-    // uint32_t m_ready_buffer_index = 1;
     std::mutex m_flip_model_mutex;
-    uint32_t m_output_w = 0;
-    uint32_t m_output_h = 0;
 
     // render buffer to texture
     winrt::com_ptr<ID3D12RootSignature> m_root_signature;

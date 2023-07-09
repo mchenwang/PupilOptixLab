@@ -4,7 +4,13 @@ set(STATIC_DATA_FILE ${CMAKE_CURRENT_LIST_DIR}/static.h)
 
 file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.inl")
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES})
+
+set(pupil_cuda_kernel_files
+    system/buffer_to_canvas.cu
+    system/buffer_to_canvas.cuh
+)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_cuda_kernel_files})
 
 cuda_compile_and_embed(g_pupil_material_embedded_ptx_code material/bsdf/bsdf.cu)
 
@@ -12,7 +18,7 @@ set(pupil_builtin_embeding_cu
     ${g_pupil_material_embedded_ptx_code}
 )
 
-add_library(${pupil_framework_name} STATIC ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_builtin_embeding_cu})
+add_library(${pupil_framework_name} STATIC ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_builtin_embeding_cu} ${pupil_cuda_kernel_files})
 target_include_directories(${pupil_framework_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_dependencies(${pupil_framework_name} file-copy)

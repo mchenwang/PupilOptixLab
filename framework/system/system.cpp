@@ -40,6 +40,7 @@ void System::Init(bool has_window) noexcept {
 
     EventBinder<ESystemEvent::StartRendering>([this](void *) {
         this->render_flag = true;
+        m_scene_load_flag = true;
     });
     EventBinder<ESystemEvent::StopRendering>([this](void *) {
         this->render_flag = false;
@@ -82,6 +83,7 @@ void System::Run() noexcept {
     m_system_run_flag = true;
     if (m_scene_load_flag) {
         EventDispatcher<ESystemEvent::Precompute>();
+        EventDispatcher<ESystemEvent::StartRendering>();
     } else {
         EventDispatcher<ESystemEvent::StopRendering>();
     }
@@ -112,6 +114,7 @@ void System::Run() noexcept {
     std::unique_lock quit_lock(quit_cv_mtx);
     quit_cv.wait(quit_lock, [&] { return render_quit; });
 }
+
 void System::Destroy() noexcept {
     util::Singleton<util::ThreadPool>::instance()->Destroy();
     util::Singleton<World>::instance()->Destroy();
@@ -148,17 +151,25 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         Pupil::Log::Warn("scene load failed.");
         return;
     }
+
+    auto buf_mngr = util::Singleton<BufferManager>::instance();
+    BufferDesc default_frame_buffer_desc{
+        .name = buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME.data(),
+        .flag = (util::Singleton<GuiPass>::instance()->IsInitialized() ?
+                     EBufferFlag::AllowDisplay :
+                     EBufferFlag::None),
+        .width = static_cast<uint32_t>(world->scene->sensor.film.w),
+        .height = static_cast<uint32_t>(world->scene->sensor.film.h),
+        .stride_in_byte = sizeof(float) * 4
+    };
+    buf_mngr->AllocBuffer(default_frame_buffer_desc);
+
     m_scene_load_flag = true;
     EventDispatcher<ESystemEvent::SceneLoad>(world);
 
     util::Singleton<scene::ShapeDataManager>::instance()->Clear();
     util::Singleton<scene::TextureManager>::instance()->Clear();
 
-    struct {
-        uint32_t w, h;
-    } size{ static_cast<uint32_t>(world->scene->sensor.film.w),
-            static_cast<uint32_t>(world->scene->sensor.film.h) };
-    EventDispatcher<ECanvasEvent::Resize>(size);
     this->render_flag = true;
 
     if (m_system_run_flag) {

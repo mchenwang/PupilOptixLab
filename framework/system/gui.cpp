@@ -19,6 +19,8 @@
 
 #include "cuda/util.h"
 
+#include "buffer_to_canvas.cuh"
+
 #include "static.h"
 
 #include <d3dcompiler.h>
@@ -37,12 +39,18 @@ HINSTANCE m_instance;
 ImGui::FileBrowser m_scene_file_browser;
 
 bool m_waiting_scene_load = false;
+bool m_render_flag = false;
 double m_flip_rate = 1.;
 
-struct FrameInfo {
+int m_canvas_display_buffer_index = 0;
+std::string_view m_canvas_display_buffer_name = Pupil::BufferManager::DEFAULT_FINAL_RESULT_BUFFER_NAME;
+
+struct CanvasDisplayDesc {
     uint32_t w = 1;
     uint32_t h = 1;
-};
+    uint32_t tone_mapping = 0;
+    uint32_t gamma_correct = 1;
+} m_canvas_desc;
 }// namespace
 
 namespace {
@@ -113,6 +121,11 @@ void GuiPass::Init() noexcept {
 
         EventBinder<ESystemEvent::StartRendering>([](void *) {
             m_waiting_scene_load = false;
+            m_render_flag = true;
+        });
+
+        EventBinder<ESystemEvent::StopRendering>([](void *) {
+            m_render_flag = false;
         });
 
         EventBinder<ESystemEvent::FrameFinished>([this](void *p) {
@@ -120,11 +133,12 @@ void GuiPass::Init() noexcept {
             m_flip_rate = 1000. / time_count;
         });
 
-        EventBinder<ECanvasEvent::Resize>([this](void *p) {
-            struct {
-                uint32_t w, h;
-            } size = *static_cast<decltype(size) *>(p);
-            ResizeCanvas(size.w, size.h);
+        EventBinder<ESystemEvent::SceneLoad>([this](void *) {
+            auto canvas_buffer = GetReadyOutputBuffer().system_buffer;
+            if (canvas_buffer) {
+                auto size = canvas_buffer->desc.width * canvas_buffer->desc.height * canvas_buffer->desc.stride_in_byte;
+                cudaMemsetAsync(reinterpret_cast<void *>(canvas_buffer->cuda_ptr), 0, size, *m_memcpy_stream.get());
+            }
         });
     }
 
@@ -160,18 +174,22 @@ void GuiPass::Init() noexcept {
 
     InitRenderToTexturePipeline();
 
+    m_memcpy_stream = std::make_unique<cuda::Stream>();
+
     m_init_flag = true;
 }
 
 void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
+    if (w == m_canvas_desc.w && h == m_canvas_desc.h) return;
+    m_canvas_desc.h = h;
+    m_canvas_desc.w = w;
+
     auto dx_ctx = util::Singleton<DirectX::Context>::instance();
     dx_ctx->Flush();
     // init render output buffers
     {
         auto buffer_mngr = util::Singleton<BufferManager>::instance();
         uint64_t size = static_cast<uint64_t>(h) * w * sizeof(float) * 4;
-        m_output_h = h;
-        m_output_w = w;
 
         auto srv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         auto rtv_descriptor_handle_size = dx_ctx->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -213,11 +231,6 @@ void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
             rtv_gpu_handle.ptr += rtv_descriptor_handle_size;
             m_flip_buffers[i].output_rtv = rtv_cpu_handle;
 
-            // D3D12_RENDER_TARGET_VIEW_DESC rtv_desc{};
-            // rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-            // rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            // rtv_desc.Texture2D.MipSlice = 1;
-            // dx_ctx->device->CreateRenderTargetView(m_flip_buffers[i].res.get(), &rtv_desc, rtv_cpu_handle);
             dx_ctx->device->CreateRenderTargetView(m_flip_buffers[i].res.get(), nullptr, rtv_cpu_handle);
 
             srv_gpu_handle.ptr += srv_descriptor_handle_size;
@@ -225,31 +238,58 @@ void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
             m_flip_buffers[i].output_buffer_srv = srv_gpu_handle;
 
             BufferDesc buf_desc{
-                .type = EBufferType::SharedCudaWithDX12,
-                .name = std::string{ OUTPUT_FLIP_BUFFER[i] },
-                .size = size
+                .name = OUTPUT_FLIP_BUFFER[i].data(),
+                .flag = EBufferFlag::SharedWithDX12,
+                .width = w,
+                .height = h,
+                .stride_in_byte = sizeof(float) * 4
             };
-            m_flip_buffers[i].shared_buffer = buffer_mngr->AllocBuffer(buf_desc)->shared_res;
+            m_flip_buffers[i].system_buffer = buffer_mngr->AllocBuffer(buf_desc);
 
             D3D12_SHADER_RESOURCE_VIEW_DESC buf_srv_desc{};
             buf_srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             buf_srv_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
             buf_srv_desc.Format = DXGI_FORMAT_UNKNOWN;
-            buf_srv_desc.Buffer.NumElements = m_output_h * m_output_w;
+            buf_srv_desc.Buffer.NumElements = static_cast<UINT>(m_canvas_desc.h * m_canvas_desc.w);
             buf_srv_desc.Buffer.StructureByteStride = sizeof(float) * 4;
             buf_srv_desc.Buffer.FirstElement = 0;
             buf_srv_desc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-            dx_ctx->device->CreateShaderResourceView(m_flip_buffers[i].shared_buffer.dx12_ptr.get(), &buf_srv_desc, srv_cpu_handle);
+            dx_ctx->device->CreateShaderResourceView(m_flip_buffers[i].system_buffer->dx12_ptr.get(), &buf_srv_desc, srv_cpu_handle);
         }
     }
 
-    {
-        FrameInfo init_frame_info{
-            .w = m_output_w,
-            .h = m_output_h
-        };
-        memcpy(m_frame_constant_buffer_mapped_ptr, &init_frame_info, sizeof(FrameInfo));
+    Pupil::Log::Info("Canvas resize to {}x{}", m_canvas_desc.w, m_canvas_desc.h);
+}
+
+void GuiPass::UpdateCanvasOutput() noexcept {
+    auto buf_mngr = util::Singleton<BufferManager>::instance();
+    auto canvas_output = buf_mngr->GetBuffer(m_canvas_display_buffer_name);
+    if (canvas_output->desc.height != m_canvas_desc.h ||
+        canvas_output->desc.width != m_canvas_desc.w) {
+        ResizeCanvas(canvas_output->desc.width, canvas_output->desc.height);
     }
+
+    if (canvas_output->desc.stride_in_byte == sizeof(float4)) {
+        auto dst_buf = GetReadyOutputBuffer().system_buffer;
+        cudaMemcpyAsync(reinterpret_cast<void *>(dst_buf->cuda_ptr),
+                        reinterpret_cast<void *>(canvas_output->cuda_ptr),
+                        static_cast<size_t>(dst_buf->desc.width * dst_buf->desc.height * dst_buf->desc.stride_in_byte),
+                        cudaMemcpyKind::cudaMemcpyDeviceToDevice, *m_memcpy_stream.get());
+    } else if (canvas_output->desc.stride_in_byte == sizeof(float3)) {
+        auto dst_buf = GetReadyOutputBuffer().system_buffer;
+        Pupil::CopyFloat3BufferToCanvas(dst_buf->cuda_ptr, canvas_output->cuda_ptr,
+                                        dst_buf->desc.width * dst_buf->desc.height, m_memcpy_stream.get());
+    } else if (canvas_output->desc.stride_in_byte == sizeof(float2)) {
+        auto dst_buf = GetReadyOutputBuffer().system_buffer;
+        Pupil::CopyFloat2BufferToCanvas(dst_buf->cuda_ptr, canvas_output->cuda_ptr,
+                                        dst_buf->desc.width * dst_buf->desc.height, m_memcpy_stream.get());
+    } else if (canvas_output->desc.stride_in_byte == sizeof(float)) {
+        auto dst_buf = GetReadyOutputBuffer().system_buffer;
+        Pupil::CopyFloat1BufferToCanvas(dst_buf->cuda_ptr, canvas_output->cuda_ptr,
+                                        dst_buf->desc.width * dst_buf->desc.height, m_memcpy_stream.get());
+    }
+
+    m_render_flip_buffer_to_texture_flag.exchange(true);
 }
 
 void GuiPass::Destroy() noexcept {
@@ -301,9 +341,8 @@ void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspect
 void GuiPass::FlipSwapBuffer() noexcept {
     std::scoped_lock lock{ m_flip_model_mutex };
     m_current_buffer_index = m_ready_buffer_index.exchange(m_current_buffer_index);
-    // m_ready_buffer_index = m_current_buffer_index;
-    // m_current_buffer_index = (m_current_buffer_index + 1) % SWAP_BUFFER_NUM;
-    m_copy_after_flip_flag.exchange(true);
+
+    UpdateCanvasOutput();
 }
 
 void GuiPass::Run() noexcept {
@@ -330,11 +369,12 @@ void GuiPass::RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList
     // ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
     // cmd_list->SetDescriptorHeaps(1, heaps);
     cmd_list->SetGraphicsRootDescriptorTable(0, buffer.output_buffer_srv);
+    memcpy(m_frame_constant_buffer_mapped_ptr, &m_canvas_desc, sizeof(CanvasDisplayDesc));
     cmd_list->SetGraphicsRootConstantBufferView(1, m_frame_constant_buffer->GetGPUVirtualAddress());
 
-    D3D12_VIEWPORT viewport{ 0.f, 0.f, (FLOAT)m_output_w, (FLOAT)m_output_h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+    D3D12_VIEWPORT viewport{ 0.f, 0.f, (FLOAT)m_canvas_desc.w, (FLOAT)m_canvas_desc.h, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
     cmd_list->RSSetViewports(1, &viewport);
-    D3D12_RECT rect{ 0, 0, (LONG)m_output_w, (LONG)m_output_h };
+    D3D12_RECT rect{ 0, 0, (LONG)m_canvas_desc.w, (LONG)m_canvas_desc.h };
     cmd_list->RSSetScissorRects(1, &rect);
 
     auto rt = buffer.res;
@@ -447,15 +487,47 @@ void GuiPass::OnDraw() noexcept {
                     std::filesystem::path path{ ROOT_DIR };
                     path /= std::string{ file_name } + "." + util::BitmapTexture::S_FILE_FORMAT_NAME[item_current];
 
-                    size_t size = m_output_h * m_output_w * 4;
+                    size_t size = m_canvas_desc.h * m_canvas_desc.w * 4;
                     auto image = new float[size];
                     memset(image, 0, size);
                     auto &buffer = GetReadyOutputBuffer();
-                    cuda::CudaMemcpyToHost(image, buffer.shared_buffer.cuda_ptr, size * sizeof(float));
-                    util::BitmapTexture::Save(image, m_output_w, m_output_h, path.string(), (util::BitmapTexture::FileFormat)item_current);
+                    cuda::CudaMemcpyToHost(image, buffer.system_buffer->cuda_ptr, size * sizeof(float));
+                    util::BitmapTexture::Save(image, m_canvas_desc.w, m_canvas_desc.h, path.string(), (util::BitmapTexture::FileFormat)item_current);
                     delete[] image;
                 }
                 ImGui::PopItemWidth();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Frame Buffer Debug")) {
+            ImGui::Text("Frame size: %d x %d", m_canvas_desc.w, m_canvas_desc.h);
+            if (bool flag = m_canvas_desc.tone_mapping;
+                ImGui::Checkbox("Tone mapping", &flag)) {
+                m_canvas_desc.tone_mapping = static_cast<uint32_t>(flag);
+            }
+            if (bool flag = m_canvas_desc.gamma_correct;
+                ImGui::Checkbox("Gamma Correction", &flag)) {
+                m_canvas_desc.gamma_correct = static_cast<uint32_t>(flag);
+            }
+            if (ImGui::TreeNode("buffers")) {
+                static int selected = 0;
+                auto buffer_mngr = util::Singleton<BufferManager>::instance();
+                for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
+                    auto buffer = buffer_mngr->GetBuffer(buffer_name);
+                    if (buffer->desc.flag & EBufferFlag::AllowDisplay) {
+                        if (ImGui::Selectable(buffer_name.data(), selected == i)) {
+                            if (m_canvas_display_buffer_name != buffer_name) {
+                                selected = i;
+                                m_canvas_display_buffer_name = buffer_name;
+                                if (!m_render_flag && !m_waiting_scene_load) {
+                                    UpdateCanvasOutput();
+                                }
+                            }
+                        }
+                        ++i;
+                    }
+                }
+                ImGui::TreePop();
             }
         }
 
@@ -480,19 +552,19 @@ void GuiPass::OnDraw() noexcept {
         if (!m_waiting_scene_load) {
             if (auto buffer = GetReadyOutputBuffer();
                 buffer.res) {
-                if (m_copy_after_flip_flag.load()) {
+                if (m_render_flip_buffer_to_texture_flag.load()) {
                     RenderFlipBufferToTexture(cmd_list);
-                    m_copy_after_flip_flag.exchange(false);
+                    m_render_flip_buffer_to_texture_flag.exchange(false);
                 }
                 float screen_w = ImGui::GetContentRegionAvail().x;
                 float screen_h = ImGui::GetContentRegionAvail().y;
-                float ratio_x = screen_w / m_output_w;
-                float ratio_y = screen_h / m_output_h;
+                float ratio_x = screen_w / m_canvas_desc.w;
+                float ratio_y = screen_h / m_canvas_desc.h;
                 float ratio = std::min(ratio_x, ratio_y);
                 if (ratio == 0.f) ratio = 1.f;
 
-                float show_w = m_output_w * ratio;
-                float show_h = m_output_h * ratio;
+                float show_w = m_canvas_desc.w * ratio;
+                float show_h = m_canvas_desc.h * ratio;
 
                 float cursor_x = (screen_w - show_w) * 0.5f + ImGui::GetCursorPosX();
                 float cursor_y = (screen_h - show_h) * 0.5f + ImGui::GetCursorPosY();
@@ -563,6 +635,8 @@ void GuiPass::OnDraw() noexcept {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(NULL, (void *)cmd_list.get());
     }
+
+    m_memcpy_stream->Synchronize();
 
     dx_ctx->Present(cmd_list);
     dx_ctx->Flush();
@@ -744,7 +818,7 @@ void GuiPass::InitRenderToTexturePipeline() noexcept {
 
     {
         CD3DX12_HEAP_PROPERTIES properties(D3D12_HEAP_TYPE_UPLOAD);
-        CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(FrameInfo));
+        CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(CanvasDisplayDesc));
         DirectX::StopIfFailed(dx_ctx->device->CreateCommittedResource(
             &properties,
             D3D12_HEAP_FLAG_NONE,
