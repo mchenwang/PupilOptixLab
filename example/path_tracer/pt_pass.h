@@ -41,7 +41,6 @@ private:
     std::unique_ptr<cuda::Stream> m_stream;
     std::unique_ptr<optix::Pass<SBTTypes, OptixLaunchParams>> m_optix_pass;
     size_t m_output_pixel_num = 0;
-    Buffer *m_accum_buffer = nullptr;
 
     std::atomic_bool m_dirty = true;
     CameraHelper *m_world_camera = nullptr;

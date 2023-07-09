@@ -25,6 +25,10 @@ struct OptixLaunchParams {
     cuda::RWArrayView<float4> accum_buffer;
     cuda::RWArrayView<float4> frame_buffer;
 
+    cuda::RWArrayView<float3> normal_buffer;
+    cuda::RWArrayView<float3> albedo_buffer;
+    cuda::RWArrayView<float> test;
+
     OptixTraversableHandle handle;
 };
 

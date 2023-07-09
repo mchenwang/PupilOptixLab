@@ -2,9 +2,9 @@
 #include "kernel.h"
 #include "cuda/vec_math.h"
 
-void SetColor(unsigned int m_frame_cnt, Pupil::cuda::RWArrayView<float4> &m_output, Pupil::cuda::Stream *stream) {
+void SetColor(uint2 size, unsigned int m_frame_cnt, Pupil::cuda::RWArrayView<float4> &m_output, Pupil::cuda::Stream *stream) {
     Pupil::cuda::LaunchKernel2D(
-        uint2{ 512, 512 }, [=] __device__(uint2 pixel_id, uint2 size) {
+        size, [=] __device__(uint2 pixel_id, uint2 size) {
             float3 color = 0.5f * make_float3(
                                       cos(((float)pixel_id.x) / size.x + m_frame_cnt / 100.f),
                                       sin(((float)pixel_id.y) / size.y + m_frame_cnt / 100.f),

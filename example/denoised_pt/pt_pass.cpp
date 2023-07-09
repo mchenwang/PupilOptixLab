@@ -25,6 +25,8 @@ Pupil::optix::Scene *m_optix_scene = nullptr;
 bool m_allow_animation = false;
 Pupil::optix::RenderObject *m_s1 = nullptr;
 Pupil::optix::RenderObject *m_s2 = nullptr;
+
+double m_time_cost = 0.;
 }// namespace
 
 namespace Pupil::pt {
@@ -66,17 +68,15 @@ void PTPass::Run() noexcept {
             m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
         }
 
-        if (DenoisePass::s_enabled_flag) {
-            auto buf_mngr = util::Singleton<BufferManager>::instance();
-            auto result_buffer = buf_mngr->GetBuffer("pt result buffer");
-            m_optix_launch_params.frame_buffer.SetData(result_buffer->cuda_res.ptr, m_output_pixel_num);
-        } else {
-            auto &frame_buffer =
-                util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
-
-            m_optix_launch_params.frame_buffer.SetData(
-                frame_buffer.cuda_ptr, m_output_pixel_num);
-        }
+        // if (DenoisePass::s_enabled_flag) {
+        //     auto buf_mngr = util::Singleton<BufferManager>::instance();
+        //     auto result_buffer = buf_mngr->GetBuffer("pt result buffer");
+        //     m_optix_launch_params.frame_buffer.SetData(result_buffer->cuda_ptr, m_output_pixel_num);
+        // } else {
+        //     auto buf_mngr = util::Singleton<BufferManager>::instance();
+        //     auto buffer = buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME);
+        //     m_optix_launch_params.frame_buffer.SetData(buffer->cuda_ptr, m_output_pixel_num);
+        // }
 
         m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
                           m_optix_launch_params.config.frame.height);
@@ -86,6 +86,7 @@ void PTPass::Run() noexcept {
         ++m_optix_launch_params.random_seed;
     }
     m_timer.Stop();
+    m_time_cost = m_timer.ElapsedMilliseconds();
 }
 
 void PTPass::InitOptixPipeline() noexcept {
@@ -155,35 +156,33 @@ void PTPass::SetScene(World *world) noexcept {
     m_output_pixel_num = m_optix_launch_params.config.frame.width *
                          m_optix_launch_params.config.frame.height;
     auto buf_mngr = util::Singleton<BufferManager>::instance();
-    BufferDesc desc{
-        .type = EBufferType::Cuda,
-        .name = "pt accum buffer",
-        .size = m_output_pixel_num * sizeof(float4)
-    };
-    m_accum_buffer = buf_mngr->AllocBuffer(desc);
-    m_optix_launch_params.accum_buffer.SetData(m_accum_buffer->cuda_res.ptr, m_output_pixel_num);
-
     {
-        desc.name = "pt result buffer";
-        buf_mngr->AllocBuffer(desc);
+        BufferDesc desc{
+            .name = "pt result buffer",
+            .flag = EBufferFlag::AllowDisplay,
+            .width = static_cast<uint32_t>(world->scene->sensor.film.w),
+            .height = static_cast<uint32_t>(world->scene->sensor.film.h),
+            .stride_in_byte = sizeof(float) * 4
+        };
+        m_optix_launch_params.frame_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+        {
+            desc.name = "albedo";
+            m_optix_launch_params.albedo.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+        }
+        {
+            desc.name = "normal";
+            m_optix_launch_params.normal.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+        }
+        {
+            desc.name = "motion vector";
+            m_optix_launch_params.motion_vector.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+        }
+        {
+            desc.name = "pt accum buffer";
+            desc.flag = EBufferFlag::None;
+            m_optix_launch_params.accum_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+        }
     }
-    {
-        desc.name = "albedo";
-        auto buffer = buf_mngr->AllocBuffer(desc);
-        m_optix_launch_params.albedo.SetData(buffer->cuda_res.ptr, m_output_pixel_num);
-    }
-    {
-        desc.name = "normal";
-        auto buffer = buf_mngr->AllocBuffer(desc);
-        m_optix_launch_params.normal.SetData(buffer->cuda_res.ptr, m_output_pixel_num);
-    }
-    {
-        desc.name = "motion vector";
-        auto buffer = buf_mngr->AllocBuffer(desc);
-        m_optix_launch_params.motion_vector.SetData(buffer->cuda_res.ptr, m_output_pixel_num);
-    }
-
-    m_optix_launch_params.frame_buffer.SetData(0, 0);
     m_optix_launch_params.handle = world->optix_scene->GetIASHandle(2, true);
     m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
 
@@ -262,6 +261,7 @@ void PTPass::BindingEventCallback() noexcept {
 }
 
 void PTPass::Inspector() noexcept {
+    ImGui::Text("time cost: %.3lf", m_time_cost);
     ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt + 1);
     ImGui::InputInt("max trace depth", &m_max_depth);
     m_max_depth = clamp(m_max_depth, 1, 128);

@@ -85,11 +85,21 @@ extern "C" __global__ void __raygen__main() {
     int depth = 0;
     auto local_hit = record.hit;
 
-    if (!record.done && record.hit.emitter_index >= 0) {
-        auto &emitter = optix_launch_params.emitters.areas[local_hit.emitter_index];
-        auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
-        record.radiance += emission;
+    if (!record.done) {
+        if (record.hit.emitter_index >= 0) {
+            auto &emitter = optix_launch_params.emitters.areas[local_hit.emitter_index];
+            auto emission = emitter.GetRadiance(local_hit.geo.texcoord);
+            record.radiance += emission;
+        }
+
+        optix_launch_params.albedo_buffer[pixel_index] = local_hit.bsdf.GetAlbedo();
+        optix_launch_params.normal_buffer[pixel_index] = local_hit.geo.normal;
+    } else {
+        optix_launch_params.albedo_buffer[pixel_index] = make_float3(0.f);
+        optix_launch_params.normal_buffer[pixel_index] = make_float3(0.f);
     }
+
+    optix_launch_params.test[pixel_index] = record.random.Next();
 
     while (!record.done) {
         ++depth;

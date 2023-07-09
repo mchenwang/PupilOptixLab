@@ -25,7 +25,7 @@ Pupil::optix::Denoiser::ExecutionData m_data;
 }// namespace
 
 namespace Pupil {
-bool DenoisePass::s_enabled_flag = false;
+bool DenoisePass::s_enabled_flag = true;
 
 DenoisePass::DenoisePass(std::string_view name) noexcept
     : Pass(name) {
@@ -57,10 +57,6 @@ void DenoisePass::Run() noexcept {
         m_film_dirty = false;
     }
 
-    auto &frame_buffer =
-        util::Singleton<GuiPass>::instance()->GetCurrentRenderOutputBuffer().shared_buffer;
-    m_data.output = frame_buffer.cuda_ptr;
-
     m_denoiser->Execute(m_data);
     m_stream->Synchronize();
 
@@ -78,13 +74,13 @@ void DenoisePass::SetScene(World *world) noexcept {
     m_denoiser->tile_h = m_tile_h;
 
     auto buf_mngr = util::Singleton<BufferManager>::instance();
-    auto pt_result = buf_mngr->GetBuffer("pt result buffer");
 
-    m_data.input = buf_mngr->GetBuffer("pt result buffer")->cuda_res.ptr;
-    m_data.albedo = buf_mngr->GetBuffer("albedo")->cuda_res.ptr;
-    m_data.normal = buf_mngr->GetBuffer("normal")->cuda_res.ptr;
-    m_data.motion_vector = buf_mngr->GetBuffer("motion vector")->cuda_res.ptr;
+    m_data.input = buf_mngr->GetBuffer("pt result buffer")->cuda_ptr;
+    m_data.albedo = buf_mngr->GetBuffer("albedo")->cuda_ptr;
+    m_data.normal = buf_mngr->GetBuffer("normal")->cuda_ptr;
+    m_data.motion_vector = buf_mngr->GetBuffer("motion vector")->cuda_ptr;
     m_data.prev_output = m_data.input;
+    m_data.output = buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr;
 }
 
 void DenoisePass::Inspector() noexcept {

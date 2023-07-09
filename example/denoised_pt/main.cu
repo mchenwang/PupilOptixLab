@@ -93,7 +93,7 @@ extern "C" __global__ void __raygen__main() {
         }
 
         optix_launch_params.albedo[pixel_index] = make_float4(local_hit.bsdf.GetAlbedo(), 1.f);
-        optix_launch_params.normal[pixel_index] = make_float4(local_hit.geo.normal);
+        optix_launch_params.normal[pixel_index] = make_float4(local_hit.geo.normal, 1.f);
         optix_launch_params.motion_vector[pixel_index] = make_float4(0.f);
     } else {
         optix_launch_params.albedo[pixel_index] = make_float4(0.f);
@@ -105,6 +105,11 @@ extern "C" __global__ void __raygen__main() {
         ++depth;
         if (depth >= optix_launch_params.config.max_depth)
             break;
+
+        float rr = depth > 2 ? 0.95 : 1.0;
+        if (record.random.Next() > rr)
+            break;
+        record.throughput /= rr;
 
         // direct light sampling
         {
@@ -145,11 +150,6 @@ extern "C" __global__ void __raygen__main() {
                 break;
 
             record.throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
-
-            float rr = depth > 2 ? 0.95 : 1.0;
-            if (record.random.Next() > rr)
-                break;
-            record.throughput /= rr;
 
             ray_origin = record.hit.geo.position;
             ray_direction = optix::ToWorld(bsdf_sample_record.wi, local_hit.geo.normal);
