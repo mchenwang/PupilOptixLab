@@ -219,25 +219,21 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
 
         switch (shape.type) {
             case scene::EShapeType::_cube: {
-                ++area_emitter_num;
                 area_select_weight_sum += SplitMesh(m_areas, shape.cube.vertex_num, shape.cube.face_num, shape.cube.indices,
                                                     shape.cube.positions, shape.cube.normals, shape.cube.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
             case scene::EShapeType::_obj: {
-                ++area_emitter_num;
                 area_select_weight_sum += SplitMesh(m_areas, shape.obj.vertex_num, shape.obj.face_num, shape.obj.indices,
                                                     shape.obj.positions, shape.obj.normals, shape.obj.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
             case scene::EShapeType::_rectangle: {
-                ++area_emitter_num;
                 area_select_weight_sum += SplitMesh(m_areas, shape.rect.vertex_num, shape.rect.face_num, shape.rect.indices,
                                                     shape.rect.positions, shape.rect.normals, shape.rect.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
             case scene::EShapeType::_sphere: {
-                ++area_emitter_num;
                 Pupil::optix::Emitter emitter;
                 emitter.type = Pupil::optix::EEmitterType::Sphere;
                 util::Float3 o(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
@@ -259,13 +255,14 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
 
         shape.sub_emitters_num = static_cast<unsigned int>(
             m_areas.size() - pre_emitters_num);
+        area_emitter_num += shape.sub_emitters_num;
     }
 
     bool emitter_valid_flag = false;
     if (area_select_weight_sum > 0.f && area_emitter_num > 0) {
         emitter_valid_flag = true;
         for (auto &&e : m_areas) {
-            e.select_probability /= area_select_weight_sum * area_emitter_num;
+            e.select_probability = e.select_probability / area_select_weight_sum * area_emitter_num;
         }
     }
 
