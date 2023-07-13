@@ -26,6 +26,8 @@
 namespace {
 bool m_system_run_flag = false;
 bool m_scene_load_flag = false;
+
+std::mutex m_render_system_mutex;
 }// namespace
 
 namespace Pupil {
@@ -95,6 +97,7 @@ void System::Run() noexcept {
         [&]() {
             while (!quit_flag) {
                 if (render_flag) {
+                    std::unique_lock render_lock(m_render_system_mutex);
                     m_render_timer.Start();
                     for (auto pass : m_passes) pass->BeforeRunning();
                     for (auto pass : m_passes) pass->Run();
@@ -143,32 +146,36 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         Pupil::Log::Warn("scene file [{}] does not exist.", scene_file_path.string());
         return;
     }
-    util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
-    util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
 
-    auto world = util::Singleton<World>::instance();
-    if (!world->LoadScene(scene_file_path)) {
-        Pupil::Log::Warn("scene load failed.");
-        return;
+    {
+        std::unique_lock render_lock(m_render_system_mutex);
+        util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+        util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
+
+        auto world = util::Singleton<World>::instance();
+        if (!world->LoadScene(scene_file_path)) {
+            Pupil::Log::Warn("scene load failed.");
+            return;
+        }
+
+        auto buf_mngr = util::Singleton<BufferManager>::instance();
+        BufferDesc default_frame_buffer_desc{
+            .name = buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME.data(),
+            .flag = (util::Singleton<GuiPass>::instance()->IsInitialized() ?
+                         EBufferFlag::AllowDisplay :
+                         EBufferFlag::None),
+            .width = static_cast<uint32_t>(world->scene->sensor.film.w),
+            .height = static_cast<uint32_t>(world->scene->sensor.film.h),
+            .stride_in_byte = sizeof(float) * 4
+        };
+        buf_mngr->AllocBuffer(default_frame_buffer_desc);
+
+        m_scene_load_flag = true;
+        EventDispatcher<ESystemEvent::SceneLoad>(world);
+
+        util::Singleton<scene::ShapeDataManager>::instance()->Clear();
+        util::Singleton<scene::TextureManager>::instance()->Clear();
     }
-
-    auto buf_mngr = util::Singleton<BufferManager>::instance();
-    BufferDesc default_frame_buffer_desc{
-        .name = buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME.data(),
-        .flag = (util::Singleton<GuiPass>::instance()->IsInitialized() ?
-                     EBufferFlag::AllowDisplay :
-                     EBufferFlag::None),
-        .width = static_cast<uint32_t>(world->scene->sensor.film.w),
-        .height = static_cast<uint32_t>(world->scene->sensor.film.h),
-        .stride_in_byte = sizeof(float) * 4
-    };
-    buf_mngr->AllocBuffer(default_frame_buffer_desc);
-
-    m_scene_load_flag = true;
-    EventDispatcher<ESystemEvent::SceneLoad>(world);
-
-    util::Singleton<scene::ShapeDataManager>::instance()->Clear();
-    util::Singleton<scene::TextureManager>::instance()->Clear();
 
     this->render_flag = true;
 

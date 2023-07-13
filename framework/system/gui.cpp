@@ -134,6 +134,7 @@ void GuiPass::Init() noexcept {
         });
 
         EventBinder<ESystemEvent::SceneLoad>([this](void *) {
+            std::scoped_lock lock{ m_flip_model_mutex };
             auto canvas_buffer = GetReadyOutputBuffer().system_buffer;
             if (canvas_buffer) {
                 auto size = canvas_buffer->desc.width * canvas_buffer->desc.height * canvas_buffer->desc.stride_in_byte;
@@ -142,7 +143,7 @@ void GuiPass::Init() noexcept {
         });
 
         EventBinder<ECanvasEvent::Display>([this](void *p) {
-            auto buffer_name = reinterpret_cast<std::string_view*>(p);
+            auto buffer_name = reinterpret_cast<std::string_view *>(p);
             m_canvas_display_buffer_name = *buffer_name;
         });
     }
@@ -293,8 +294,6 @@ void GuiPass::UpdateCanvasOutput() noexcept {
         Pupil::CopyFloat1BufferToCanvas(dst_buf->cuda_ptr, canvas_output->cuda_ptr,
                                         dst_buf->desc.width * dst_buf->desc.height, m_memcpy_stream.get());
     }
-
-    m_render_flip_buffer_to_texture_flag.exchange(true);
 }
 
 void GuiPass::Destroy() noexcept {
@@ -346,8 +345,11 @@ void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspect
 void GuiPass::FlipSwapBuffer() noexcept {
     std::scoped_lock lock{ m_flip_model_mutex };
     m_current_buffer_index = m_ready_buffer_index.exchange(m_current_buffer_index);
+    if (!m_waiting_scene_load) {
+        UpdateCanvasOutput();
+    }
 
-    UpdateCanvasOutput();
+    m_render_flip_buffer_to_texture_flag.exchange(true);
 }
 
 void GuiPass::Run() noexcept {
@@ -537,6 +539,7 @@ void GuiPass::OnDraw() noexcept {
                                 m_canvas_display_buffer_name = buffer_name;
                                 if (!m_render_flag && !m_waiting_scene_load) {
                                     UpdateCanvasOutput();
+                                    m_render_flip_buffer_to_texture_flag.exchange(true);
                                 }
                             }
                         }
