@@ -120,25 +120,29 @@ struct EmitterGroup {
     CUDA_HOSTDEVICE const Emitter &SelectOneEmiiter(float p) noexcept {
         unsigned int i = 0;
         float sum_p = 0.f;
+        const Emitter *emitter_cb = nullptr;
         for (; i < areas.GetNum(); ++i) {
             if (p <= sum_p + areas[i].select_probability) {
                 return areas[i];
             }
             sum_p += areas[i].select_probability;
+            emitter_cb = &areas[i];
         }
         for (i = 0; i < points.GetNum(); ++i) {
             if (p <= sum_p + points[i].select_probability) {
                 return points[i];
             }
             sum_p += points[i].select_probability;
+            emitter_cb = &points[i];
         }
         for (i = 0; i < directionals.GetNum(); ++i) {
             if (p <= sum_p + directionals[i].select_probability) {
                 return directionals[i];
             }
             sum_p += directionals[i].select_probability;
+            emitter_cb = &directionals[i];
         }
-        return *env.operator->();
+        return env ? *env.operator->() : *emitter_cb;
     }
 };
 
