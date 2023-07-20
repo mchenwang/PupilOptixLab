@@ -43,6 +43,11 @@ public:
         OUTPUT_FLIP_TEXTURE = {
             "output flip texture0", "output flip texture1"
         };
+    struct {
+        bool console = true;
+        bool scene = false;
+        bool bottom = false;
+    } show_window;
 
     GuiPass() noexcept : Pass("GUI") {}
 
@@ -70,6 +75,13 @@ public:
 
 protected:
     void OnDraw() noexcept;
+    void Docking() noexcept;
+    void Menu(bool show = true) noexcept;
+    void Console(bool show = true) noexcept;
+    void Canvas(bool show = true) noexcept;
+    void Scene(bool show = true) noexcept;
+    void Bottom(bool show = true) noexcept;
+
     void InitRenderToTexturePipeline() noexcept;
     void RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList>) noexcept;
 

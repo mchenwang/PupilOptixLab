@@ -14,8 +14,11 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_win32.h"
-#include "backends/imgui_impl_dx12.h"
+#include "imgui_impl_dx12.h"
 #include "imfilebrowser.h"
+#include "ImGuizmo/ImGuizmo.h"
+#include "optix/scene/mesh.h"
+#include "world.h"
 
 #include "cuda/util.h"
 
@@ -23,6 +26,7 @@
 
 #include "static.h"
 
+#include <format>
 #include <d3dcompiler.h>
 
 namespace Pupil {
@@ -38,7 +42,7 @@ HINSTANCE m_instance;
 
 ImGui::FileBrowser m_scene_file_browser;
 
-bool m_waiting_scene_load = false;
+std::atomic_bool m_waiting_scene_load = false;
 bool m_render_flag = false;
 double m_flip_rate = 1.;
 
@@ -131,15 +135,6 @@ void GuiPass::Init() noexcept {
         EventBinder<ESystemEvent::FrameFinished>([this](void *p) {
             double time_count = *(double *)p;
             m_flip_rate = 1000. / time_count;
-        });
-
-        EventBinder<ESystemEvent::SceneLoad>([this](void *) {
-            std::scoped_lock lock{ m_flip_model_mutex };
-            auto canvas_buffer = GetReadyOutputBuffer().system_buffer;
-            if (canvas_buffer) {
-                auto size = canvas_buffer->desc.width * canvas_buffer->desc.height * canvas_buffer->desc.stride_in_byte;
-                cudaMemsetAsync(reinterpret_cast<void *>(canvas_buffer->cuda_ptr), 0, size, *m_memcpy_stream.get());
-            }
         });
 
         EventBinder<ECanvasEvent::Display>([this](void *p) {
@@ -344,12 +339,11 @@ void GuiPass::RegisterInspector(std::string_view name, CustomInspector &&inspect
 
 void GuiPass::FlipSwapBuffer() noexcept {
     std::scoped_lock lock{ m_flip_model_mutex };
-    m_current_buffer_index = m_ready_buffer_index.exchange(m_current_buffer_index);
-    if (!m_waiting_scene_load) {
-        UpdateCanvasOutput();
-    }
+    if (m_waiting_scene_load) return;
 
-    m_render_flip_buffer_to_texture_flag.exchange(true);
+    m_current_buffer_index = m_ready_buffer_index.exchange(m_current_buffer_index);
+    UpdateCanvasOutput();
+    m_render_flip_buffer_to_texture_flag = true;
 }
 
 void GuiPass::Run() noexcept {
@@ -416,11 +410,7 @@ void GuiPass::RenderFlipBufferToTexture(winrt::com_ptr<ID3D12GraphicsCommandList
     }
 }
 
-void GuiPass::OnDraw() noexcept {
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
+void GuiPass::Docking() noexcept {
     static bool first_draw_call = true;
     ImGuiID main_node_id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
@@ -435,34 +425,107 @@ void GuiPass::OnDraw() noexcept {
         ImGui::DockBuilderSetNodePos(main_node_id, ImGui::GetMainViewport()->WorkPos);
 
         ImGuiID dock_main_id = main_node_id;
-        ImGuiID dock_inspector_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.3f, nullptr, &dock_main_id);
+        ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+        ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.3f, nullptr, &dock_main_id);
+        ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
 
-        ImGui::DockBuilderDockWindow("Inspector", dock_inspector_id);
+        ImGui::DockBuilderDockWindow("Console", dock_left_id);
+        ImGui::DockBuilderDockWindow("Scene", dock_right_id);
         ImGui::DockBuilderDockWindow("Canvas", dock_main_id);
+        ImGui::DockBuilderDockWindow("Bottom", dock_bottom_id);
 
         ImGui::DockBuilderFinish(dock_main_id);
     }
+}
+
+void GuiPass::Menu(bool show) noexcept {
+    if (!show) return;
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Menu")) {
-            if (ImGui::MenuItem("load scene")) {
+            if (ImGui::MenuItem("Load Scene")) {
                 m_scene_file_browser.Open();
             }
+            if (ImGui::MenuItem("Screenshot")) {
+                std::filesystem::path path{ ROOT_DIR };
+
+                auto time = std::chrono::zoned_time{
+                    std::chrono::current_zone(),
+                    std::chrono::system_clock::now()
+                };
+
+                auto time_str = std::format(
+                    "{:%H.%M.%S.%m.%d}",
+                    floor<std::chrono::seconds>(time.get_local_time()));
+                path /= "screenshot(" + time_str + ").exr";
+
+                size_t size = m_canvas_desc.h * m_canvas_desc.w * 4;
+                auto image = std::make_unique<float[]>(size);
+                memset(image.get(), 0, size);
+                auto &buffer = GetCurrentRenderOutputBuffer();
+                cuda::CudaMemcpyToHost(image.get(), buffer.system_buffer->cuda_ptr, size * sizeof(float));
+                util::BitmapTexture::Save(image.get(), m_canvas_desc.w, m_canvas_desc.h, path.string(), util::BitmapTexture::FileFormat::EXR);
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Window")) {
+            if (ImGui::MenuItem("Console", NULL, show_window.console)) {
+                show_window.console ^= true;
+            }
+            if (ImGui::MenuItem("Scene", NULL, show_window.scene)) {
+                show_window.scene ^= true;
+            }
+            if (ImGui::MenuItem("Bottom", NULL, show_window.bottom)) {
+                show_window.bottom ^= true;
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Help")) {
+            ImGui::SeparatorText("Keyboard Op");
+            ImGui::Text("[W] Move Forward");
+            ImGui::Text("[S] Move Backward");
+            ImGui::Text("[A] Move Left");
+            ImGui::Text("[D] Move Right");
+            ImGui::Text("[Q] Move Up");
+            ImGui::Text("[E] Move Down");
+            ImGui::SeparatorText("Mouse Op");
+            ImGui::Text("Press the left mouse button and drag to change camera forward direction.");
+            ImGui::Text("Rolling the mouse wheel to scale camera fov.");
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
     }
+}
 
-    if (bool open = true;
-        ImGui::Begin("Inspector", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
+void GuiPass::Console(bool show) noexcept {
+    if (!show) return;
+
+    if (bool open = false;
+        ImGui::Begin("Console", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
 
         ImGui::PushTextWrapPos(0.f);
 
-        if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("GUI average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::Text("Canvas Rendering:");
-            ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index.load());
-            ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
+        // if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
+        //     ImGui::Text("GUI average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        //     ImGui::Text("Canvas Rendering:");
+        //     ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index.load());
+        //     ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
+        //     if (auto &flag = util::Singleton<System>::instance()->render_flag;
+        //         ImGui::Button(flag ? "Stop" : "Continue")) {
+        //         if (flag ^= 1) {
+        //             EventDispatcher<ESystemEvent::StartRendering>();
+        //         } else {
+        //             EventDispatcher<ESystemEvent::StopRendering>();
+        //         }
+        //     }
+
+        //     ImGui::Text("Camera:");
+        //     ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+        //     ImGui::InputFloat("sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.1f");
+        //     ImGui::PopItemWidth();
+        // }
+
+        if (ImGui::CollapsingHeader("Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
                 if (flag ^= 1) {
@@ -471,43 +534,9 @@ void GuiPass::OnDraw() noexcept {
                     EventDispatcher<ESystemEvent::StopRendering>();
                 }
             }
-
-            ImGui::Text("Camera:");
-            ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
-            ImGui::InputFloat("sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.1f");
-            ImGui::PopItemWidth();
-
-            ImGui::Text("Save rendering screen shot:");
-            // save image
-            {
-                ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.15f);
-                static char file_name[256]{};
-                ImGui::InputText("file name", file_name, 256);
-                ImGui::SameLine();
-
-                static int item_current = 0;
-                ImGui::Combo("format", &item_current,
-                             util::BitmapTexture::S_FILE_FORMAT_NAME.data(),
-                             (int)util::BitmapTexture::S_FILE_FORMAT_NAME.size());
-                ImGui::SameLine();
-                if (ImGui::Button("Save")) {
-                    std::filesystem::path path{ ROOT_DIR };
-                    path /= std::string{ file_name } + "." + util::BitmapTexture::S_FILE_FORMAT_NAME[item_current];
-
-                    size_t size = m_canvas_desc.h * m_canvas_desc.w * 4;
-                    auto image = new float[size];
-                    memset(image, 0, size);
-                    auto &buffer = GetReadyOutputBuffer();
-                    cuda::CudaMemcpyToHost(image, buffer.system_buffer->cuda_ptr, size * sizeof(float));
-                    util::BitmapTexture::Save(image, m_canvas_desc.w, m_canvas_desc.h, path.string(), (util::BitmapTexture::FileFormat)item_current);
-                    delete[] image;
-                }
-                ImGui::PopItemWidth();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Frame Buffer Debug")) {
+            ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
             ImGui::Text("Frame size: %d x %d", m_canvas_desc.w, m_canvas_desc.h);
+            ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index.load());
             if (bool flag = m_canvas_desc.tone_mapping;
                 ImGui::Checkbox("Tone mapping", &flag)) {
                 m_canvas_desc.tone_mapping = static_cast<uint32_t>(flag);
@@ -516,6 +545,7 @@ void GuiPass::OnDraw() noexcept {
                 ImGui::Checkbox("Gamma Correction", &flag)) {
                 m_canvas_desc.gamma_correct = static_cast<uint32_t>(flag);
             }
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
             if (ImGui::TreeNode("buffers")) {
                 static int selected = -1;
                 auto buffer_mngr = util::Singleton<BufferManager>::instance();
@@ -550,31 +580,30 @@ void GuiPass::OnDraw() noexcept {
             }
         }
 
-        for (auto &&[title, inspector] : m_inspectors) {
-            if (ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                inspector();
+        if (ImGui::CollapsingHeader("Render Pass", ImGuiTreeNodeFlags_DefaultOpen)) {
+            for (auto &&[title, inspector] : m_inspectors) {
+                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                if (ImGui::TreeNode(title.c_str())) {
+                    ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+                    inspector();
+                    ImGui::PopItemWidth();
+                    ImGui::TreePop();
+                }
             }
         }
         ImGui::PopTextWrapPos();
     }
     ImGui::End();
+}
 
-    auto dx_ctx = util::Singleton<DirectX::Context>::instance();
-    auto cmd_list = dx_ctx->GetCmdList();
+void GuiPass::Canvas(bool show) noexcept {
+    if (!show) return;
 
-    ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
-    cmd_list->SetDescriptorHeaps(1, heaps);
-
-    std::scoped_lock lock{ m_flip_model_mutex };
     if (bool open = true;
         ImGui::Begin("Canvas", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
         if (!m_waiting_scene_load) {
             if (auto buffer = GetReadyOutputBuffer();
                 buffer.res) {
-                if (m_render_flip_buffer_to_texture_flag.load()) {
-                    RenderFlipBufferToTexture(cmd_list);
-                    m_render_flip_buffer_to_texture_flag.exchange(false);
-                }
                 float screen_w = ImGui::GetContentRegionAvail().x;
                 float screen_h = ImGui::GetContentRegionAvail().y;
                 float ratio_x = screen_w / m_canvas_desc.w;
@@ -592,6 +621,25 @@ void GuiPass::OnDraw() noexcept {
                 ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
                              ImVec2(show_w, show_h));
 
+                {
+                    ImGuizmo::SetOrthographic(false);
+                    ImGuizmo::SetDrawlist();
+                    ImGuizmo::SetRect(ImGui::GetWindowPos().x + cursor_x, ImGui::GetWindowPos().y + cursor_y, show_w, show_h);
+
+                    // Editor Camera
+                    auto world = util::Singleton<Pupil::World>::instance();
+                    auto camera = world->camera.get();
+                    auto proj = camera->GetProjectionMatrix().GetTranspose();
+                    auto view = camera->GetViewMatrix().GetTranspose();
+
+                    //auto obj = world->optix_scene->GetRenderObject("s1");
+
+                    //util::Transform identity;
+                    // ImGuizmo::DrawGrid(view.e, proj.e, identity.matrix.e, 100.f);
+                    //ImGuizmo::Manipulate(view.e, proj.e, ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, obj->transform.matrix.GetTranspose().e, nullptr, nullptr);
+                    // ImGuizmo::ViewManipulate(view.e, 8.f, ImVec2(viewManipulateRight - 128, viewManipulateTop), ImVec2(128, 128), 0x10101010);
+                }
+
                 // This will catch our interactions
                 ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
                 ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
@@ -599,7 +647,7 @@ void GuiPass::OnDraw() noexcept {
                 const bool is_hovered = ImGui::IsItemHovered();// Hovered
                 const bool is_active = ImGui::IsItemActive();  // Held
 
-                if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                if (is_hovered && is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
                     ImGuiIO &io = ImGui::GetIO();
                     const struct {
                         float x, y;
@@ -628,12 +676,54 @@ void GuiPass::OnDraw() noexcept {
         }
     }
     ImGui::End();
+}
 
+void GuiPass::Scene(bool show) noexcept {
+    if (!show) return;
+
+    if (bool open = false;
+        ImGui::Begin("Scene", &open)) {
+        ImGui::Text("todo");
+    }
+    ImGui::End();
+}
+
+void GuiPass::Bottom(bool show) noexcept {
+    if (!show) return;
+
+    if (bool open = false;
+        ImGui::Begin("Bottom", &open)) {
+        ImGui::Text("todo");
+    }
+    ImGui::End();
+}
+
+void GuiPass::OnDraw() noexcept {
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    Docking();
+
+    // lock flip model to ensure the ready buffer is unchanged during the current frame
+    std::scoped_lock lock{ m_flip_model_mutex };
+    Menu();
+    Console(show_window.console);
+    Scene(show_window.scene);
+    Bottom(show_window.bottom);
+
+    // display scene loading browser
     m_scene_file_browser.Display();
-    {
+    if (m_scene_file_browser.IsOpened()) {
         if (m_scene_file_browser.HasSelected()) {
             EventDispatcher<ESystemEvent::StopRendering>();
             m_waiting_scene_load = true;
+
+            if (auto canvas_buffer = GetReadyOutputBuffer().system_buffer; canvas_buffer) {
+                auto size = canvas_buffer->desc.width * canvas_buffer->desc.height * canvas_buffer->desc.stride_in_byte;
+                cudaMemsetAsync(reinterpret_cast<void *>(canvas_buffer->cuda_ptr), 0, size, *m_memcpy_stream.get());
+            }
+            m_render_flip_buffer_to_texture_flag = true;
+
             util::Singleton<util::ThreadPool>::instance()->AddTask(
                 [](std::filesystem::path path) {
                     util::Singleton<System>::instance()->SetScene(path);
@@ -643,22 +733,36 @@ void GuiPass::OnDraw() noexcept {
         }
     }
 
+    auto dx_ctx = util::Singleton<DirectX::Context>::instance();
+    auto cmd_list = dx_ctx->GetCmdList();
+
+    ID3D12DescriptorHeap *heaps[] = { dx_ctx->srv_heap.get() };
+    cmd_list->SetDescriptorHeaps(1, heaps);
+    // render buffer to texture
+    if (auto buffer = GetReadyOutputBuffer();
+        buffer.res && m_render_flip_buffer_to_texture_flag) {
+        RenderFlipBufferToTexture(cmd_list);
+        m_render_flip_buffer_to_texture_flag = false;
+    }
+    // show on canvas
+    Canvas();
+
+    // if (bool open = false;
+    //     ImGui::Begin("TODO", &open)) {
+    // }
+    // ImGui::End();
+
     ImGui::Render();
-
     dx_ctx->StartRenderScreen(cmd_list);
-
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.get());
 
-    auto &io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+    if (auto &io = ImGui::GetIO(); io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(NULL, (void *)cmd_list.get());
     }
 
     m_memcpy_stream->Synchronize();
-
     dx_ctx->Present(cmd_list);
-    dx_ctx->Flush();
 }
 
 void GuiPass::InitRenderToTexturePipeline() noexcept {
