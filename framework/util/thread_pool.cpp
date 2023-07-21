@@ -50,10 +50,12 @@ void ThreadPool::Destroy() noexcept {
         s_cv.notify_all();
     }
 
-    for (auto i = 0u; i < s_threads_num; i++)
-        s_threads_list[i].join();
+    if (s_threads_list)
+        for (auto i = 0u; i < s_threads_num; i++)
+            s_threads_list[i].join();
 
     s_threads_list.reset();
+    m_init_flag = false;
 }
 
 void ThreadPool::Enqueue(std::function<void()> &&task) noexcept {
