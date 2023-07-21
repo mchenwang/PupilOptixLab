@@ -295,6 +295,7 @@ void GuiPass::Destroy() noexcept {
     if (!IsInitialized()) return;
 
     util::Singleton<DirectX::Context>::instance()->Flush();
+    m_memcpy_stream.reset();
 
     if (m_frame_constant_buffer_mapped_ptr) {
         m_frame_constant_buffer_mapped_ptr = nullptr;
@@ -305,7 +306,12 @@ void GuiPass::Destroy() noexcept {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    util::Singleton<DirectX::Context>::instance()->Destroy();
+    for (auto &&buffer : m_flip_buffers) buffer.res = nullptr;
+    m_root_signature = nullptr;
+    m_pipeline_state = nullptr;
+    m_vb = nullptr;
+    m_frame_constant_buffer = nullptr;
+
     ::DestroyWindow(g_window_handle);
     ::UnregisterClassW(WND_CLASS_NAME.data(), m_instance);
     m_init_flag = false;
@@ -552,7 +558,7 @@ void GuiPass::Console(bool show) noexcept {
                 if (selected == -1) {
                     for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
                         auto buffer = buffer_mngr->GetBuffer(buffer_name);
-                        if (buffer->desc.flag & EBufferFlag::AllowDisplay) {
+                        if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
                             if (buffer->desc.name == m_canvas_display_buffer_name) {
                                 selected = i;
                             }
@@ -562,7 +568,7 @@ void GuiPass::Console(bool show) noexcept {
                 }
                 for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
                     auto buffer = buffer_mngr->GetBuffer(buffer_name);
-                    if (buffer->desc.flag & EBufferFlag::AllowDisplay) {
+                    if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
                         if (ImGui::Selectable(buffer_name.data(), selected == i)) {
                             if (m_canvas_display_buffer_name != buffer_name) {
                                 selected = i;
@@ -581,16 +587,41 @@ void GuiPass::Console(bool show) noexcept {
         }
 
         if (ImGui::CollapsingHeader("Render Pass", ImGuiTreeNodeFlags_DefaultOpen)) {
-            for (auto &&[title, inspector] : m_inspectors) {
+            auto sys = util::Singleton<System>::instance();
+            for (auto &&pass : sys->m_pre_passes) {
                 ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-                if (ImGui::TreeNode(title.c_str())) {
+                if (ImGui::TreeNode(pass->name.c_str())) {
                     ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
-                    inspector();
+                    pass->Inspector();
+                    ImGui::PopItemWidth();
+                    ImGui::TreePop();
+                }
+            }
+            for (auto &&pass : sys->m_passes) {
+                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                if (ImGui::TreeNode(pass->name.c_str())) {
+                    ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+                    pass->Inspector();
                     ImGui::PopItemWidth();
                     ImGui::TreePop();
                 }
             }
         }
+
+        if (m_inspectors.size() > 0) {
+            if (ImGui::CollapsingHeader("Custom Control", ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (auto &&[title, inspector] : m_inspectors) {
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                    if (ImGui::TreeNode(title.c_str())) {
+                        ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+                        inspector();
+                        ImGui::PopItemWidth();
+                        ImGui::TreePop();
+                    }
+                }
+            }
+        }
+
         ImGui::PopTextWrapPos();
     }
     ImGui::End();
@@ -628,9 +659,11 @@ void GuiPass::Canvas(bool show) noexcept {
 
                     // Editor Camera
                     auto world = util::Singleton<Pupil::World>::instance();
-                    auto camera = world->camera.get();
-                    auto proj = camera->GetProjectionMatrix().GetTranspose();
-                    auto view = camera->GetViewMatrix().GetTranspose();
+                    if (world->camera) {
+                        auto camera = world->camera.get();
+                        auto proj = camera->GetProjectionMatrix().GetTranspose();
+                        auto view = camera->GetViewMatrix().GetTranspose();
+                    }
 
                     //auto obj = world->optix_scene->GetRenderObject("s1");
 

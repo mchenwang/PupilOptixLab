@@ -32,12 +32,33 @@ void Context::Init(uint32_t w, uint32_t h, HWND hWnd) noexcept {
     Pupil::Log::Info("DirectX12 is initialized with {} x {}.", w, h);
 }
 
-void Context::Destroy() noexcept {
-    if (IsInitialized()) {
-        Flush();
-        ::CloseHandle(m_fence_event);
-        m_init_flag = false;
+void Context::ReportLiveObjects() {
+#ifdef _DEBUG
+    {
+        if (winrt::com_ptr<IDXGIDebug1> dxgiDebug; SUCCEEDED(DXGIGetDebugInterface1(0, winrt::guid_of<IDXGIDebug1>(), dxgiDebug.put_void()))) {
+            dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL));
+        }
     }
+#endif
+}
+
+void Context::Destroy() noexcept {
+    if (!IsInitialized()) return;
+
+    Flush();
+    ::CloseHandle(m_fence_event);
+    m_init_flag = false;
+
+    while (!m_command_lists.empty()) m_command_lists.pop();
+    while (!m_context_pool.empty()) m_context_pool.pop();
+
+    for (auto &&buffer : m_back_buffers) buffer = nullptr;
+    cmd_queue = nullptr;
+    srv_heap = nullptr;
+    rtv_heap = nullptr;
+    m_swapchain = nullptr;
+    adapter = nullptr;
+    device = nullptr;
 }
 
 void Context::CreateDevice() noexcept {

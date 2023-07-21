@@ -18,11 +18,17 @@ BufferManager::BufferManager() noexcept {
 }
 
 BufferManager::~BufferManager() noexcept {
+    Destroy();
+}
+
+void BufferManager::Destroy() noexcept {
+    CUDA_SYNC_CHECK();
+    m_buffers.clear();
     for (auto &&[dx12_ptr, cuda_ext_memory] : m_cuda_ext_memorys) {
         if (cuda_ext_memory)
             CUDA_CHECK(cudaDestroyExternalMemory(cuda_ext_memory));
     }
-    m_buffers.clear();
+    m_cuda_ext_memorys.clear();
 }
 
 Buffer *BufferManager::GetBuffer(std::string_view id) noexcept {

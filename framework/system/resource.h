@@ -48,6 +48,8 @@ public:
     BufferManager() noexcept;
     ~BufferManager() noexcept;
 
+    void Destroy() noexcept;
+
     [[nodiscard]] Buffer *GetBuffer(std::string_view) noexcept;
     Buffer *AllocBuffer(const BufferDesc &) noexcept;
     void AddBuffer(std::string_view id, std::unique_ptr<Buffer> &) noexcept;

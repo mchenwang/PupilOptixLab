@@ -9,7 +9,11 @@ Stream::Stream() noexcept {
     //CUDA_CHECK(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
 }
 Stream::~Stream() noexcept {
-    CUDA_CHECK(cudaStreamDestroy(m_stream));
+    if (m_stream) {
+        Synchronize();
+        CUDA_CHECK(cudaStreamDestroy(m_stream));
+    }
+    m_stream = nullptr;
     //CUDA_CHECK(cudaEventDestroy(m_event));
 }
 

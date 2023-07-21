@@ -48,6 +48,7 @@ public:
 
     void Init(uint32_t w, uint32_t h, HWND wnd_handle) noexcept;
     void Destroy() noexcept;
+    static void ReportLiveObjects();
 
     void Flush() noexcept;
     void Resize(uint32_t w, uint32_t h) noexcept;
