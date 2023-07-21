@@ -20,7 +20,6 @@ extern uint32_t g_window_h;
 namespace {
 int m_max_depth;
 bool m_accumulated_flag;
-double m_time_cost = 0.;
 }// namespace
 
 namespace Pupil::pt {
@@ -34,27 +33,22 @@ PTPass::PTPass(std::string_view name) noexcept
     BindingEventCallback();
 }
 
-void PTPass::Run() noexcept {
-    m_timer.Start();
-    {
-        if (m_dirty) {
-            m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
-            m_optix_launch_params.config.max_depth = m_max_depth;
-            m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
-            m_optix_launch_params.sample_cnt = 0;
-            m_optix_launch_params.random_seed = 0;
-            m_dirty = false;
-        }
-
-        m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
-                          m_optix_launch_params.config.frame.height);
-        m_optix_pass->Synchronize();
-
-        m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
-        ++m_optix_launch_params.random_seed;
+void PTPass::OnRun() noexcept {
+    if (m_dirty) {
+        m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
+        m_optix_launch_params.config.max_depth = m_max_depth;
+        m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
+        m_optix_launch_params.sample_cnt = 0;
+        m_optix_launch_params.random_seed = 0;
+        m_dirty = false;
     }
-    m_timer.Stop();
-    m_time_cost = m_timer.ElapsedMilliseconds();
+
+    m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
+                      m_optix_launch_params.config.frame.height);
+    m_optix_pass->Synchronize();
+
+    m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
+    ++m_optix_launch_params.random_seed;
 }
 
 void PTPass::InitOptixPipeline() noexcept {
@@ -222,7 +216,7 @@ void PTPass::BindingEventCallback() noexcept {
 }
 
 void PTPass::Inspector() noexcept {
-    ImGui::Text("time cost: %.3lf", m_time_cost);
+    Pass::Inspector();
     ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt + 1);
     ImGui::InputInt("max trace depth", &m_max_depth);
     m_max_depth = clamp(m_max_depth, 1, 128);

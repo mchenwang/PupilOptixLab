@@ -352,7 +352,7 @@ void GuiPass::FlipSwapBuffer() noexcept {
     m_render_flip_buffer_to_texture_flag = true;
 }
 
-void GuiPass::Run() noexcept {
+void GuiPass::OnRun() noexcept {
     if (!IsInitialized()) return;
 
     MSG msg = {};

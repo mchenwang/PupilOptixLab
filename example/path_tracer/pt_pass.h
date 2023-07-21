@@ -11,8 +11,6 @@
 
 #include "cuda/stream.h"
 
-#include "util/timer.h"
-
 #include <memory>
 #include <mutex>
 
@@ -24,11 +22,8 @@ struct SBTTypes : public optix::EmptySBT {
 class PTPass : public Pass {
 public:
     PTPass(std::string_view name = "Path Tracing") noexcept;
-    virtual void Run() noexcept override;
+    virtual void OnRun() noexcept override;
     virtual void Inspector() noexcept override;
-
-    virtual void BeforeRunning() noexcept override {}
-    virtual void AfterRunning() noexcept override {}
 
     void SetScene(World *) noexcept;
 
@@ -44,7 +39,5 @@ private:
 
     std::atomic_bool m_dirty = true;
     CameraHelper *m_world_camera = nullptr;
-
-    Timer m_timer;
 };
 }// namespace Pupil::pt

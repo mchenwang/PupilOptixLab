@@ -51,9 +51,7 @@ public:
 
     GuiPass() noexcept : Pass("GUI") {}
 
-    virtual void Run() noexcept override;
-    virtual void BeforeRunning() noexcept override {}
-    virtual void AfterRunning() noexcept override {}
+    virtual void OnRun() noexcept override;
 
     void Init() noexcept;
     void Destroy() noexcept;

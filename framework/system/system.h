@@ -10,10 +10,6 @@ namespace Pupil {
 class Pass;
 class GuiPass;
 
-namespace optix {
-class Scene;
-}
-
 enum class ESystemEvent {
     Quit,
     Precompute,

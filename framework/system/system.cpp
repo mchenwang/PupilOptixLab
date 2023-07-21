@@ -50,9 +50,7 @@ void System::Init(bool has_window) noexcept {
 
     EventBinder<ESystemEvent::Precompute>([this](void *) {
         CUDA_SYNC_CHECK();
-        for (auto pass : m_pre_passes) pass->BeforeRunning();
         for (auto pass : m_pre_passes) pass->Run();
-        for (auto pass : m_pre_passes) pass->AfterRunning();
     });
 
     if (!has_window) {
@@ -99,9 +97,7 @@ void System::Run() noexcept {
                 if (render_flag) {
                     std::unique_lock render_lock(m_render_system_mutex);
                     m_render_timer.Start();
-                    for (auto pass : m_passes) pass->BeforeRunning();
                     for (auto pass : m_passes) pass->Run();
-                    for (auto pass : m_passes) pass->AfterRunning();
                     m_render_timer.Stop();
                     EventDispatcher<ESystemEvent::FrameFinished>(m_render_timer.ElapsedMilliseconds());
                 }
@@ -136,13 +132,6 @@ void System::AddPass(Pass *pass) noexcept {
         m_pre_passes.push_back(pass);
     else
         m_passes.push_back(pass);
-    // if (m_gui_pass) {
-    //     m_gui_pass->RegisterInspector(
-    //         pass->name,
-    //         [pass]() {
-    //             pass->Inspector();
-    //         });
-    // }
 }
 
 void System::SetScene(std::filesystem::path scene_file_path) noexcept {
