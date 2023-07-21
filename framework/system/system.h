@@ -24,6 +24,8 @@ enum class ESystemEvent {
 };
 
 class System : public util::Singleton<System> {
+    friend class GuiPass;
+
 public:
     bool render_flag = true;
     bool quit_flag = false;

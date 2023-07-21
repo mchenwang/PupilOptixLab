@@ -122,8 +122,12 @@ void System::Destroy() noexcept {
     util::Singleton<util::ThreadPool>::instance()->Destroy();
     util::Singleton<World>::instance()->Destroy();
     util::Singleton<GuiPass>::instance()->Destroy();
+    util::Singleton<BufferManager>::instance()->Destroy();
+    util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+    util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
     util::Singleton<cuda::Context>::instance()->Destroy();
     util::Singleton<optix::Context>::instance()->Destroy();
+    util::Singleton<DirectX::Context>::instance()->Destroy();
     util::Singleton<Log>::instance()->Destroy();
 }
 
@@ -132,13 +136,13 @@ void System::AddPass(Pass *pass) noexcept {
         m_pre_passes.push_back(pass);
     else
         m_passes.push_back(pass);
-    if (m_gui_pass) {
-        m_gui_pass->RegisterInspector(
-            pass->name,
-            [pass]() {
-                pass->Inspector();
-            });
-    }
+    // if (m_gui_pass) {
+    //     m_gui_pass->RegisterInspector(
+    //         pass->name,
+    //         [pass]() {
+    //             pass->Inspector();
+    //         });
+    // }
 }
 
 void System::SetScene(std::filesystem::path scene_file_path) noexcept {
