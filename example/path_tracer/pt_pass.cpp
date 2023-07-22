@@ -20,6 +20,8 @@ extern uint32_t g_window_h;
 namespace {
 int m_max_depth;
 bool m_accumulated_flag;
+
+Pupil::optix::Scene *m_optix_scene = nullptr;
 }// namespace
 
 namespace Pupil::pt {
@@ -40,6 +42,7 @@ void PTPass::OnRun() noexcept {
         m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
         m_optix_launch_params.sample_cnt = 0;
         m_optix_launch_params.random_seed = 0;
+        m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
         m_dirty = false;
     }
 
@@ -141,8 +144,9 @@ void PTPass::SetScene(World *world) noexcept {
         m_optix_launch_params.test.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
     }
 
-    m_optix_launch_params.handle = world->optix_scene->GetIASHandle();
-    m_optix_launch_params.emitters = world->optix_scene->emitters->GetEmitterGroup();
+    m_optix_scene = world->optix_scene.get();
+    m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
+    m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
 
     SetSBT(world->scene.get());
 
@@ -207,6 +211,10 @@ void PTPass::SetSBT(scene::Scene *scene) noexcept {
 
 void PTPass::BindingEventCallback() noexcept {
     EventBinder<EWorldEvent::CameraChange>([this](void *) {
+        m_dirty = true;
+    });
+
+    EventBinder<EWorldEvent::RenderObjectTransform>([this](void *) {
         m_dirty = true;
     });
 

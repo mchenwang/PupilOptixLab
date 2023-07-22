@@ -15,6 +15,7 @@ enum class EWorldEvent {
     CameraMove,
     CameraFovChange,
     CameraViewChange,
+    RenderObjectTransform
 };
 
 class World : public util::Singleton<World> {

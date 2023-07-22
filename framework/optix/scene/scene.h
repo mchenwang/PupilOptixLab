@@ -31,9 +31,17 @@ public:
     RenderObject *GetRenderObject(std::string_view id) const noexcept;
     RenderObject *GetRenderObject(size_t index) const noexcept;
 
+    void UpdateRenderObject(RenderObject *) noexcept;
+
+    std::vector<RenderObject *> GetRenderobjects() noexcept;
+
+    void SetDirty() noexcept;
+    bool IsDirty() const noexcept;
+    void SetDirty(unsigned int gas_offset, bool allow_update) noexcept;
+    bool IsDirty(unsigned int gas_offset, bool allow_update) const noexcept;
+
 private:
     std::vector<std::unique_ptr<RenderObject>> m_ros;
-
     std::unique_ptr<IASManager> m_ias_manager;
 };
 }// namespace Pupil::optix

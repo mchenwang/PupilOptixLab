@@ -166,6 +166,7 @@ IASManager::~IASManager() noexcept {
 void IASManager::SetInstance(const std::vector<RenderObject *> &render_objs) noexcept {
     m_instances.clear();
     m_instances.resize(render_objs.size());
+    m_ro_index.clear();
 
     for (auto i = 0u; i < m_instances.size(); i++) {
         memcpy(m_instances[i].transform, render_objs[i]->transform.matrix.e, sizeof(float) * 12);
@@ -174,12 +175,26 @@ void IASManager::SetInstance(const std::vector<RenderObject *> &render_objs) noe
         m_instances[i].visibilityMask = render_objs[i]->visibility_mask;
         m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
         m_instances[i].traversableHandle = render_objs[i]->gas_handle;
+
+        m_ro_index[render_objs[i]] = i;
     }
 
     for (auto i = 0u; i < 32; i++) {
         m_iass[0][i].reset();
         m_iass[1][i].reset();
     }
+}
+
+void IASManager::UpdateInstance(RenderObject *ro) noexcept {
+    if (ro == nullptr || m_ro_index.find(ro) == m_ro_index.end()) return;
+
+    auto i = m_ro_index[ro];
+    memcpy(m_instances[i].transform, ro->transform.matrix.e, sizeof(float) * 12);
+    m_instances[i].visibilityMask = ro->visibility_mask;
+    m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
+    m_instances[i].traversableHandle = ro->gas_handle;
+
+    SetDirty();
 }
 
 OptixTraversableHandle IASManager::GetIASHandle(unsigned int gas_offset, bool allow_update) noexcept {
@@ -194,5 +209,21 @@ OptixTraversableHandle IASManager::GetIASHandle(unsigned int gas_offset, bool al
     }
 
     return *m_iass[(int)allow_update][gas_offset];
+}
+
+void IASManager::SetDirty() noexcept {
+    m_dirty_flag |= (1ll << 32) - 1;
+}
+
+bool IASManager::IsDirty() const noexcept {
+    return m_dirty_flag;
+}
+
+void IASManager::SetDirty(unsigned int gas_offset, bool allow_update) noexcept {
+    m_dirty_flag |= (1 << gas_offset);
+}
+
+bool IASManager::IsDirty(unsigned int gas_offset, bool allow_update) const noexcept {
+    return m_dirty_flag & (1 << gas_offset);
 }
 }// namespace Pupil::optix

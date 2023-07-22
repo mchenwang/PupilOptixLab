@@ -11,6 +11,7 @@ struct Transform {
                  0.f, 1.f, 0.f, 0.f,
                  0.f, 0.f, 1.f, 0.f,
                  0.f, 0.f, 0.f, 1.f) {}
+    Transform(const Mat4 &m) noexcept : matrix(m) {}
 
     void Translate(float x, float y, float z) noexcept;
     // rotation axis is [ux, uy, uz]

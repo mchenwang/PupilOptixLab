@@ -27,12 +27,8 @@ struct SphereEntity {
     float transform[12];
 };
 
-class Scene;
-
 struct RenderObject {
     std::string id;
-    Scene *scene = nullptr;
-    int instance_index = -1;
 
     OptixTraversableHandle gas_handle = 0;
     CUdeviceptr gas_buffer = 0;
@@ -44,8 +40,6 @@ struct RenderObject {
 
     RenderObject(const RenderObject &) = delete;
     RenderObject &operator=(const RenderObject &) = delete;
-
-    void BindScene(Scene *, int) noexcept;
 
     void UpdateTransform(const util::Transform &new_transform) noexcept;
     void ApplyTransform(const util::Transform &new_transform) noexcept;

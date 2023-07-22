@@ -40,6 +40,13 @@ void World::Init() noexcept {
         EventDispatcher<EWorldEvent::CameraMove>();
         EventDispatcher<EWorldEvent::CameraChange>();
     });
+
+    EventBinder<EWorldEvent::RenderObjectTransform>([this](void *p) {
+        auto ro = reinterpret_cast<optix::RenderObject *>(p);
+        if (optix_scene) {
+            optix_scene->UpdateRenderObject(ro);
+        }
+    });
 }
 
 void World::Destroy() noexcept {

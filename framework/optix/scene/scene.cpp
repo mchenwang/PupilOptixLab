@@ -8,6 +8,7 @@
 #include "cuda/util.h"
 
 #include "system/world.h"
+#include "util/event.h"
 
 #include <optix_stubs.h>
 
@@ -60,13 +61,7 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
         }
     }
 
-    std::vector<RenderObject *> render_objects;
-    render_objects.reserve(m_ros.size());
-    std::transform(m_ros.begin(), m_ros.end(), std::back_inserter(render_objects), [](const std::unique_ptr<RenderObject> &ro) { return ro.get(); });
-
-    m_ias_manager->SetInstance(render_objects);
-    for (auto i = 0u; auto &&ro : m_ros)
-        ro->BindScene(this, i++);
+    m_ias_manager->SetInstance(GetRenderobjects());
 
     auto &&sensor = scene->sensor;
     camera_desc = util::CameraDesc{
@@ -103,6 +98,33 @@ RenderObject *Scene::GetRenderObject(size_t index) const noexcept {
     }
 
     return m_ros[index].get();
+}
+
+std::vector<RenderObject *> Scene::GetRenderobjects() noexcept {
+    std::vector<RenderObject *> render_objects;
+    render_objects.reserve(m_ros.size());
+    std::transform(m_ros.begin(), m_ros.end(), std::back_inserter(render_objects), [](const std::unique_ptr<RenderObject> &ro) { return ro.get(); });
+    return render_objects;
+}
+
+void Scene::UpdateRenderObject(RenderObject *ro) noexcept {
+    m_ias_manager->UpdateInstance(ro);
+}
+
+void Scene::SetDirty() noexcept {
+    m_ias_manager->SetDirty();
+}
+
+bool Scene::IsDirty() const noexcept {
+    return m_ias_manager->IsDirty();
+}
+
+void Scene::SetDirty(unsigned int gas_offset, bool allow_update) noexcept {
+    m_ias_manager->SetDirty(gas_offset, allow_update);
+}
+
+bool Scene::IsDirty(unsigned int gas_offset, bool allow_update) const noexcept {
+    return m_ias_manager->IsDirty(gas_offset, allow_update);
 }
 
 Scene::~Scene() noexcept {

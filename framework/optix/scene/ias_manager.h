@@ -3,6 +3,7 @@
 #include <optix.h>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 namespace Pupil::optix {
 struct RenderObject;
@@ -39,11 +40,19 @@ public:
     ~IASManager() noexcept;
 
     void SetInstance(const std::vector<RenderObject *> &render_objs) noexcept;
+    void UpdateInstance(RenderObject *ro) noexcept;
     OptixTraversableHandle GetIASHandle(unsigned int gas_offset, bool allow_update) noexcept;
+
+    void SetDirty() noexcept;
+    bool IsDirty() const noexcept;
+    void SetDirty(unsigned int gas_offset, bool allow_update) noexcept;
+    bool IsDirty(unsigned int gas_offset, bool allow_update) const noexcept;
 
 private:
     std::unique_ptr<IAS> m_iass[2][32]{};
     std::vector<OptixInstance> m_instances;
+    std::unordered_map<RenderObject *, int> m_ro_index;
+
     unsigned int m_dirty_flag = 0;
 };
 }// namespace Pupil::optix
