@@ -1,6 +1,6 @@
 #include "ias_manager.h"
 #include "scene.h"
-#include "mesh.h"
+#include "render_object.h"
 
 #include "optix/context.h"
 #include "optix/check.h"

@@ -13,8 +13,48 @@
 using namespace Pupil::optix;
 
 namespace {
+struct MeshEntityHash {
+    size_t operator()(const MeshEntity &mesh) const noexcept {
+        size_t res = 17;
+        res = res * 31 + std::hash<float *>()(mesh.vertices);
+        res = res * 31 + std::hash<unsigned int *>()(mesh.indices);
+        return res;
+    }
+};
+
+struct MeshEntityCmp {
+    constexpr bool operator()(const MeshEntity &a, const MeshEntity &b) const {
+        return a.vertices == b.vertices && a.indices == b.indices;
+    }
+};
+
+struct SphereEntityHash {
+    size_t operator()(const Pupil::optix::SphereEntity &mesh) const noexcept {
+        size_t res = 17;
+        res = res * 31 + std::hash<float>()(mesh.center.x);
+        res = res * 31 + std::hash<float>()(mesh.center.y);
+        res = res * 31 + std::hash<float>()(mesh.center.z);
+        res = res * 31 + std::hash<float>()(mesh.radius);
+        return res;
+    }
+};
+
+struct SphereEntityCmp {
+    constexpr bool operator()(const SphereEntity &a, const SphereEntity &b) const {
+        return a.center.x == b.center.x && a.center.y == b.center.y &&
+               a.center.z == b.center.z && a.radius == b.radius;
+    }
+};
+}// namespace
+
+namespace {
+std::unordered_map<MeshEntity, OptixTraversableHandle, MeshEntityHash, MeshEntityCmp> m_meshs_gas;
+std::unordered_map<SphereEntity, OptixTraversableHandle, SphereEntityHash, SphereEntityCmp> m_spheres_gas;
+}// namespace
+
+namespace {
 // the mesh just has one material, so the sbt_index_offset must be 0
-void CreateAccel(Context *context, MeshEntity *mesh, RenderObject *ro) {
+void CreateAccel(Context *context, MeshEntity *mesh, OptixTraversableHandle &gas, CUdeviceptr &gas_buffer) {
     const auto vertex_size = sizeof(float) * 3 * mesh->vertex_num;
     CUdeviceptr d_vertex = Pupil::cuda::CudaMemcpyToDevice(mesh->vertices, vertex_size);
 
@@ -77,7 +117,7 @@ void CreateAccel(Context *context, MeshEntity *mesh, RenderObject *ro) {
         gas_buffer_sizes.tempSizeInBytes,
         d_buffer_temp_output_gas_and_compacted_size,
         gas_buffer_sizes.outputSizeInBytes,
-        &ro->gas_handle,
+        &gas,
         &emitProperty,// emitted property list
         1             // num emitted properties
         ));
@@ -92,17 +132,17 @@ void CreateAccel(Context *context, MeshEntity *mesh, RenderObject *ro) {
     CUDA_CHECK(cudaMemcpy(&compacted_gas_size, (void *)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost));
 
     if (compacted_gas_size < gas_buffer_sizes.outputSizeInBytes) {
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ro->gas_buffer), compacted_gas_size));
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&gas_buffer), compacted_gas_size));
 
         // use handle as input and output
-        OPTIX_CHECK(optixAccelCompact(*context, 0, ro->gas_handle, ro->gas_buffer, compacted_gas_size, &ro->gas_handle));
+        OPTIX_CHECK(optixAccelCompact(*context, 0, gas, gas_buffer, compacted_gas_size, &gas));
 
         CUDA_FREE(d_buffer_temp_output_gas_and_compacted_size);
     } else {
-        ro->gas_buffer = d_buffer_temp_output_gas_and_compacted_size;
+        gas_buffer = d_buffer_temp_output_gas_and_compacted_size;
     }
 }
-void CreateAccel(Context *context, SphereEntity *sphere, RenderObject *ro) {
+void CreateAccel(Context *context, SphereEntity *sphere, OptixTraversableHandle &gas, CUdeviceptr &gas_buffer) {
     CUdeviceptr d_center = Pupil::cuda::CudaMemcpyToDevice(&sphere->center, sizeof(sphere->center));
     CUdeviceptr d_radius = Pupil::cuda::CudaMemcpyToDevice(&sphere->radius, sizeof(sphere->radius));
     unsigned int sbt_index = 0;
@@ -157,7 +197,7 @@ void CreateAccel(Context *context, SphereEntity *sphere, RenderObject *ro) {
         gas_buffer_sizes.tempSizeInBytes,
         d_buffer_temp_output_gas_and_compacted_size,
         gas_buffer_sizes.outputSizeInBytes,
-        &ro->gas_handle,
+        &gas,
         &emitProperty,// emitted property list
         1             // num emitted properties
         ));
@@ -172,48 +212,61 @@ void CreateAccel(Context *context, SphereEntity *sphere, RenderObject *ro) {
     CUDA_CHECK(cudaMemcpy(&compacted_gas_size, (void *)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost));
 
     if (compacted_gas_size < gas_buffer_sizes.outputSizeInBytes) {
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&ro->gas_buffer), compacted_gas_size));
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&gas_buffer), compacted_gas_size));
 
         // use handle as input and output
-        OPTIX_CHECK(optixAccelCompact(*context, 0, ro->gas_handle, ro->gas_buffer, compacted_gas_size, &ro->gas_handle));
+        OPTIX_CHECK(optixAccelCompact(*context, 0, gas, gas_buffer, compacted_gas_size, &gas));
 
         CUDA_FREE(d_buffer_temp_output_gas_and_compacted_size);
     } else {
-        ro->gas_buffer = d_buffer_temp_output_gas_and_compacted_size;
+        gas_buffer = d_buffer_temp_output_gas_and_compacted_size;
     }
 }
 }// namespace
 
-RenderObject::RenderObject(EMeshEntityType type, void *mesh, std::string_view id, unsigned int v_mask) noexcept
-    : id(id), gas_handle(0), gas_buffer(0), visibility_mask(v_mask), transform() {
+OptixTraversableHandle MeshManager::GetGASHandle(EMeshEntityType type, void *mesh) noexcept {
     auto context = util::Singleton<Context>::instance();
+    OptixTraversableHandle handle = 0;
+    CUdeviceptr buffer = 0;
 
     switch (type) {
         case Pupil::optix::EMeshEntityType::Custom: {
             auto m = static_cast<MeshEntity *>(mesh);
-            CreateAccel(context, m, this);
-            std::memcpy(transform.matrix.e, m->transform, 12 * sizeof(float));
+            if (m_meshs_gas.find(*m) == m_meshs_gas.end() || m_gas_buffers.find(m_meshs_gas[*m]) == m_gas_buffers.end()) {
+                CreateAccel(context, m, handle, buffer);
+                m_gas_buffers[handle] = buffer;
+                m_meshs_gas[*m] = handle;
+            } else {
+                handle = m_meshs_gas[*m];
+            }
         } break;
         case Pupil::optix::EMeshEntityType::BuiltinSphere: {
             auto m = static_cast<SphereEntity *>(mesh);
-            CreateAccel(context, m, this);
-            std::memcpy(transform.matrix.e, m->transform, 12 * sizeof(float));
+            if (m_spheres_gas.find(*m) == m_spheres_gas.end() || m_gas_buffers.find(m_spheres_gas[*m]) == m_gas_buffers.end()) {
+                CreateAccel(context, m, handle, buffer);
+                m_gas_buffers[handle] = buffer;
+                m_spheres_gas[*m] = handle;
+            } else {
+                handle = m_spheres_gas[*m];
+            }
         } break;
-        default:
-            break;
     }
+
+    return handle;
 }
 
-void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {
-    transform = new_transform;
-    EventDispatcher<EWorldEvent::RenderObjectTransform>(this);
-}
-void RenderObject::ApplyTransform(const util::Transform &new_transform) noexcept {
-    transform.matrix = new_transform.matrix * transform.matrix;
-    EventDispatcher<EWorldEvent::RenderObjectTransform>(this);
+void MeshManager::Remove(OptixTraversableHandle gas_handle) noexcept {
+    if (m_gas_buffers.find(gas_handle) == m_gas_buffers.end()) return;
+
+    CUDA_FREE(m_gas_buffers[gas_handle]);
+    m_gas_buffers.erase(gas_handle);
 }
 
-RenderObject::~RenderObject() noexcept {
-    CUDA_FREE(gas_buffer);
-    gas_buffer = 0;
+void MeshManager::Destroy() noexcept {
+    for (auto &&[handle, buffer] : m_gas_buffers) {
+        CUDA_FREE(buffer);
+    }
+    m_gas_buffers.clear();
+    m_spheres_gas.clear();
+    m_meshs_gas.clear();
 }

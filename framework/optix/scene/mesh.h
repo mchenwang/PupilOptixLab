@@ -1,8 +1,10 @@
 #pragma once
 
 #include "util/transform.h"
+#include "util/util.h"
 
 #include <vector>
+#include <unordered_map>
 #include <optix.h>
 #include <vector_types.h>
 
@@ -18,31 +20,22 @@ struct MeshEntity {
     float *vertices;// position
     unsigned int index_triplets_num;
     unsigned int *indices;
-    float transform[12];
 };
 
 struct SphereEntity {
     float3 center;
     float radius;
-    float transform[12];
 };
 
-struct RenderObject {
-    std::string id;
+class MeshManager : util::Singleton<MeshManager> {
+public:
+    OptixTraversableHandle GetGASHandle(EMeshEntityType, void *) noexcept;
 
-    OptixTraversableHandle gas_handle = 0;
-    CUdeviceptr gas_buffer = 0;
-    unsigned int visibility_mask = 1;
-    util::Transform transform{};
+    void Remove(OptixTraversableHandle gas_handle) noexcept;
 
-    RenderObject(EMeshEntityType, void *, std::string_view id = "", unsigned int v_mask = 1) noexcept;
-    ~RenderObject() noexcept;
+    void Destroy() noexcept;
 
-    RenderObject(const RenderObject &) = delete;
-    RenderObject &operator=(const RenderObject &) = delete;
-
-    void UpdateTransform(const util::Transform &new_transform) noexcept;
-    void ApplyTransform(const util::Transform &new_transform) noexcept;
+private:
+    std::unordered_map<OptixTraversableHandle, CUdeviceptr> m_gas_buffers;
 };
-
 }// namespace Pupil::optix

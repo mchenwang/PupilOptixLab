@@ -1,10 +1,11 @@
 #include "ias_manager.h"
+#include "mesh.h"
+#include "render_object.h"
 #include "optix/scene/scene.h"
 #include "scene/scene.h"
 
 #include "optix/context.h"
 #include "optix/check.h"
-#include "optix/scene/mesh.h"
 #include "cuda/util.h"
 
 #include "system/world.h"
@@ -27,37 +28,38 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
 
     for (auto &&shape : scene->shapes) {
         switch (shape.type) {
-            case scene::EShapeType::_obj:
+            case scene::EShapeType::_obj: {
                 temp_mesh.vertex_num = shape.obj.vertex_num;
                 temp_mesh.vertices = shape.obj.positions;
                 temp_mesh.index_triplets_num = shape.obj.face_num;
                 temp_mesh.indices = shape.obj.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
-                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.id));
-                break;
-            case scene::EShapeType::_rectangle:
+                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
+            } break;
+            case scene::EShapeType::_rectangle: {
                 temp_mesh.vertex_num = shape.rect.vertex_num;
                 temp_mesh.vertices = shape.rect.positions;
                 temp_mesh.index_triplets_num = shape.rect.face_num;
                 temp_mesh.indices = shape.rect.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
-                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.id));
-                break;
-            case scene::EShapeType::_cube:
+                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
+            } break;
+            case scene::EShapeType::_cube: {
                 temp_mesh.vertex_num = shape.cube.vertex_num;
                 temp_mesh.vertices = shape.cube.positions;
                 temp_mesh.index_triplets_num = shape.cube.face_num;
                 temp_mesh.indices = shape.cube.indices;
-                std::memcpy(temp_mesh.transform, shape.transform.matrix.e, sizeof(float) * 12);
-                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.id));
-                break;
-            case scene::EShapeType::_sphere:
-                temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
-                temp_sphere.radius = shape.sphere.radius;
-                std::memcpy(temp_sphere.transform, shape.transform.matrix.e, sizeof(float) * 12);
-                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::BuiltinSphere, &temp_sphere, shape.id));
-            default:
-                break;
+                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
+            } break;
+            case scene::EShapeType::_sphere: {
+                // temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+                // temp_sphere.radius = shape.sphere.radius;
+                util::Transform sphere_init_trans;
+                sphere_init_trans.Scale(shape.sphere.radius, shape.sphere.radius, shape.sphere.radius);
+                sphere_init_trans.Translate(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+                temp_sphere.center = make_float3(0.f);
+                temp_sphere.radius = 1.f;
+                sphere_init_trans.matrix = shape.transform.matrix * sphere_init_trans.matrix;
+                m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::BuiltinSphere, &temp_sphere, sphere_init_trans, shape.id));
+            } break;
         }
     }
 

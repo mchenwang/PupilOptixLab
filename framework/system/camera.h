@@ -21,6 +21,7 @@ public:
     ~CameraHelper() noexcept;
 
     void Reset(const util::CameraDesc &desc) noexcept;
+    util::CameraDesc GetDesc() const noexcept { return m_desc; }
 
     void SetFov(float fov) noexcept;
     void SetFovDelta(float fov_delta) noexcept;

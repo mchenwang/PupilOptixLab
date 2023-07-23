@@ -17,7 +17,7 @@
 #include "imgui_impl_dx12.h"
 #include "imfilebrowser.h"
 #include "ImGuizmo/ImGuizmo.h"
-#include "optix/scene/mesh.h"
+#include "optix/scene/render_object.h"
 #include "world.h"
 
 #include "cuda/util.h"
@@ -48,6 +48,11 @@ double m_flip_rate = 1.;
 
 int m_canvas_display_buffer_index = 0;
 std::string_view m_canvas_display_buffer_name = Pupil::BufferManager::DEFAULT_FINAL_RESULT_BUFFER_NAME;
+
+std::vector<Pupil::optix::RenderObject *> m_render_objects;
+Pupil::optix::RenderObject *m_selected_ro = nullptr;
+ImGuizmo::MODE m_zmo_mode = ImGuizmo::WORLD;
+ImGuizmo::OPERATION m_zmo_operation = ImGuizmo::TRANSLATE;
 
 struct CanvasDisplayDesc {
     uint32_t w = 1;
@@ -140,6 +145,14 @@ void GuiPass::Init() noexcept {
         EventBinder<ECanvasEvent::Display>([this](void *p) {
             auto buffer_name = reinterpret_cast<std::string_view *>(p);
             m_canvas_display_buffer_name = *buffer_name;
+        });
+
+        EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
+            auto world = reinterpret_cast<World *>(p);
+            m_selected_ro = nullptr;
+            if (world && world->optix_scene) {
+                m_render_objects = world->optix_scene->GetRenderobjects();
+            }
         });
     }
 
@@ -433,7 +446,7 @@ void GuiPass::Docking() noexcept {
         ImGuiID dock_main_id = main_node_id;
         ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
         ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.3f, nullptr, &dock_main_id);
-        ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
+        ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.25f, nullptr, &dock_main_id);
 
         ImGui::DockBuilderDockWindow("Console", dock_left_id);
         ImGui::DockBuilderDockWindow("Scene", dock_right_id);
@@ -511,26 +524,6 @@ void GuiPass::Console(bool show) noexcept {
 
         ImGui::PushTextWrapPos(0.f);
 
-        // if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
-        //     ImGui::Text("GUI average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        //     ImGui::Text("Canvas Rendering:");
-        //     ImGui::Text("Render output flip buffer index: %d", m_ready_buffer_index.load());
-        //     ImGui::Text("Rendering average %.3lf ms/frame (%.1lf FPS)", 1000.0f / m_flip_rate, m_flip_rate);
-        //     if (auto &flag = util::Singleton<System>::instance()->render_flag;
-        //         ImGui::Button(flag ? "Stop" : "Continue")) {
-        //         if (flag ^= 1) {
-        //             EventDispatcher<ESystemEvent::StartRendering>();
-        //         } else {
-        //             EventDispatcher<ESystemEvent::StopRendering>();
-        //         }
-        //     }
-
-        //     ImGui::Text("Camera:");
-        //     ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
-        //     ImGui::InputFloat("sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.1f");
-        //     ImGui::PopItemWidth();
-        // }
-
         if (ImGui::CollapsingHeader("Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
             if (auto &flag = util::Singleton<System>::instance()->render_flag;
                 ImGui::Button(flag ? "Stop" : "Continue")) {
@@ -551,8 +544,7 @@ void GuiPass::Console(bool show) noexcept {
                 ImGui::Checkbox("Gamma Correction", &flag)) {
                 m_canvas_desc.gamma_correct = static_cast<uint32_t>(flag);
             }
-            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-            if (ImGui::TreeNode("buffers")) {
+            if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("buffers")) {
                 static int selected = -1;
                 auto buffer_mngr = util::Singleton<BufferManager>::instance();
                 if (selected == -1) {
@@ -589,8 +581,7 @@ void GuiPass::Console(bool show) noexcept {
         if (ImGui::CollapsingHeader("Render Pass", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto sys = util::Singleton<System>::instance();
             for (auto &&pass : sys->m_pre_passes) {
-                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-                if (ImGui::TreeNode(pass->name.c_str())) {
+                if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode(pass->name.c_str())) {
                     ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
                     pass->Inspector();
                     ImGui::PopItemWidth();
@@ -598,8 +589,7 @@ void GuiPass::Console(bool show) noexcept {
                 }
             }
             for (auto &&pass : sys->m_passes) {
-                ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-                if (ImGui::TreeNode(pass->name.c_str())) {
+                if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode(pass->name.c_str())) {
                     ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
                     pass->Inspector();
                     ImGui::PopItemWidth();
@@ -611,8 +601,7 @@ void GuiPass::Console(bool show) noexcept {
         if (m_inspectors.size() > 0) {
             if (ImGui::CollapsingHeader("Custom Control", ImGuiTreeNodeFlags_DefaultOpen)) {
                 for (auto &&[title, inspector] : m_inspectors) {
-                    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-                    if (ImGui::TreeNode(title.c_str())) {
+                    if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode(title.c_str())) {
                         ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
                         inspector();
                         ImGui::PopItemWidth();
@@ -652,56 +641,52 @@ void GuiPass::Canvas(bool show) noexcept {
                 ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
                              ImVec2(show_w, show_h));
 
-                {
-                    ImGuizmo::SetOrthographic(false);
+                // This will catch our interactions
+                if (!ImGuizmo::IsOver()) {
+                    ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
+                    ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+                    ImGui::SetItemUsingMouseWheel();
+                    const bool is_hovered = ImGui::IsItemHovered();// Hovered
+                    const bool is_active = ImGui::IsItemActive();  // Held
+
+                    if (is_hovered && is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                        ImGuiIO &io = ImGui::GetIO();
+                        const struct {
+                            float x, y;
+                        } delta{ io.MouseDelta.x, io.MouseDelta.y };
+                        EventDispatcher<ECanvasEvent::MouseDragging>(delta);
+                    }
+
+                    if (is_hovered) {
+                        ImGuiIO &io = ImGui::GetIO();
+                        if (io.MouseWheel != 0.f)
+                            EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
+
+                        util::Float3 delta_pos;
+                        if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos -= util::Camera::X;
+                        if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos += util::Camera::X;
+                        if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos -= util::Camera::Z;
+                        if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos += util::Camera::Z;
+                        if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
+                        if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
+                        if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
+                            EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
+                    }
+                }
+
+                if (auto world = util::Singleton<Pupil::World>::instance(); m_selected_ro && world->camera) {
                     ImGuizmo::SetDrawlist();
                     ImGuizmo::SetRect(ImGui::GetWindowPos().x + cursor_x, ImGui::GetWindowPos().y + cursor_y, show_w, show_h);
 
-                    // Editor Camera
-                    auto world = util::Singleton<Pupil::World>::instance();
-                    if (world->camera) {
-                        auto camera = world->camera.get();
-                        auto proj = camera->GetProjectionMatrix().GetTranspose();
-                        auto view = camera->GetViewMatrix().GetTranspose();
+                    auto camera = world->camera.get();
+                    auto proj = camera->GetProjectionMatrix().GetTranspose();
+                    auto view = camera->GetViewMatrix().GetTranspose();
+                    auto transform_matrix = m_selected_ro->transform.matrix.GetTranspose();
+                    ImGuizmo::Manipulate(view.e, proj.e, m_zmo_operation, m_zmo_mode, transform_matrix.e, nullptr, nullptr);
+                    if (auto new_transform = transform_matrix.GetTranspose();
+                        !new_transform.ApproxEqualTo(m_selected_ro->transform.matrix, 1e-5)) {
+                        m_selected_ro->UpdateTransform(new_transform);
                     }
-
-                    //auto obj = world->optix_scene->GetRenderObject("s1");
-
-                    //util::Transform identity;
-                    // ImGuizmo::DrawGrid(view.e, proj.e, identity.matrix.e, 100.f);
-                    //ImGuizmo::Manipulate(view.e, proj.e, ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, obj->transform.matrix.GetTranspose().e, nullptr, nullptr);
-                    // ImGuizmo::ViewManipulate(view.e, 8.f, ImVec2(viewManipulateRight - 128, viewManipulateTop), ImVec2(128, 128), 0x10101010);
-                }
-
-                // This will catch our interactions
-                ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
-                ImGui::InvisibleButton("canvas", ImVec2(show_w, show_h), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-                ImGui::SetItemUsingMouseWheel();
-                const bool is_hovered = ImGui::IsItemHovered();// Hovered
-                const bool is_active = ImGui::IsItemActive();  // Held
-
-                if (is_hovered && is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                    ImGuiIO &io = ImGui::GetIO();
-                    const struct {
-                        float x, y;
-                    } delta{ io.MouseDelta.x, io.MouseDelta.y };
-                    EventDispatcher<ECanvasEvent::MouseDragging>(delta);
-                }
-
-                if (is_hovered) {
-                    ImGuiIO &io = ImGui::GetIO();
-                    if (io.MouseWheel != 0.f)
-                        EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
-
-                    util::Float3 delta_pos;
-                    if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos -= util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos += util::Camera::X;
-                    if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos -= util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos += util::Camera::Z;
-                    if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
-                    if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
-                    if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
-                        EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
                 }
             }
         } else {
@@ -715,8 +700,99 @@ void GuiPass::Scene(bool show) noexcept {
     if (!show) return;
 
     if (bool open = false;
-        ImGui::Begin("Scene", &open)) {
-        ImGui::Text("todo");
+        ImGui::Begin("Scene", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
+
+        ImGui::PushTextWrapPos(0.f);
+
+        ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
+
+        auto world = util::Singleton<World>::instance();
+        if (auto camera = world->camera.get(); camera) {
+            if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Camera")) {
+                auto desc = camera->GetDesc();
+
+                float fov = desc.fov_y;
+                ImGui::InputFloat("fov", &fov, 0.f, 0.f, "%.1f");
+                if (fov != desc.fov_y) camera->SetFov(fov);
+
+                float near_clip = desc.near_clip;
+                float far_clip = desc.far_clip;
+                // ImGui::InputFloat("near clip", &near_clip, 0.f, 0.f, "%.2f");
+                near_clip = clamp(near_clip, 0.01f, desc.far_clip - 0.0001f);
+                if (near_clip != desc.near_clip) camera->SetNearClip(near_clip);
+                // ImGui::InputFloat("far clip", &far_clip, 0.f, 0.f, "%.2f");
+                far_clip = clamp(far_clip, desc.near_clip + 0.0001f, 100000.f);
+                if (far_clip != desc.far_clip) camera->SetFarClip(far_clip);
+
+                if (fov != desc.fov_y || near_clip != desc.near_clip || far_clip != desc.far_clip)
+                    EventDispatcher<EWorldEvent::CameraChange>();
+
+                ImGui::InputFloat("sensitivity scale", &util::Camera::sensitivity_scale, 0.1f, 1.0f, "%.1f");
+
+                auto transform = desc.to_world.matrix.GetTranspose();
+                float translation[3], rotation[3], scale[3];
+                ImGuizmo::DecomposeMatrixToComponents(transform.e, translation, rotation, scale);
+                bool flag = false;
+                ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.75f);
+                flag |= ImGui::InputFloat3("Tr", translation);
+                flag |= ImGui::InputFloat3("Rt", rotation);
+                flag |= ImGui::InputFloat3("Sc", scale);
+                ImGui::PopItemWidth();
+                if (flag) {
+                    ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, transform.e);
+                    auto new_transform = transform.GetTranspose();
+                    camera->SetWorldTransform(new_transform);
+                    Log::Info("wwww");
+                    EventDispatcher<EWorldEvent::CameraChange>();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+
+        if (!m_waiting_scene_load && m_render_objects.size() > 0) {
+            if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Render Objects")) {
+                if (ImGui::Button("Unselect")) m_selected_ro = nullptr;
+                for (int selectable_index = 0; auto &&ro : m_render_objects) {
+                    if (!ro) continue;
+                    std::string ro_name = ro->id;
+                    if (ro_name.empty()) ro_name = "(anonymous)";
+                    if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
+                        m_selected_ro = ro;
+                }
+                ImGui::TreePop();
+            }
+        }
+
+        if (m_selected_ro) {
+            if (ImGui::RadioButton("Translate", m_zmo_operation == ImGuizmo::TRANSLATE))
+                m_zmo_operation = ImGuizmo::TRANSLATE;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Rotate", m_zmo_operation == ImGuizmo::ROTATE))
+                m_zmo_operation = ImGuizmo::ROTATE;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Scale", m_zmo_operation == ImGuizmo::SCALE))
+                m_zmo_operation = ImGuizmo::SCALE;
+
+            auto transform = m_selected_ro->transform.matrix.GetTranspose();
+            float translation[3], rotation[3], scale[3];
+            ImGuizmo::DecomposeMatrixToComponents(transform.e, translation, rotation, scale);
+            bool flag = false;
+            ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.75f);
+            flag |= ImGui::InputFloat3("Tr", translation);
+            flag |= ImGui::InputFloat3("Rt", rotation);
+            flag |= ImGui::InputFloat3("Sc", scale);
+            ImGui::PopItemWidth();
+            ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, transform.e);
+            if (flag) {
+                auto new_transform = transform.GetTranspose();
+                m_selected_ro->UpdateTransform(new_transform);
+            }
+        }
+
+        ImGui::PopItemWidth();
+
+        ImGui::PopTextWrapPos();
     }
     ImGui::End();
 }
@@ -736,6 +812,8 @@ void GuiPass::OnDraw() noexcept {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
     Docking();
+
+    ImGuizmo::SetOrthographic(false);
 
     // lock flip model to ensure the ready buffer is unchanged during the current frame
     std::scoped_lock lock{ m_flip_model_mutex };
@@ -779,11 +857,6 @@ void GuiPass::OnDraw() noexcept {
     }
     // show on canvas
     Canvas();
-
-    // if (bool open = false;
-    //     ImGui::Begin("TODO", &open)) {
-    // }
-    // ImGui::End();
 
     ImGui::Render();
     dx_ctx->StartRenderScreen(cmd_list);

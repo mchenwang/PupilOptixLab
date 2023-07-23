@@ -8,6 +8,7 @@
 #include "util/camera.h"
 #include "scene/scene.h"
 #include "optix/scene/scene.h"
+#include "optix/scene/mesh.h"
 
 namespace Pupil {
 void World::Init() noexcept {
@@ -53,6 +54,7 @@ void World::Destroy() noexcept {
     scene.reset();
     optix_scene.reset();
     camera.reset();
+    util::Singleton<optix::MeshManager>::instance()->Destroy();
 }
 
 bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {

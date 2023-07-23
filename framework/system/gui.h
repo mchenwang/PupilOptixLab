@@ -45,7 +45,7 @@ public:
         };
     struct {
         bool console = true;
-        bool scene = false;
+        bool scene = true;
         bool bottom = false;
     } show_window;
 

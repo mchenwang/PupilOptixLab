@@ -23,8 +23,12 @@ void CameraHelper::Reset(const util::CameraDesc &desc) noexcept {
 }
 
 void CameraHelper::SetFov(float fov) noexcept {
-    m_camera.SetFov(fov);
     m_desc.fov_y = fov;
+    if (m_desc.fov_y < 0.012f)
+        m_desc.fov_y = 0.012f;
+    else if (m_desc.fov_y > 180.f)
+        m_desc.fov_y = 180.f;
+    m_camera.SetFov(m_desc.fov_y);
     m_camera_cuda_memory_dirty = true;
 }
 void CameraHelper::SetFovDelta(float fov_delta) noexcept {
@@ -74,6 +78,8 @@ CUdeviceptr CameraHelper::GetCudaMemory() noexcept {
     if (m_camera_cuda_memory_dirty) {
         auto sample_to_camera = m_camera.GetSampleToCameraMatrix();
         auto camera_to_world = m_camera.GetToWorldMatrix();
+
+        m_desc.to_world.matrix = camera_to_world;
 
         m_optix_camera.sample_to_camera = ToCudaType(sample_to_camera);
         m_optix_camera.camera_to_world = ToCudaType(camera_to_world);
