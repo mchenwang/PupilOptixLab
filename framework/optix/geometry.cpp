@@ -46,8 +46,10 @@ void Geometry::LoadGeometry(const scene::Shape &shape) noexcept {
         } break;
         case scene::EShapeType::_sphere: {
             this->type = EType::Sphere;
-            this->sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
-            this->sphere.radius = shape.sphere.radius;
+            // this->sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
+            // this->sphere.radius = shape.sphere.radius;
+            this->sphere.center = make_float3(0.f);
+            this->sphere.radius = 1.f;
             this->sphere.flip_normal = shape.sphere.flip_normals;
         } break;
     }
