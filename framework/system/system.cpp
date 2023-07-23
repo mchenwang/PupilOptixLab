@@ -14,7 +14,7 @@
 #include "scene/texture.h"
 
 #include "pass.h"
-#include "gui.h"
+#include "gui/gui.h"
 #include "util/event.h"
 #include "util/thread_pool.h"
 #include "util/log.h"

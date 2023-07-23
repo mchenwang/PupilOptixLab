@@ -6,8 +6,8 @@ file(GLOB_RECURSE ALL_INCLUDE CONFIGURE_DEPENDS "*.h")
 file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.inl")
 
 set(pupil_cuda_kernel_files
-    system/buffer_to_canvas.cu
-    system/buffer_to_canvas.cuh
+    system/gui/buffer_to_canvas.cu
+    system/gui/buffer_to_canvas.cuh
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_cuda_kernel_files})

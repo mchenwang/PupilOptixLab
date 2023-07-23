@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 #include "pass.h"
-#include "system/gui.h"
+#include "system/gui/gui.h"
 #include "cuda/data_view.h"
 #include "cuda/kernel.h"
 

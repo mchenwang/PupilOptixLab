@@ -1,6 +1,6 @@
 #include "gui.h"
-#include "system.h"
-#include "resource.h"
+#include "../system.h"
+#include "../resource.h"
 
 #include "dx12/context.h"
 #include "dx12/d3dx12.h"
@@ -18,7 +18,7 @@
 #include "imfilebrowser.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include "optix/scene/render_object.h"
-#include "world.h"
+#include "../world.h"
 
 #include "cuda/util.h"
 
@@ -926,7 +926,7 @@ void GuiPass::InitRenderToTexturePipeline() noexcept {
         UINT compile_flags = 0;
 #endif
 
-        std::filesystem::path file_path = (std::filesystem::path{ ROOT_DIR } / "framework/system/output.hlsl").make_preferred();
+        std::filesystem::path file_path = (std::filesystem::path{ ROOT_DIR } / "framework/system/gui/output.hlsl").make_preferred();
         std::wstring w_file_path = file_path.wstring();
         LPCWSTR result = w_file_path.data();
         //StopIfFailed(D3DCompileFromFile(result, 0, 0, "VSMain", "vs_5_1", compile_flags, 0, &vs, 0));

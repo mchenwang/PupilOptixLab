@@ -1,6 +1,6 @@
 #include "world.h"
 #include "system.h"
-#include "gui.h"
+#include "gui/gui.h"
 
 #include "util/event.h"
 #include "util/log.h"

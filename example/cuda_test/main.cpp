@@ -1,6 +1,6 @@
 #include "system/system.h"
 #include "pass.h"
-#include "system/gui.h"
+#include "system/gui/gui.h"
 #include "util/event.h"
 
 using namespace Pupil;

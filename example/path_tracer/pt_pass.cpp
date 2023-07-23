@@ -7,7 +7,7 @@
 
 #include "util/event.h"
 #include "system/system.h"
-#include "system/gui.h"
+#include "system/gui/gui.h"
 #include "system/world.h"
 
 extern "C" char embedded_ptx_code[];
