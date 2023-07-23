@@ -14,11 +14,11 @@ RenderObject::RenderObject(EMeshEntityType type, void *mesh, util::Transform tra
 
 void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {
     transform = new_transform;
-    EventDispatcher<EWorldEvent::RenderObjectTransform>(this);
+    EventDispatcher<EWorldEvent::RenderInstanceUpdate>(this);
 }
 
 void RenderObject::ApplyTransform(const util::Transform &new_transform) noexcept {
     transform.matrix = new_transform.matrix * transform.matrix;
-    EventDispatcher<EWorldEvent::RenderObjectTransform>(this);
+    EventDispatcher<EWorldEvent::RenderInstanceUpdate>(this);
 }
 }// namespace Pupil::optix

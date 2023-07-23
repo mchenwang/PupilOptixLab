@@ -42,7 +42,7 @@ void World::Init() noexcept {
         EventDispatcher<EWorldEvent::CameraChange>();
     });
 
-    EventBinder<EWorldEvent::RenderObjectTransform>([this](void *p) {
+    EventBinder<EWorldEvent::RenderInstanceUpdate>([this](void *p) {
         auto ro = reinterpret_cast<optix::RenderObject *>(p);
         if (optix_scene) {
             optix_scene->UpdateRenderObject(ro);

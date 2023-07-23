@@ -214,7 +214,7 @@ void PTPass::BindingEventCallback() noexcept {
         m_dirty = true;
     });
 
-    EventBinder<EWorldEvent::RenderObjectTransform>([this](void *) {
+    EventBinder<EWorldEvent::RenderInstanceUpdate>([this](void *) {
         m_dirty = true;
     });
 

@@ -446,7 +446,7 @@ void GuiPass::Docking() noexcept {
         ImGuiID dock_main_id = main_node_id;
         ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
         ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.3f, nullptr, &dock_main_id);
-        ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.25f, nullptr, &dock_main_id);
+        ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.26f, nullptr, &dock_main_id);
 
         ImGui::DockBuilderDockWindow("Console", dock_left_id);
         ImGui::DockBuilderDockWindow("Scene", dock_right_id);
@@ -546,19 +546,24 @@ void GuiPass::Console(bool show) noexcept {
             }
             if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("buffers")) {
                 static int selected = -1;
+                static int displayable_buffer_num = 0;
                 auto buffer_mngr = util::Singleton<BufferManager>::instance();
+                const auto &buffer_list = buffer_mngr->GetBufferNameList();
                 if (selected == -1) {
-                    for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
+                    displayable_buffer_num = 0;
+                    for (auto &&buffer_name : buffer_list) {
                         auto buffer = buffer_mngr->GetBuffer(buffer_name);
                         if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
                             if (buffer->desc.name == m_canvas_display_buffer_name) {
-                                selected = i;
+                                selected = displayable_buffer_num;
                             }
-                            ++i;
+                            ++displayable_buffer_num;
                         }
                     }
                 }
-                for (int i = 0; auto &&buffer_name : buffer_mngr->GetBufferNameList()) {
+
+                ImGui::BeginChild("Console", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min(displayable_buffer_num, 10)), false);
+                for (int i = 0; auto &&buffer_name : buffer_list) {
                     auto buffer = buffer_mngr->GetBuffer(buffer_name);
                     if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
                         if (ImGui::Selectable(buffer_name.data(), selected == i)) {
@@ -574,6 +579,8 @@ void GuiPass::Console(bool show) noexcept {
                         ++i;
                     }
                 }
+                ImGui::EndChild();
+
                 ImGui::TreePop();
             }
         }
@@ -742,7 +749,6 @@ void GuiPass::Scene(bool show) noexcept {
                     ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, transform.e);
                     auto new_transform = transform.GetTranspose();
                     camera->SetWorldTransform(new_transform);
-                    Log::Info("wwww");
                     EventDispatcher<EWorldEvent::CameraChange>();
                 }
 
@@ -753,6 +759,7 @@ void GuiPass::Scene(bool show) noexcept {
         if (!m_waiting_scene_load && m_render_objects.size() > 0) {
             if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Render Objects")) {
                 if (ImGui::Button("Unselect")) m_selected_ro = nullptr;
+                ImGui::BeginChild("Scene", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min((int)m_render_objects.size(), 10)), false);
                 for (int selectable_index = 0; auto &&ro : m_render_objects) {
                     if (!ro) continue;
                     std::string ro_name = ro->id;
@@ -760,33 +767,46 @@ void GuiPass::Scene(bool show) noexcept {
                     if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
                         m_selected_ro = ro;
                 }
+                ImGui::EndChild();
+
+                if (m_selected_ro) {
+                    ImGui::SeparatorText("Properties");
+
+                    if (bool visibility = m_selected_ro->visibility_mask;
+                        ImGui::Checkbox("visibility", &visibility)) {
+                        m_selected_ro->visibility_mask = visibility;
+                        EventDispatcher<EWorldEvent::RenderInstanceUpdate>(m_selected_ro);
+                    }
+
+                    ImGui::SeparatorText("Transform");
+                    if (ImGui::RadioButton("Translate", m_zmo_operation == ImGuizmo::TRANSLATE))
+                        m_zmo_operation = ImGuizmo::TRANSLATE;
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Rotate", m_zmo_operation == ImGuizmo::ROTATE))
+                        m_zmo_operation = ImGuizmo::ROTATE;
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("Scale", m_zmo_operation == ImGuizmo::SCALE))
+                        m_zmo_operation = ImGuizmo::SCALE;
+
+                    auto transform = m_selected_ro->transform.matrix.GetTranspose();
+                    float translation[3], rotation[3], scale[3];
+                    ImGuizmo::DecomposeMatrixToComponents(transform.e, translation, rotation, scale);
+                    bool flag = false;
+                    ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.75f);
+                    flag |= ImGui::InputFloat3("Tr", translation);
+                    flag |= ImGui::InputFloat3("Rt", rotation);
+                    flag |= ImGui::InputFloat3("Sc", scale);
+                    ImGui::PopItemWidth();
+                    ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, transform.e);
+                    if (flag) {
+                        auto new_transform = transform.GetTranspose();
+                        m_selected_ro->UpdateTransform(new_transform);
+                    }
+
+                    ImGui::SeparatorText("Material");
+                }
+
                 ImGui::TreePop();
-            }
-        }
-
-        if (m_selected_ro) {
-            if (ImGui::RadioButton("Translate", m_zmo_operation == ImGuizmo::TRANSLATE))
-                m_zmo_operation = ImGuizmo::TRANSLATE;
-            ImGui::SameLine();
-            if (ImGui::RadioButton("Rotate", m_zmo_operation == ImGuizmo::ROTATE))
-                m_zmo_operation = ImGuizmo::ROTATE;
-            ImGui::SameLine();
-            if (ImGui::RadioButton("Scale", m_zmo_operation == ImGuizmo::SCALE))
-                m_zmo_operation = ImGuizmo::SCALE;
-
-            auto transform = m_selected_ro->transform.matrix.GetTranspose();
-            float translation[3], rotation[3], scale[3];
-            ImGuizmo::DecomposeMatrixToComponents(transform.e, translation, rotation, scale);
-            bool flag = false;
-            ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.75f);
-            flag |= ImGui::InputFloat3("Tr", translation);
-            flag |= ImGui::InputFloat3("Rt", rotation);
-            flag |= ImGui::InputFloat3("Sc", scale);
-            ImGui::PopItemWidth();
-            ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, transform.e);
-            if (flag) {
-                auto new_transform = transform.GetTranspose();
-                m_selected_ro->UpdateTransform(new_transform);
             }
         }
 
