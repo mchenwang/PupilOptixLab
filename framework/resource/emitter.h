@@ -3,7 +3,7 @@
 #include "util/texture.h"
 #include "util/type.h"
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 enum class EEmitterType {
     Unknown,
     Area,
@@ -50,4 +50,4 @@ struct Emitter {
 
     Emitter() noexcept {}
 };
-}// namespace Pupil::scene
+}// namespace Pupil::resource

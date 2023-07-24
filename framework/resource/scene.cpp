@@ -16,38 +16,38 @@
 
 using namespace Pupil;
 namespace {
-void LoadIntegrator(const scene::xml::Object *obj, void *dst) noexcept {
+void LoadIntegrator(const resource::xml::Object *obj, void *dst) noexcept {
     if (obj == nullptr || dst == nullptr) return;
-    scene::Integrator *integrator = static_cast<scene::Integrator *>(dst);
-    scene::xml::LoadInt(obj, "max_depth", integrator->max_depth, 1);
+    resource::Integrator *integrator = static_cast<resource::Integrator *>(dst);
+    resource::xml::LoadInt(obj, "max_depth", integrator->max_depth, 1);
 }
 
-void LoadFilm(const scene::xml::Object *obj, void *dst) noexcept {
+void LoadFilm(const resource::xml::Object *obj, void *dst) noexcept {
     if (obj == nullptr || dst == nullptr) return;
-    scene::Film *film = static_cast<scene::Film *>(dst);
+    resource::Film *film = static_cast<resource::Film *>(dst);
     if (obj->type.compare("hdrfilm")) {
         Pupil::Log::Warn("film only support hdrfilm.");
         return;
     }
 
-    scene::xml::LoadInt(obj, "width", film->w, 768);
-    scene::xml::LoadInt(obj, "height", film->h, 576);
+    resource::xml::LoadInt(obj, "width", film->w, 768);
+    resource::xml::LoadInt(obj, "height", film->h, 576);
 }
 }// namespace
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 Scene::Scene() noexcept {
     SetXmlObjLoadCallBack(xml::ETag::_integrator, LoadIntegrator);
 
-    SetXmlObjLoadCallBack(xml::ETag::_transform, scene::xml::LoadTransform);
+    SetXmlObjLoadCallBack(xml::ETag::_transform, resource::xml::LoadTransform);
 
     SetXmlObjLoadCallBack(xml::ETag::_film, LoadFilm);
 
     SetXmlObjLoadCallBack(
         xml::ETag::_sensor,
-        [this](const scene::xml::Object *obj, void *dst) noexcept {
+        [this](const resource::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
-            scene::Sensor *sensor = static_cast<scene::Sensor *>(dst);
+            resource::Sensor *sensor = static_cast<resource::Sensor *>(dst);
             if (obj->type.compare("perspective")) {
                 Pupil::Log::Warn("sensor only support perspective.");
                 return;
@@ -94,7 +94,7 @@ Scene::Scene() noexcept {
 
     SetXmlObjLoadCallBack(
         xml::ETag::_texture,
-        [this](const scene::xml::Object *obj, void *dst) noexcept {
+        [this](const resource::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
             util::Texture *texture = static_cast<util::Texture *>(dst);
 
@@ -103,7 +103,7 @@ Scene::Scene() noexcept {
 
                 auto value = obj->GetProperty("filename");
                 auto path = (scene_root_path / value).make_preferred();
-                *texture = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
+                *texture = util::Singleton<resource::TextureManager>::instance()->GetTexture(path.string());
 
                 value = obj->GetProperty("filter_type");
                 if (value.compare("bilinear") == 0)
@@ -138,7 +138,7 @@ Scene::Scene() noexcept {
 
     SetXmlObjLoadCallBack(
         xml::ETag::_bsdf,
-        [this](const scene::xml::Object *obj, void *dst) noexcept {
+        [this](const resource::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
             material::Material *m = static_cast<material::Material *>(dst);
             *m = material::LoadMaterialFromXml(obj, this);
@@ -146,16 +146,16 @@ Scene::Scene() noexcept {
 
     SetXmlObjLoadCallBack(
         xml::ETag::_shape,
-        [this](const scene::xml::Object *obj, void *dst) noexcept {
+        [this](const resource::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
             Shape *shape = static_cast<Shape *>(dst);
 
-            *shape = scene::LoadShapeFromXml(obj, this);
+            *shape = resource::LoadShapeFromXml(obj, this);
         });
 
     SetXmlObjLoadCallBack(
         xml::ETag::_emitter,
-        [this](const scene::xml::Object *obj, void *dst) noexcept {
+        [this](const resource::xml::Object *obj, void *dst) noexcept {
             if (obj == nullptr || dst == nullptr) return;
             Emitter *emitter = static_cast<Emitter *>(dst);
 
@@ -181,7 +181,7 @@ Scene::Scene() noexcept {
                 xml::LoadFloat(obj, "scale", emitter->env_map.scale, 1.f);
                 auto value = obj->GetProperty("filename");
                 auto path = (scene_root_path / value).make_preferred();
-                emitter->env_map.radiance = util::Singleton<scene::TextureManager>::instance()->GetTexture(path.string());
+                emitter->env_map.radiance = util::Singleton<resource::TextureManager>::instance()->GetTexture(path.string());
                 emitter->env_map.radiance.bitmap.filter_mode = util::ETextureFilterMode::Linear;
                 emitter->env_map.radiance.bitmap.address_mode = util::ETextureAddressMode::Wrap;
 
@@ -247,4 +247,4 @@ void Scene::LoadFromXML(std::string_view file_name, std::string_view root) noexc
     std::filesystem::path file = src_root / file_name;
     LoadFromXML(file);
 }
-}// namespace Pupil::scene
+}// namespace Pupil::resource

@@ -11,7 +11,7 @@ namespace pugi {
 class xml_node;
 }
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 namespace xml {
 /// @brief xml object's property
 /// support integer, string, float, boolean, rgb, (for transform matrix, scale, translate)
@@ -55,4 +55,4 @@ struct GlobalManager {
     void ReplaceDefaultValue(pugi::xml_node *) noexcept;
 };
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

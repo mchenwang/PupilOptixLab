@@ -1,9 +1,9 @@
 #include "util_loader.h"
-#include "scene/scene.h"
-#include "scene/texture.h"
+#include "resource/scene.h"
+#include "resource/texture.h"
 #include "util/log.h"
 
-namespace Pupil::scene::xml {
+namespace Pupil::resource::xml {
 
 bool LoadInt(std::string_view param_name, std::string_view value,
              int &param, int default_value) noexcept {
@@ -16,7 +16,7 @@ bool LoadInt(std::string_view param_name, std::string_view value,
     return true;
 }
 
-bool LoadInt(const scene::xml::Object *obj, std::string_view param_name,
+bool LoadInt(const resource::xml::Object *obj, std::string_view param_name,
              int &param, int default_value) noexcept {
     auto value = obj->GetProperty(param_name);
     return LoadInt(param_name, value, param, default_value);
@@ -33,7 +33,7 @@ bool LoadFloat(std::string_view param_name, std::string_view value,
     return true;
 }
 
-bool LoadFloat(const scene::xml::Object *obj, std::string_view param_name,
+bool LoadFloat(const resource::xml::Object *obj, std::string_view param_name,
                float &param, float default_value) noexcept {
     auto value = obj->GetProperty(param_name);
     return LoadFloat(param_name, value, param, default_value);
@@ -59,7 +59,7 @@ bool LoadFloat3(std::string_view param_name, std::string_view value,
     return true;
 }
 
-bool LoadFloat3(const scene::xml::Object *obj, std::string_view param_name,
+bool LoadFloat3(const resource::xml::Object *obj, std::string_view param_name,
                 util::Float3 &param, util::Float3 default_value) noexcept {
     auto value = obj->GetProperty(param_name);
     return LoadFloat3(param_name, value, param, default_value);
@@ -83,32 +83,32 @@ bool Load3Float(std::string_view param_name, std::string_view value,
     return true;
 }
 
-bool Load3Float(const scene::xml::Object *obj, std::string_view param_name,
+bool Load3Float(const resource::xml::Object *obj, std::string_view param_name,
                 util::Float3 &param, util::Float3 default_value) noexcept {
     auto value = obj->GetProperty(param_name);
     return Load3Float(param_name, value, param, default_value);
 }
 
-bool LoadTextureOrRGB(const scene::xml::Object *obj, scene::Scene *scene, std::string_view param_name,
+bool LoadTextureOrRGB(const resource::xml::Object *obj, resource::Scene *scene, std::string_view param_name,
                       util::Texture &param, util::Float3 default_value) noexcept {
     auto [texture, rgb] = obj->GetParameter(param_name);
 
     if (texture == nullptr && rgb.empty()) {
-        param = util::Singleton<scene::TextureManager>::instance()->GetColorTexture(default_value.r, default_value.g, default_value.b);
+        param = util::Singleton<resource::TextureManager>::instance()->GetColorTexture(default_value.r, default_value.g, default_value.b);
         return false;
     }
 
     if (texture == nullptr) {
         util::Float3 color;
         LoadFloat3(param_name, rgb, color, default_value);
-        param = util::Singleton<scene::TextureManager>::instance()->GetColorTexture(color);
+        param = util::Singleton<resource::TextureManager>::instance()->GetColorTexture(color);
     } else {
         scene->InvokeXmlObjLoadCallBack(texture, &param);
     }
     return true;
 }
 
-bool LoadBool(const scene::xml::Object *obj, std::string_view param_name, bool &param, bool default_value) noexcept {
+bool LoadBool(const resource::xml::Object *obj, std::string_view param_name, bool &param, bool default_value) noexcept {
     std::string value = obj->GetProperty(param_name);
     if (value.empty()) {
         param = default_value;
@@ -125,7 +125,7 @@ bool LoadBool(const scene::xml::Object *obj, std::string_view param_name, bool &
     return true;
 }
 
-bool LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) noexcept {
+bool LoadTransform3D(const resource::xml::Object *obj, util::Transform *transform) noexcept {
     std::string value = obj->GetProperty("matrix");
     if (!value.empty()) {
         auto matrix_elems = util::Split(value, " ");
@@ -191,7 +191,7 @@ bool LoadTransform3D(const scene::xml::Object *obj, util::Transform *transform) 
     return true;
 }
 
-bool LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
+bool LoadTransform(const resource::xml::Object *obj, void *dst) noexcept {
     if (obj == nullptr || dst == nullptr) return false;
     if (obj->var_name.compare("to_world") == 0) {
         util::Transform *transform = static_cast<util::Transform *>(dst);
@@ -208,4 +208,4 @@ bool LoadTransform(const scene::xml::Object *obj, void *dst) noexcept {
     }
     return false;
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

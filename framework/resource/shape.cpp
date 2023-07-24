@@ -68,12 +68,12 @@ uint32_t m_cube_indices[] = {
 
 namespace {
 using namespace Pupil;
-using namespace Pupil::scene;
-using Pupil::scene::EShapeType;
+using namespace Pupil::resource;
+using Pupil::resource::EShapeType;
 
 template<EShapeType Tag>
 struct ShapeLoader {
-    Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+    Shape operator()(const resource::xml::Object *obj, resource::Scene *scene) {
         Pupil::Log::Warn("unknown shape type [{}].", obj->type);
         return {};
     }
@@ -81,10 +81,10 @@ struct ShapeLoader {
 
 template<>
 struct ShapeLoader<EShapeType::_cube> {
-    Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
-        Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetCube();
+    Shape operator()(const resource::xml::Object *obj, resource::Scene *scene) {
+        Shape shape = util::Singleton<resource::ShapeDataManager>::instance()->GetCube();
         shape.id = obj->id;
-        scene::xml::LoadBool(obj, "flip_normals", shape.cube.flip_normals, false);
+        resource::xml::LoadBool(obj, "flip_normals", shape.cube.flip_normals, false);
 
         return shape;
     }
@@ -92,10 +92,10 @@ struct ShapeLoader<EShapeType::_cube> {
 
 template<>
 struct ShapeLoader<EShapeType::_rectangle> {
-    Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
-        Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetRectangle();
+    Shape operator()(const resource::xml::Object *obj, resource::Scene *scene) {
+        Shape shape = util::Singleton<resource::ShapeDataManager>::instance()->GetRectangle();
         shape.id = obj->id;
-        scene::xml::LoadBool(obj, "flip_normals", shape.rect.flip_normals, false);
+        resource::xml::LoadBool(obj, "flip_normals", shape.rect.flip_normals, false);
 
         return shape;
     }
@@ -103,16 +103,16 @@ struct ShapeLoader<EShapeType::_rectangle> {
 
 template<>
 struct ShapeLoader<EShapeType::_sphere> {
-    Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+    Shape operator()(const resource::xml::Object *obj, resource::Scene *scene) {
         std::string value = obj->GetProperty("center");
         auto center = util::StrToFloat3(value);
         value = obj->GetProperty("radius");
         float radius = 1.f;
         if (!value.empty()) radius = std::stof(value);
 
-        Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetSphere(radius, center);
+        Shape shape = util::Singleton<resource::ShapeDataManager>::instance()->GetSphere(radius, center);
         shape.id = obj->id;
-        scene::xml::LoadBool(obj, "flip_normals", shape.sphere.flip_normals, false);
+        resource::xml::LoadBool(obj, "flip_normals", shape.sphere.flip_normals, false);
 
         return shape;
     }
@@ -120,21 +120,21 @@ struct ShapeLoader<EShapeType::_sphere> {
 
 template<>
 struct ShapeLoader<EShapeType::_obj> {
-    Shape operator()(const scene::xml::Object *obj, scene::Scene *scene) {
+    Shape operator()(const resource::xml::Object *obj, resource::Scene *scene) {
         auto value = obj->GetProperty("filename");
         auto path = (scene->scene_root_path / value).make_preferred();
-        Shape shape = util::Singleton<scene::ShapeDataManager>::instance()->GetShape(path.string());
+        Shape shape = util::Singleton<resource::ShapeDataManager>::instance()->GetShape(path.string());
         shape.id = obj->id;
 
-        scene::xml::LoadBool(obj, "face_normals", shape.obj.face_normals, false);
-        scene::xml::LoadBool(obj, "flip_tex_coords", shape.obj.flip_tex_coords, true);
-        scene::xml::LoadBool(obj, "flip_normals", shape.obj.flip_normals, false);
+        resource::xml::LoadBool(obj, "face_normals", shape.obj.face_normals, false);
+        resource::xml::LoadBool(obj, "flip_tex_coords", shape.obj.flip_tex_coords, true);
+        resource::xml::LoadBool(obj, "flip_normals", shape.obj.flip_normals, false);
 
         return shape;
     }
 };
 
-using LoaderType = std::function<Shape(const scene::xml::Object *, scene::Scene *)>;
+using LoaderType = std::function<Shape(const resource::xml::Object *, resource::Scene *)>;
 
 #define SHAPE_LOADER(mat) ShapeLoader<EShapeType::##_##mat>()
 #define SHAPE_LOADER_DEFINE(...)                             \
@@ -144,8 +144,8 @@ using LoaderType = std::function<Shape(const scene::xml::Object *, scene::Scene 
 SHAPE_LOADER_DEFINE(PUPIL_SCENE_SHAPE);
 }// namespace
 
-namespace Pupil::scene {
-Shape LoadShapeFromXml(const scene::xml::Object *obj, scene::Scene *scene) noexcept {
+namespace Pupil::resource {
+Shape LoadShapeFromXml(const resource::xml::Object *obj, resource::Scene *scene) noexcept {
     if (obj == nullptr || scene == nullptr) {
         Pupil::Log::Warn("obj or scene is null.\n\tlocation: LoadShapeFromXml().");
         return {};
@@ -310,4 +310,4 @@ Shape ShapeDataManager::GetRectangle(bool flip_normals) noexcept {
 void ShapeDataManager::Clear() noexcept {
     m_shape_datas.clear();
 }
-}// namespace Pupil::scene
+}// namespace Pupil::resource

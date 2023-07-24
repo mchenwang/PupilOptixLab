@@ -6,7 +6,7 @@
 #include "util/log.h"
 #include "util/timer.h"
 #include "util/camera.h"
-#include "scene/scene.h"
+#include "resource/scene.h"
 #include "optix/scene/scene.h"
 #include "optix/scene/mesh.h"
 
@@ -65,7 +65,7 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
 
     Pupil::Log::Info("start loading scene [{}].", scene_file_path.string());
 
-    if (scene == nullptr) scene = std::make_unique<scene::Scene>();
+    if (scene == nullptr) scene = std::make_unique<resource::Scene>();
 
     Pupil::Timer timer;
     timer.Start();

@@ -1,5 +1,5 @@
 #include "emitter.h"
-#include "scene/scene.h"
+#include "resource/scene.h"
 #include "cuda/texture.h"
 #include "cuda/util.h"
 
@@ -103,7 +103,7 @@ std::vector<float> m_col_cdf;
 std::vector<float> m_row_cdf;
 std::vector<float> m_row_weight;
 
-void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_weight_cuda_memory, scene::EnvMap &env_map) noexcept {
+void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_weight_cuda_memory, resource::EnvMap &env_map) noexcept {
     size_t w = env_map.radiance.bitmap.w;
     size_t h = env_map.radiance.bitmap.h;
     m_col_cdf.resize((w + 1) * h);
@@ -154,7 +154,7 @@ void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_
 }// namespace
 
 namespace Pupil::optix {
-EmitterHelper::EmitterHelper(scene::Scene *scene) noexcept {
+EmitterHelper::EmitterHelper(resource::Scene *scene) noexcept {
     m_areas_cuda_memory = 0;
     m_points_cuda_memory = 0;
     m_directionals_cuda_memory = 0;
@@ -203,7 +203,7 @@ EmitterGroup EmitterHelper::GetEmitterGroup() noexcept {
     return ret;
 }
 
-void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
+void EmitterHelper::GenerateEmitters(resource::Scene *scene) noexcept {
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
 
     // area emitters
@@ -218,22 +218,22 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
         size_t pre_emitters_num = m_areas.size();
 
         switch (shape.type) {
-            case scene::EShapeType::_cube: {
+            case resource::EShapeType::_cube: {
                 area_select_weight_sum += SplitMesh(m_areas, shape.cube.vertex_num, shape.cube.face_num, shape.cube.indices,
                                                     shape.cube.positions, shape.cube.normals, shape.cube.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
-            case scene::EShapeType::_obj: {
+            case resource::EShapeType::_obj: {
                 area_select_weight_sum += SplitMesh(m_areas, shape.obj.vertex_num, shape.obj.face_num, shape.obj.indices,
                                                     shape.obj.positions, shape.obj.normals, shape.obj.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
-            case scene::EShapeType::_rectangle: {
+            case resource::EShapeType::_rectangle: {
                 area_select_weight_sum += SplitMesh(m_areas, shape.rect.vertex_num, shape.rect.face_num, shape.rect.indices,
                                                     shape.rect.positions, shape.rect.normals, shape.rect.texcoords,
                                                     shape.transform, radiance, select_weight);
             } break;
-            case scene::EShapeType::_sphere: {
+            case resource::EShapeType::_sphere: {
                 Pupil::optix::Emitter emitter;
                 emitter.type = Pupil::optix::EEmitterType::Sphere;
                 util::Float3 o(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
@@ -269,7 +269,7 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
     unsigned int other_emitter_num = 0;
     for (auto &&emitter : scene->emitters) {
         switch (emitter.type) {
-            case scene::EEmitterType::ConstEnv: {
+            case resource::EEmitterType::ConstEnv: {
                 ++other_emitter_num;
                 m_env.type = Pupil::optix::EEmitterType::ConstEnv;
                 m_env.const_env.color = make_float3(emitter.const_env.radiance.x,
@@ -279,7 +279,7 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
                 m_env.const_env.center = make_float3(center.x, center.y, center.z);
                 m_env.select_probability = 1.f;
             } break;
-            case scene::EEmitterType::EnvMap: {
+            case resource::EEmitterType::EnvMap: {
                 ++other_emitter_num;
                 m_env.type = Pupil::optix::EEmitterType::EnvMap;
                 m_env.env_map.radiance = tex_mngr->GetCudaTexture(emitter.env_map.radiance);
@@ -300,7 +300,7 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
                 BuildEnvMapCdfTable(m_env.env_map, m_env_cdf_weight_cuda_memory, emitter.env_map);
             } break;
                 // TODO
-                // case scene::EEmitterType::Point:
+                // case resource::EEmitterType::Point:
         }
     }
 
@@ -318,7 +318,7 @@ void EmitterHelper::GenerateEmitters(scene::Scene *scene) noexcept {
     }
 }
 
-void EmitterHelper::Reset(scene::Scene *scene) noexcept {
+void EmitterHelper::Reset(resource::Scene *scene) noexcept {
     Clear();
     GenerateEmitters(scene);
 }

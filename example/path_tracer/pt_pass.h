@@ -5,7 +5,7 @@
 #include "system/pass.h"
 #include "system/buffer.h"
 #include "system/world.h"
-#include "scene/scene.h"
+#include "resource/scene.h"
 #include "optix/pass.h"
 #include "optix/scene/scene.h"
 
@@ -30,7 +30,7 @@ public:
 private:
     void BindingEventCallback() noexcept;
     void InitOptixPipeline() noexcept;
-    void SetSBT(scene::Scene *) noexcept;
+    void SetSBT(resource::Scene *) noexcept;
 
     OptixLaunchParams m_optix_launch_params;
     std::unique_ptr<cuda::Stream> m_stream;

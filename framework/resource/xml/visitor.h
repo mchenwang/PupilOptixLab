@@ -10,7 +10,7 @@
 #include <array>
 #include <functional>
 
-namespace Pupil::scene::xml {
+namespace Pupil::resource::xml {
 
 using VisitorFunc = std::function<bool(GlobalManager *, pugi::xml_node &)>;
 
@@ -207,4 +207,4 @@ TAG_VISITORS_DEFINE(PUPIL_XML_TAGS);
 [[nodiscard]] bool Visit(ETag tag, GlobalManager *global_manager, pugi::xml_node &node) {
     return S_TAG_VISITORS[static_cast<unsigned int>(tag)](global_manager, node);
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

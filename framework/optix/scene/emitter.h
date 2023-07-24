@@ -2,7 +2,7 @@
 
 #include "cuda/preprocessor.h"
 #include "cuda/texture.h"
-#include "scene/emitter.h"
+#include "resource/emitter.h"
 
 #include "optix/geometry.h"
 #include "optix/util.h"
@@ -11,7 +11,7 @@
 #ifndef PUPIL_OPTIX
 #include <vector>
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 class Scene;
 }
 #else
@@ -161,14 +161,14 @@ private:
     CUdeviceptr m_env_cuda_memory;
     CUdeviceptr m_env_cdf_weight_cuda_memory;
 
-    void GenerateEmitters(scene::Scene *) noexcept;
+    void GenerateEmitters(resource::Scene *) noexcept;
 
 public:
-    EmitterHelper(scene::Scene *) noexcept;
+    EmitterHelper(resource::Scene *) noexcept;
     ~EmitterHelper() noexcept;
 
     void Clear() noexcept;
-    void Reset(scene::Scene *) noexcept;
+    void Reset(resource::Scene *) noexcept;
     EmitterGroup GetEmitterGroup() noexcept;
 };
 

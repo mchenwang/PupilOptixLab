@@ -10,8 +10,8 @@
 #include "cuda/shape.h"
 #include "cuda/stream.h"
 
-#include "scene/scene.h"
-#include "scene/texture.h"
+#include "resource/scene.h"
+#include "resource/texture.h"
 
 #include "pass.h"
 #include "gui/gui.h"
@@ -166,8 +166,8 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         m_scene_load_flag = true;
         EventDispatcher<ESystemEvent::SceneLoad>(world);
 
-        util::Singleton<scene::ShapeDataManager>::instance()->Clear();
-        util::Singleton<scene::TextureManager>::instance()->Clear();
+        util::Singleton<resource::ShapeDataManager>::instance()->Clear();
+        util::Singleton<resource::TextureManager>::instance()->Clear();
     }
 
     this->render_flag = true;

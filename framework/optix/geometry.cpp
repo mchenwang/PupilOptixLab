@@ -2,10 +2,10 @@
 #include "cuda/shape.h"
 
 namespace Pupil::optix {
-void Geometry::LoadGeometry(const scene::Shape &shape) noexcept {
+void Geometry::LoadGeometry(const resource::Shape &shape) noexcept {
     auto data_mngr = util::Singleton<cuda::CudaShapeDataManager>::instance();
     switch (shape.type) {
-        case scene::EShapeType::_cube: {
+        case resource::EShapeType::_cube: {
             this->type = EType::TriMesh;
             this->tri_mesh.flip_normals = shape.cube.flip_normals;
             this->tri_mesh.flip_tex_coords = false;
@@ -18,7 +18,7 @@ void Geometry::LoadGeometry(const scene::Shape &shape) noexcept {
             auto idx_size = shape.cube.face_num * 3 * sizeof(uint32_t);
             this->tri_mesh.indices.SetData(data_mngr->GetCudaMemPtr(shape.cube.indices, idx_size), shape.cube.face_num * 3);
         } break;
-        case scene::EShapeType::_obj: {
+        case resource::EShapeType::_obj: {
             this->type = EType::TriMesh;
             this->tri_mesh.flip_normals = shape.obj.flip_normals;
             this->tri_mesh.flip_tex_coords = shape.obj.flip_tex_coords;
@@ -31,7 +31,7 @@ void Geometry::LoadGeometry(const scene::Shape &shape) noexcept {
             auto idx_size = shape.obj.face_num * 3 * sizeof(uint32_t);
             this->tri_mesh.indices.SetData(data_mngr->GetCudaMemPtr(shape.obj.indices, idx_size), shape.obj.face_num * 3);
         } break;
-        case scene::EShapeType::_rectangle: {
+        case resource::EShapeType::_rectangle: {
             this->type = EType::TriMesh;
             this->tri_mesh.flip_normals = shape.rect.flip_normals;
             this->tri_mesh.flip_tex_coords = false;
@@ -44,7 +44,7 @@ void Geometry::LoadGeometry(const scene::Shape &shape) noexcept {
             auto idx_size = shape.rect.face_num * 3 * sizeof(uint32_t);
             this->tri_mesh.indices.SetData(data_mngr->GetCudaMemPtr(shape.rect.indices, idx_size), shape.rect.face_num * 3);
         } break;
-        case scene::EShapeType::_sphere: {
+        case resource::EShapeType::_sphere: {
             this->type = EType::Sphere;
             // this->sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
             // this->sphere.radius = shape.sphere.radius;

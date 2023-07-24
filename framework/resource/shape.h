@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <array>
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 
 class Scene;
 
@@ -96,7 +96,7 @@ struct Shape {
     Shape() noexcept {}
 };
 
-Shape LoadShapeFromXml(const scene::xml::Object *, scene::Scene *) noexcept;
+Shape LoadShapeFromXml(const resource::xml::Object *, resource::Scene *) noexcept;
 
 class ShapeDataManager : public util::Singleton<ShapeDataManager> {
 private:
@@ -121,4 +121,4 @@ public:
 
     void Clear() noexcept;
 };
-}// namespace Pupil::scene
+}// namespace Pupil::resource

@@ -5,7 +5,7 @@
 
 #include <memory>
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 class Scene;
 }
 
@@ -21,10 +21,10 @@ public:
 
     std::unique_ptr<EmitterHelper> emitters;
 
-    Scene(Pupil::scene::Scene *) noexcept;
+    Scene(Pupil::resource::Scene *) noexcept;
     ~Scene() noexcept;
 
-    void ResetScene(Pupil::scene::Scene *) noexcept;
+    void ResetScene(Pupil::resource::Scene *) noexcept;
 
     OptixTraversableHandle GetIASHandle(unsigned int gas_offset = 2, bool allow_update = false) noexcept;
 

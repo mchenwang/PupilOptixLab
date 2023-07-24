@@ -5,7 +5,7 @@
 
 #include "util/enum.h"
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 namespace xml {
 
 #define PUPIL_XML_TAGS             \
@@ -35,4 +35,4 @@ namespace xml {
 PUPIL_ENUM_DEFINE(ETag, PUPIL_XML_TAGS)
 PUPIL_ENUM_STRING_ARRAY(S_TAGS_NAME, PUPIL_XML_TAGS)
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

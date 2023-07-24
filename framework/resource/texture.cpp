@@ -5,8 +5,7 @@
 
 #include <iostream>
 
-namespace Pupil::scene {
-// TODO: use dxtk for sRGB; exr
+namespace Pupil::resource {
 void TextureManager::LoadTextureFromFile(std::string_view file_path) noexcept {
     if (m_image_datas.find(file_path) != m_image_datas.end()) return;
     auto image = util::BitmapTexture::Load(file_path);
@@ -71,4 +70,4 @@ util::Texture TextureManager::GetTexture(std::string_view id) noexcept {
 void TextureManager::Clear() noexcept {
     m_image_datas.clear();
 }
-}// namespace Pupil::scene
+}// namespace Pupil::resource

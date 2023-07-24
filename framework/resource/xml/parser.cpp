@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <functional>
 
-namespace Pupil::scene::xml {
+namespace Pupil::resource::xml {
 
 std::unique_ptr<std::unordered_map<std::string, ETag>> s_tag_map = nullptr;
 
@@ -57,4 +57,4 @@ Object *Parser::LoadFromFile(std::filesystem::path file_path) noexcept {
 
     return m_global_manager->objects_pool[0].get();
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

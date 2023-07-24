@@ -11,7 +11,7 @@
 #include <array>
 #include <filesystem>
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 
 /// @param max_depth: maximum depth of ray tracing, default = 1
 struct Integrator {
@@ -68,4 +68,4 @@ public:
         xml_obj_load_cbs[static_cast<unsigned int>(obj->tag)](obj, dst);
     }
 };
-}// namespace Pupil::scene
+}// namespace Pupil::resource

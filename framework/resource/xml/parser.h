@@ -4,7 +4,7 @@
 #include <memory>
 #include <filesystem>
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 class Scene;
 
 namespace xml {
@@ -25,4 +25,4 @@ public:
     [[nodiscard]] GlobalManager *GetXMLGlobalManager() const noexcept { return m_global_manager.get(); }
 };
 }// namespace xml
-}// namespace Pupil::scene
+}// namespace Pupil::resource

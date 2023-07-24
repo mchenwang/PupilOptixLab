@@ -6,13 +6,13 @@
 #include "optix/pipeline.h"
 #include "optix/module.h"
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 class Scene;
 
 namespace xml {
 struct Object;
 }
-}// namespace Pupil::scene
+}// namespace Pupil::resource
 
 namespace Pupil::material {
 struct Diffuse {
@@ -84,7 +84,7 @@ struct Material {
     Material() noexcept {}
 };
 
-Material LoadMaterialFromXml(const Pupil::scene::xml::Object *, Pupil::scene::Scene *) noexcept;
+Material LoadMaterialFromXml(const Pupil::resource::xml::Object *, Pupil::resource::Scene *) noexcept;
 
 inline auto GetMaterialProgramDesc() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();

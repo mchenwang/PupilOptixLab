@@ -2,7 +2,7 @@
 #include "mesh.h"
 #include "render_object.h"
 #include "optix/scene/scene.h"
-#include "scene/scene.h"
+#include "resource/scene.h"
 
 #include "optix/context.h"
 #include "optix/check.h"
@@ -14,12 +14,12 @@
 #include <optix_stubs.h>
 
 namespace Pupil::optix {
-Scene::Scene(Pupil::scene::Scene *scene) noexcept {
+Scene::Scene(Pupil::resource::Scene *scene) noexcept {
     m_ias_manager = std::make_unique<IASManager>();
     ResetScene(scene);
 }
 
-void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
+void Scene::ResetScene(Pupil::resource::Scene *scene) noexcept {
     m_ros.clear();
     m_ros.reserve(scene->shapes.size());
 
@@ -28,28 +28,28 @@ void Scene::ResetScene(Pupil::scene::Scene *scene) noexcept {
 
     for (auto &&shape : scene->shapes) {
         switch (shape.type) {
-            case scene::EShapeType::_obj: {
+            case resource::EShapeType::_obj: {
                 temp_mesh.vertex_num = shape.obj.vertex_num;
                 temp_mesh.vertices = shape.obj.positions;
                 temp_mesh.index_triplets_num = shape.obj.face_num;
                 temp_mesh.indices = shape.obj.indices;
                 m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
             } break;
-            case scene::EShapeType::_rectangle: {
+            case resource::EShapeType::_rectangle: {
                 temp_mesh.vertex_num = shape.rect.vertex_num;
                 temp_mesh.vertices = shape.rect.positions;
                 temp_mesh.index_triplets_num = shape.rect.face_num;
                 temp_mesh.indices = shape.rect.indices;
                 m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
             } break;
-            case scene::EShapeType::_cube: {
+            case resource::EShapeType::_cube: {
                 temp_mesh.vertex_num = shape.cube.vertex_num;
                 temp_mesh.vertices = shape.cube.positions;
                 temp_mesh.index_triplets_num = shape.cube.face_num;
                 temp_mesh.indices = shape.cube.indices;
                 m_ros.emplace_back(std::make_unique<RenderObject>(EMeshEntityType::Custom, &temp_mesh, shape.transform, shape.id));
             } break;
-            case scene::EShapeType::_sphere: {
+            case resource::EShapeType::_sphere: {
                 // temp_sphere.center = make_float3(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
                 // temp_sphere.radius = shape.sphere.radius;
                 util::Transform sphere_init_trans;

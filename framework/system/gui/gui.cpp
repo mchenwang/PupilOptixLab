@@ -9,7 +9,7 @@
 #include "util/camera.h"
 #include "util/thread_pool.h"
 #include "util/texture.h"
-#include "scene/scene.h"
+#include "resource/scene.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"

@@ -153,7 +153,7 @@ void PTPass::SetScene(World *world) noexcept {
     m_dirty = true;
 }
 
-void PTPass::SetSBT(scene::Scene *scene) noexcept {
+void PTPass::SetSBT(resource::Scene *scene) noexcept {
     optix::SBTDesc<SBTTypes> desc{};
     desc.ray_gen_data = {
         .program = "__raygen__main"

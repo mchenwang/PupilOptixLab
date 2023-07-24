@@ -3,7 +3,7 @@
 #include "util/util.h"
 #include "camera.h"
 
-#include "scene/scene.h"
+#include "resource/scene.h"
 #include "optix/scene/scene.h"
 
 #include <filesystem>
@@ -20,7 +20,7 @@ enum class EWorldEvent {
 
 class World : public util::Singleton<World> {
 public:
-    std::unique_ptr<scene::Scene> scene = nullptr;
+    std::unique_ptr<resource::Scene> scene = nullptr;
     std::unique_ptr<optix::Scene> optix_scene = nullptr;
     std::unique_ptr<CameraHelper> camera = nullptr;
 

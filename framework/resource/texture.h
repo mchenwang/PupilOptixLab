@@ -10,7 +10,7 @@ namespace Pupil::util {
 struct Texture;
 }
 
-namespace Pupil::scene {
+namespace Pupil::resource {
 class TextureManager : public util::Singleton<TextureManager> {
 private:
     struct ImageData {
@@ -41,4 +41,4 @@ public:
 
     void Clear() noexcept;
 };
-}// namespace Pupil::scene
+}// namespace Pupil::resource

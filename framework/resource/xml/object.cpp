@@ -1,7 +1,7 @@
 #include "object.h"
 #include "pugixml.hpp"
 
-namespace Pupil::scene::xml {
+namespace Pupil::resource::xml {
 void GlobalManager::AddGlobalParam(std::string name, std::string value) noexcept {
     global_params[name] = value;
 }
@@ -60,4 +60,4 @@ std::pair<Object *, std::string> Object::GetParameter(std::string_view target_na
 
     return { nullptr, GetProperty(target_name) };
 }
-}// namespace Pupil::scene::xml
+}// namespace Pupil::resource::xml

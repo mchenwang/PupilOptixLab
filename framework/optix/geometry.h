@@ -4,7 +4,7 @@
 #include <vector_types.h>
 
 #ifndef PUPIL_OPTIX
-#include "scene/shape.h"
+#include "resource/shape.h"
 #else
 #include <optix.h>
 #include "optix/util.h"
@@ -47,7 +47,7 @@ struct Geometry {
     CUDA_HOSTDEVICE Geometry() noexcept {}
 
 #ifndef PUPIL_OPTIX
-    void LoadGeometry(const Pupil::scene::Shape &) noexcept;
+    void LoadGeometry(const Pupil::resource::Shape &) noexcept;
 #else
     CUDA_DEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {
         switch (type) {
