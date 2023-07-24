@@ -3,7 +3,7 @@
 #include "util/util.h"
 
 #include "../pass.h"
-#include "../resource.h"
+#include "../buffer.h"
 #include "cuda/stream.h"
 
 #include <d3d12.h>

@@ -3,7 +3,7 @@
 #include "type.h"
 
 #include "system/pass.h"
-#include "system/resource.h"
+#include "system/buffer.h"
 #include "system/world.h"
 #include "scene/scene.h"
 #include "optix/pass.h"

@@ -1,6 +1,6 @@
 #include "gui.h"
 #include "../system.h"
-#include "../resource.h"
+#include "../buffer.h"
 
 #include "dx12/context.h"
 #include "dx12/d3dx12.h"
