@@ -1,6 +1,6 @@
 #pragma once
 
-#include "optix/scene/emitter.h"
+#include "render/emitter.h"
 
 namespace Pupil::world {
 class EmitterHelper {

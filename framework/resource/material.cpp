@@ -1,5 +1,5 @@
 #include "material.h"
-#include "ior.h"
+#include "render/material/ior.h"
 #include "resource/scene.h"
 #include "resource/texture.h"
 #include "resource/xml/object.h"
@@ -13,8 +13,7 @@
 
 namespace {
 using namespace Pupil;
-using material::EMatType;
-using material::Material;
+using resource::Material;
 
 template<EMatType Tag>
 struct MaterialLoader {
@@ -150,13 +149,13 @@ struct MaterialLoader<EMatType::RoughPlastic> {
 template<>
 struct MaterialLoader<EMatType::Twosided> {
     Material operator()(const resource::xml::Object *obj, resource::Scene *scene) {
-        Material mat = material::LoadMaterialFromXml(obj->GetUniqueSubObject("bsdf"), scene);
+        Material mat = LoadMaterialFromXml(obj->GetUniqueSubObject("bsdf"), scene);
         mat.twosided = true;
         return mat;
     }
 };
 
-using LoaderType = std::function<material::Material(const resource::xml::Object *, resource::Scene *)>;
+using LoaderType = std::function<Material(const resource::xml::Object *, resource::Scene *)>;
 
 #define MAT_LOADER(mat) MaterialLoader<EMatType::##_##mat>()
 #define MAT_LOADER_DEFINE(...)                            \
@@ -166,13 +165,13 @@ using LoaderType = std::function<material::Material(const resource::xml::Object 
 //MAT_LOADER_DEFINE(PUPIL_RENDER_MATERIAL);
 const std::array<LoaderType, (size_t)EMatType::Count> S_MAT_LOADER = {
 #define PUPIL_MATERIAL_TYPE_DEFINE(type) MaterialLoader<EMatType::##type>(),
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_DEFINE
     MaterialLoader<EMatType::Twosided>()
 };
 }// namespace
 
-namespace Pupil::material {
+namespace Pupil::resource {
 Material LoadMaterialFromXml(const resource::xml::Object *obj, resource::Scene *scene) noexcept {
     if (obj == nullptr || scene == nullptr) {
         Pupil::Log::Warn("obj or scene is null.\n\tlocation: LoadMaterialFromXml().");
@@ -187,6 +186,6 @@ Material LoadMaterialFromXml(const resource::xml::Object *obj, resource::Scene *
     }
 
     Pupil::Log::Warn("unknown bsdf [{}]", obj->type);
-    return material::Material{};
+    return {};
 }
-}// namespace Pupil::material
+}// namespace Pupil::resource

@@ -1,12 +1,11 @@
 #pragma once
 
 #include "cuda/texture.h"
-#include "material.h"
+#include "resource/material.h"
 #include "bsdf/bsdf.h"
 
-namespace Pupil::optix {
-namespace material {
-using Pupil::material::EMatType;
+namespace Pupil::optix::material {
+using Pupil::EMatType;
 
 struct Material {
     EMatType type;
@@ -50,7 +49,7 @@ struct Material {
     case EMatType::##enum_type:                          \
         attr.Sample(record);                             \
         break;
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
             }
         }
@@ -62,7 +61,7 @@ struct Material {
         attr.GetBsdf(record);                            \
         attr.GetPdf(record);                             \
         break;
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
             }
         }
@@ -91,7 +90,7 @@ struct Material {
     CUDA_HOSTDEVICE Material() noexcept {}
 
 #ifndef PUPIL_OPTIX
-    void LoadMaterial(Pupil::material::Material mat) noexcept;
+    void LoadMaterial(Pupil::resource::Material mat) noexcept;
 #else
     CUDA_DEVICE LocalBsdf GetLocalBsdf(float2 sampled_tex) const noexcept {
         LocalBsdf local_bsdf;
@@ -101,7 +100,7 @@ struct Material {
     case EMatType::##enum_type:                               \
         local_bsdf.mat_attr = mat_attr.GetLocal(sampled_tex); \
         break;
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
         }
         return local_bsdf;
@@ -128,5 +127,4 @@ struct Material {
     }
 #endif
 };
-}
 }// namespace Pupil::optix::material

@@ -1,5 +1,4 @@
-#include "material/optix_material.h"
-
+#include "../optix_material.h"
 #include "../fresnel.h"
 
 using namespace Pupil::optix;
@@ -13,5 +12,5 @@ using namespace material;
         bsdf.attr.GetBsdf(record);                                                                                                   \
         bsdf.attr.GetPdf(record);                                                                                                    \
     }
-#include "../material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_ATTR_DEFINE

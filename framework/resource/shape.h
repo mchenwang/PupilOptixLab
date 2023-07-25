@@ -6,7 +6,7 @@
 #include "util/type.h"
 #include "util/aabb.h"
 
-#include "material/material.h"
+#include "material.h"
 #include "emitter.h"
 
 #include <string>
@@ -76,7 +76,7 @@ struct Shape {
 
     std::string id;
 
-    material::Material mat;
+    Material mat;
     union {
         ObjShape obj;
         Sphere sphere{};

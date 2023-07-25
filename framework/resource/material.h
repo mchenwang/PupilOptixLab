@@ -2,7 +2,7 @@
 #ifndef PUPIL_OPTIX
 
 #include "util/texture.h"
-#include "predefine.h"
+#include "render/material/predefine.h"
 #include "optix/pipeline.h"
 #include "optix/module.h"
 
@@ -12,9 +12,7 @@ class Scene;
 namespace xml {
 struct Object;
 }
-}// namespace Pupil::resource
 
-namespace Pupil::material {
 struct Diffuse {
     util::Texture reflectance;
 };
@@ -103,12 +101,12 @@ inline auto GetMaterialProgramDesc() noexcept {
             .cc_entry = nullptr,                                    \
             .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_EVAL_CALL(attr)), \
         },
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_ATTR_DEFINE
 #undef PUPIL_TO_STRING
 #undef _PUPIL_TO_STRING
     };
 }
-}// namespace Pupil::material
+}// namespace Pupil::resource
 
 #endif

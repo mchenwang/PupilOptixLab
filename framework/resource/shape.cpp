@@ -253,7 +253,7 @@ Shape *ShapeDataManager::LoadObjShape(std::string_view id, std::string_view file
     auto shape = std::make_unique<Shape>();
     shape->id = shape_id;
     shape->type = EShapeType::_obj;
-    shape->mat.type = material::EMatType::Unknown;
+    shape->mat.type = EMatType::Unknown;
     shape->obj.face_normals = false;
     shape->obj.flip_tex_coords = true;
     shape->obj.flip_normals = false;
@@ -283,7 +283,7 @@ Shape *ShapeDataManager::LoadSphere(std::string_view id, float r, util::Float3 c
     auto shape = std::make_unique<Shape>();
     shape->id = shape_id;
     shape->type = EShapeType::_sphere;
-    shape->mat.type = material::EMatType::Unknown;
+    shape->mat.type = EMatType::Unknown;
     shape->sphere.center = util::Float3{ 0.f };
     shape->sphere.radius = 1.f;
     shape->sphere.flip_normals = flip_normals;
@@ -311,7 +311,7 @@ Shape *ShapeDataManager::LoadCube(std::string_view id, bool flip_normals) noexce
     auto shape = std::make_unique<Shape>();
     shape->id = shape_id;
     shape->type = EShapeType::_cube;
-    shape->mat.type = material::EMatType::Unknown;
+    shape->mat.type = EMatType::Unknown;
     shape->cube.flip_normals = flip_normals;
     shape->cube.vertex_num = 24;
     shape->cube.face_num = 12;
@@ -340,7 +340,7 @@ Shape *ShapeDataManager::LoadRectangle(std::string_view id, bool flip_normals) n
     auto shape = std::make_unique<Shape>();
     shape->id = shape_id;
     shape->type = EShapeType::_rectangle;
-    shape->mat.type = material::EMatType::Unknown;
+    shape->mat.type = EMatType::Unknown;
     shape->rect.flip_normals = flip_normals;
     shape->rect.vertex_num = 4;
     shape->rect.face_num = 2;

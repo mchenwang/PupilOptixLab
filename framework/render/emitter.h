@@ -2,11 +2,10 @@
 
 #include "cuda/preprocessor.h"
 #include "cuda/texture.h"
-#include "resource/emitter.h"
 
 #include "optix/geometry.h"
 #include "optix/util.h"
-#include "optix/scene/emitter/types.h"
+#include "emitter/types.h"
 
 #include <optix.h>
 

@@ -3,8 +3,7 @@
 
 #include "optix/util.h"
 #include "optix/geometry.h"
-#include "optix/scene/emitter.h"
-#include "material/bsdf/bsdf.h"
+#include "render/material/bsdf/bsdf.h"
 
 #include "cuda/random.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "util/camera.h"
-#include "optix/scene/camera.h"
+#include "render/camera.h"
 #include "system/type.h"
 
 #include <cuda.h>

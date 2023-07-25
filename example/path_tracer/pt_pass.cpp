@@ -94,7 +94,7 @@ void PTPass::InitOptixPipeline() noexcept {
         pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
     }
     {
-        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
         pipeline_desc.callable_programs.insert(
             pipeline_desc.callable_programs.end(),
             mat_programs.begin(), mat_programs.end());
@@ -190,7 +190,7 @@ void PTPass::SetSBT(resource::Scene *scene) noexcept {
         desc.miss_datas.push_back(miss_shadow_data);
     }
     {
-        auto mat_programs = Pupil::material::GetMaterialProgramDesc();
+        auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
         for (auto &mat_prog : mat_programs) {
             if (mat_prog.cc_entry) {
                 optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {

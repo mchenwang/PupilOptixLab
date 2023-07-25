@@ -36,7 +36,7 @@ float3 GetPixelAverage(util::Texture texture) {
 }
 }// namespace
 
-#define MATERIAL_LOAD_FUNC(type) Pupil::optix::material::##type LoadMaterial(const ::material::##type &mat) noexcept
+#define MATERIAL_LOAD_FUNC(type) Pupil::optix::material::##type LoadMaterial(const Pupil::resource::##type &mat) noexcept
 
 MATERIAL_LOAD_FUNC(Diffuse) {
     Pupil::optix::material::Diffuse ret;
@@ -118,7 +118,7 @@ MATERIAL_LOAD_FUNC(RoughPlastic) {
 }
 
 namespace Pupil::optix::material {
-void Material::LoadMaterial(::material::Material mat) noexcept {
+void Material::LoadMaterial(Pupil::resource::Material mat) noexcept {
     type = mat.type;
     twosided = mat.twosided;
     switch (type) {
@@ -126,7 +126,7 @@ void Material::LoadMaterial(::material::Material mat) noexcept {
     case EMatType::##enum_type:                              \
         mat_attr = ::LoadMaterial(mat.mat_attr);             \
         break;
-#include "material_decl.inl"
+#include "decl/material_decl.inl"
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
     }
 }

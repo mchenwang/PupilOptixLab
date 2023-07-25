@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "material.h"
 #include "xml/parser.h"
 #include "xml/object.h"
 #include "xml/tag.h"
@@ -9,8 +10,6 @@
 #include "util/util.h"
 #include "util/texture.h"
 #include "util/log.h"
-
-#include "material/material.h"
 
 #include <filesystem>
 
@@ -185,8 +184,8 @@ void Scene::LoadXmlObj(const xml::Object *xml_obj, void *dst) noexcept {
             LoadXmlObj(transform_obj, &texture->transform);
         } break;
         case xml::ETag::_bsdf: {
-            material::Material *m = static_cast<material::Material *>(dst);
-            *m = material::LoadMaterialFromXml(xml_obj, this);
+            resource::Material *m = static_cast<resource::Material *>(dst);
+            *m = resource::LoadMaterialFromXml(xml_obj, this);
         } break;
         case xml::ETag::_shape: {
             Shape **shape_p = static_cast<Shape **>(dst);
