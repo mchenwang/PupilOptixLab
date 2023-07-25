@@ -1,5 +1,4 @@
 #include "ias_manager.h"
-#include "scene.h"
 #include "render_object.h"
 
 #include "optix/context.h"
@@ -8,9 +7,9 @@
 
 #include <optix_stubs.h>
 
-namespace Pupil::optix {
+namespace Pupil::world {
 IAS::IAS() noexcept {
-    ias_handle = 0;
+    m_handle = 0;
     m_instances_memory = 0;
     m_instances_num = 0;
 
@@ -33,7 +32,7 @@ void IAS::Create(std::vector<OptixInstance> &instances, unsigned int gas_offset,
         ++i;
     }
 
-    auto context = util::Singleton<Context>::instance();
+    auto context = util::Singleton<optix::Context>::instance();
     m_instances_num = instances.size();
 
     const auto instances_size_in_bytes = sizeof(OptixInstance) * m_instances_num;
@@ -92,7 +91,7 @@ void IAS::Create(std::vector<OptixInstance> &instances, unsigned int gas_offset,
         ias_buffer_sizes.tempSizeInBytes,
         d_buffer_temp_output_ias_and_compacted_size,
         ias_buffer_sizes.outputSizeInBytes,
-        &ias_handle,
+        &m_handle,
         &emitProperty,
         1));
 
@@ -104,7 +103,7 @@ void IAS::Create(std::vector<OptixInstance> &instances, unsigned int gas_offset,
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_ias_buffer), compacted_ias_size));
 
         // use handle as input and output
-        OPTIX_CHECK(optixAccelCompact(*context, 0, ias_handle, m_ias_buffer, compacted_ias_size, &ias_handle));
+        OPTIX_CHECK(optixAccelCompact(*context, 0, m_handle, m_ias_buffer, compacted_ias_size, &m_handle));
         m_ias_buffer_size = compacted_ias_size;
 
         CUDA_FREE(d_buffer_temp_output_ias_and_compacted_size);
@@ -133,7 +132,7 @@ void IAS::Update(std::vector<OptixInstance> &instances) noexcept {
             .numInstances = static_cast<unsigned int>(m_instances_num) }
     };
 
-    auto context = util::Singleton<Context>::instance();
+    auto context = util::Singleton<optix::Context>::instance();
     OPTIX_CHECK(optixAccelBuild(
         *context,
         0,
@@ -144,7 +143,7 @@ void IAS::Update(std::vector<OptixInstance> &instances) noexcept {
         m_ias_update_temp_buffer_size,
         m_ias_buffer,
         m_ias_buffer_size,
-        &ias_handle,
+        &m_handle,
         nullptr,
         0));
 
@@ -174,7 +173,7 @@ void IASManager::SetInstance(const std::vector<RenderObject *> &render_objs) noe
         // m_instances[i].sbtOffset = i;
         m_instances[i].visibilityMask = render_objs[i]->visibility_mask;
         m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-        m_instances[i].traversableHandle = render_objs[i]->gas_handle;
+        m_instances[i].traversableHandle = render_objs[i]->gas->handle;
 
         m_ro_index[render_objs[i]] = i;
     }
@@ -192,7 +191,7 @@ void IASManager::UpdateInstance(RenderObject *ro) noexcept {
     memcpy(m_instances[i].transform, ro->transform.matrix.e, sizeof(float) * 12);
     m_instances[i].visibilityMask = ro->visibility_mask;
     m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-    m_instances[i].traversableHandle = ro->gas_handle;
+    m_instances[i].traversableHandle = ro->gas->handle;
 
     SetDirty();
 }
@@ -226,4 +225,4 @@ void IASManager::SetDirty(unsigned int gas_offset, bool allow_update) noexcept {
 bool IASManager::IsDirty(unsigned int gas_offset, bool allow_update) const noexcept {
     return m_dirty_flag & (1 << gas_offset);
 }
-}// namespace Pupil::optix
+}// namespace Pupil::world

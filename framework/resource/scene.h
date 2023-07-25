@@ -43,29 +43,17 @@ public:
 
     Integrator integrator;
     Sensor sensor;
-    std::vector<Shape> shapes;
+    std::vector<Shape *> shapes;
     std::vector<Emitter> emitters;
     util::AABB aabb;
 
-    using XmlObjectLoadCallBack = std::function<void(const xml::Object *, void *)>;
-    std::array<XmlObjectLoadCallBack, (size_t)xml::ETag::_count> xml_obj_load_cbs{};
-
-    Scene() noexcept;
+    Scene() noexcept = default;
     ~Scene() noexcept = default;
 
+    void LoadXmlObj(const xml::Object *, void *) noexcept;
+
     void Reset() noexcept;
-    void LoadFromXML(std::filesystem::path) noexcept;
-    void LoadFromXML(std::string_view, std::string_view root = DATA_DIR) noexcept;
-
-    template<typename Func>
-        requires std::invocable<Func, xml::Object *, void *>
-    void SetXmlObjLoadCallBack(xml::ETag tag, Func &&func) noexcept {
-        xml_obj_load_cbs[static_cast<unsigned int>(tag)] = std::forward<Func>(func);
-    }
-
-    void InvokeXmlObjLoadCallBack(const xml::Object *obj, void *dst) noexcept {
-        if (obj == nullptr) return;
-        xml_obj_load_cbs[static_cast<unsigned int>(obj->tag)](obj, dst);
-    }
+    bool LoadFromXML(std::filesystem::path) noexcept;
+    bool LoadFromXML(std::string_view, std::string_view root = DATA_DIR) noexcept;
 };
 }// namespace Pupil::resource

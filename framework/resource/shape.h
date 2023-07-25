@@ -96,11 +96,24 @@ struct Shape {
     Shape() noexcept {}
 };
 
-Shape LoadShapeFromXml(const resource::xml::Object *, resource::Scene *) noexcept;
+Shape *LoadShapeFromXml(const resource::xml::Object *, resource::Scene *) noexcept;
 
 class ShapeDataManager : public util::Singleton<ShapeDataManager> {
+public:
+    ShapeDataManager() noexcept = default;
+
+    void LoadShapeFromFile(std::string_view) noexcept;
+
+    [[nodiscard]] Shape *GetShape(std::string_view) noexcept;
+    [[nodiscard]] Shape *LoadObjShape(std::string_view id, std::string_view) noexcept;
+    [[nodiscard]] Shape *LoadSphere(std::string_view id, float, util::Float3, bool flip_normals = false) noexcept;
+    [[nodiscard]] Shape *LoadCube(std::string_view id, bool flip_normals = false) noexcept;
+    [[nodiscard]] Shape *LoadRectangle(std::string_view id, bool flip_normals = false) noexcept;
+
+    void Clear() noexcept;
+
 private:
-    struct ShapeData {
+    struct MeshData {
         std::vector<float> positions;
         std::vector<float> normals;
         std::vector<float> texcoords;
@@ -108,17 +121,9 @@ private:
         util::AABB aabb{};
     };
 
-    std::unordered_map<std::string, std::unique_ptr<ShapeData>, util::StringHash, std::equal_to<>> m_shape_datas;
+    unsigned int m_anonymous_cnt = 0;
 
-public:
-    ShapeDataManager() noexcept = default;
-
-    void LoadShapeFromFile(std::string_view) noexcept;
-    [[nodiscard]] Shape GetShape(std::string_view) noexcept;
-    [[nodiscard]] Shape GetSphere(float, util::Float3, bool flip_normals = false) noexcept;
-    [[nodiscard]] Shape GetCube(bool flip_normals = false) noexcept;
-    [[nodiscard]] Shape GetRectangle(bool flip_normals = false) noexcept;
-
-    void Clear() noexcept;
+    std::unordered_map<std::string, std::unique_ptr<MeshData>, util::StringHash, std::equal_to<>> m_meshes;
+    std::unordered_map<std::string, std::unique_ptr<Shape>, util::StringHash, std::equal_to<>> m_shapes;
 };
 }// namespace Pupil::resource

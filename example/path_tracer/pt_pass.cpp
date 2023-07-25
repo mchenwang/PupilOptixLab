@@ -8,7 +8,7 @@
 #include "util/event.h"
 #include "system/system.h"
 #include "system/gui/gui.h"
-#include "system/world.h"
+#include "world/world.h"
 
 extern "C" char embedded_ptx_code[];
 
@@ -21,7 +21,7 @@ namespace {
 int m_max_depth;
 bool m_accumulated_flag;
 
-Pupil::optix::Scene *m_optix_scene = nullptr;
+Pupil::world::World *m_world = nullptr;
 }// namespace
 
 namespace Pupil::pt {
@@ -42,7 +42,7 @@ void PTPass::OnRun() noexcept {
         m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
         m_optix_launch_params.sample_cnt = 0;
         m_optix_launch_params.random_seed = 0;
-        m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
+        m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
         m_dirty = false;
     }
 
@@ -102,7 +102,7 @@ void PTPass::InitOptixPipeline() noexcept {
     m_optix_pass->InitPipeline(pipeline_desc);
 }
 
-void PTPass::SetScene(World *world) noexcept {
+void PTPass::SetScene(world::World *world) noexcept {
     m_world_camera = world->camera.get();
 
     m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
@@ -144,9 +144,9 @@ void PTPass::SetScene(World *world) noexcept {
         m_optix_launch_params.test.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
     }
 
-    m_optix_scene = world->optix_scene.get();
-    m_optix_launch_params.handle = m_optix_scene->GetIASHandle(2, true);
-    m_optix_launch_params.emitters = m_optix_scene->emitters->GetEmitterGroup();
+    m_world = world;
+    m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
+    m_optix_launch_params.emitters = m_world->emitters->GetEmitterGroup();
 
     SetSBT(world->scene.get());
 
@@ -164,18 +164,18 @@ void PTPass::SetSBT(resource::Scene *scene) noexcept {
         for (auto &&shape : scene->shapes) {
             HitGroupDataRecord hit_default_data{};
             hit_default_data.program = "__closesthit__default";
-            hit_default_data.data.mat.LoadMaterial(shape.mat);
-            hit_default_data.data.geo.LoadGeometry(shape);
-            if (shape.is_emitter) {
+            hit_default_data.data.mat.LoadMaterial(shape->mat);
+            hit_default_data.data.geo.LoadGeometry(*shape);
+            if (shape->is_emitter) {
                 hit_default_data.data.emitter_index_offset = emitter_index_offset;
-                emitter_index_offset += shape.sub_emitters_num;
+                emitter_index_offset += shape->sub_emitters_num;
             }
 
             desc.hit_datas.push_back(hit_default_data);
 
             HitGroupDataRecord hit_shadow_data{};
             hit_shadow_data.program = "__closesthit__shadow";
-            hit_shadow_data.data.mat.type = shape.mat.type;
+            hit_shadow_data.data.mat.type = shape->mat.type;
             desc.hit_datas.push_back(hit_shadow_data);
         }
     }
@@ -219,7 +219,7 @@ void PTPass::BindingEventCallback() noexcept {
     });
 
     EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
-        SetScene((World *)p);
+        SetScene((world::World *)p);
     });
 }
 

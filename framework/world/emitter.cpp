@@ -153,7 +153,10 @@ void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_
 }
 }// namespace
 
-namespace Pupil::optix {
+namespace Pupil::world {
+using optix::Emitter;
+using optix::EmitterGroup;
+
 EmitterHelper::EmitterHelper(resource::Scene *scene) noexcept {
     m_areas_cuda_memory = 0;
     m_points_cuda_memory = 0;
@@ -210,36 +213,36 @@ void EmitterHelper::GenerateEmitters(resource::Scene *scene) noexcept {
     unsigned int area_emitter_num = 0;
     float area_select_weight_sum = 0.f;
     for (auto &&shape : scene->shapes) {
-        if (!shape.is_emitter) continue;
+        if (!shape || !shape->is_emitter) continue;
 
-        auto radiance = tex_mngr->GetCudaTexture(shape.emitter.area.radiance);
-        float select_weight = GetWeight(shape.emitter.area.radiance);
+        auto radiance = tex_mngr->GetCudaTexture(shape->emitter.area.radiance);
+        float select_weight = GetWeight(shape->emitter.area.radiance);
 
         size_t pre_emitters_num = m_areas.size();
 
-        switch (shape.type) {
+        switch (shape->type) {
             case resource::EShapeType::_cube: {
-                area_select_weight_sum += SplitMesh(m_areas, shape.cube.vertex_num, shape.cube.face_num, shape.cube.indices,
-                                                    shape.cube.positions, shape.cube.normals, shape.cube.texcoords,
-                                                    shape.transform, radiance, select_weight);
+                area_select_weight_sum += SplitMesh(m_areas, shape->cube.vertex_num, shape->cube.face_num, shape->cube.indices,
+                                                    shape->cube.positions, shape->cube.normals, shape->cube.texcoords,
+                                                    shape->transform, radiance, select_weight);
             } break;
             case resource::EShapeType::_obj: {
-                area_select_weight_sum += SplitMesh(m_areas, shape.obj.vertex_num, shape.obj.face_num, shape.obj.indices,
-                                                    shape.obj.positions, shape.obj.normals, shape.obj.texcoords,
-                                                    shape.transform, radiance, select_weight);
+                area_select_weight_sum += SplitMesh(m_areas, shape->obj.vertex_num, shape->obj.face_num, shape->obj.indices,
+                                                    shape->obj.positions, shape->obj.normals, shape->obj.texcoords,
+                                                    shape->transform, radiance, select_weight);
             } break;
             case resource::EShapeType::_rectangle: {
-                area_select_weight_sum += SplitMesh(m_areas, shape.rect.vertex_num, shape.rect.face_num, shape.rect.indices,
-                                                    shape.rect.positions, shape.rect.normals, shape.rect.texcoords,
-                                                    shape.transform, radiance, select_weight);
+                area_select_weight_sum += SplitMesh(m_areas, shape->rect.vertex_num, shape->rect.face_num, shape->rect.indices,
+                                                    shape->rect.positions, shape->rect.normals, shape->rect.texcoords,
+                                                    shape->transform, radiance, select_weight);
             } break;
             case resource::EShapeType::_sphere: {
                 Pupil::optix::Emitter emitter;
                 emitter.type = Pupil::optix::EEmitterType::Sphere;
-                util::Float3 o(shape.sphere.center.x, shape.sphere.center.y, shape.sphere.center.z);
-                util::Float3 p(o.x + shape.sphere.radius, o.y, o.z);
-                o = util::Transform::TransformPoint(o, shape.transform.matrix);
-                p = util::Transform::TransformPoint(p, shape.transform.matrix);
+                util::Float3 o(shape->sphere.center.x, shape->sphere.center.y, shape->sphere.center.z);
+                util::Float3 p(o.x + shape->sphere.radius, o.y, o.z);
+                o = util::Transform::TransformPoint(o, shape->transform.matrix);
+                p = util::Transform::TransformPoint(p, shape->transform.matrix);
 
                 emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
                 emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
@@ -253,9 +256,9 @@ void EmitterHelper::GenerateEmitters(resource::Scene *scene) noexcept {
             } break;
         }
 
-        shape.sub_emitters_num = static_cast<unsigned int>(
+        shape->sub_emitters_num = static_cast<unsigned int>(
             m_areas.size() - pre_emitters_num);
-        area_emitter_num += shape.sub_emitters_num;
+        area_emitter_num += shape->sub_emitters_num;
     }
 
     bool emitter_valid_flag = false;
@@ -335,4 +338,4 @@ void EmitterHelper::Clear() noexcept {
     CUDA_FREE(m_env_cuda_memory);
 }
 
-}// namespace Pupil::optix
+}// namespace Pupil::world

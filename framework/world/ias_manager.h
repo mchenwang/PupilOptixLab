@@ -5,22 +5,23 @@
 #include <memory>
 #include <unordered_map>
 
-namespace Pupil::optix {
+namespace Pupil::world {
 struct RenderObject;
 
 class IAS {
 public:
-    OptixTraversableHandle ias_handle = 0;
     IAS()
     noexcept;
     ~IAS() noexcept;
 
-    operator OptixTraversableHandle() const noexcept { return ias_handle; }
+    operator OptixTraversableHandle() const noexcept { return m_handle; }
 
     void Create(std::vector<OptixInstance> &instances, unsigned int gas_offset, bool allow_update) noexcept;
     void Update(std::vector<OptixInstance> &instances) noexcept;
 
 private:
+    OptixTraversableHandle m_handle = 0;
+
     CUdeviceptr m_instances_memory = 0;
     size_t m_instances_num = 0;
 
@@ -55,4 +56,4 @@ private:
 
     unsigned int m_dirty_flag = 0;
 };
-}// namespace Pupil::optix
+}// namespace Pupil::world

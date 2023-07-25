@@ -2,11 +2,11 @@
 
 #include "util/camera.h"
 #include "optix/scene/camera.h"
-#include "type.h"
+#include "system/type.h"
 
 #include <cuda.h>
 
-namespace Pupil {
+namespace Pupil::world {
 class CameraHelper {
 private:
     util::CameraDesc m_desc;
@@ -50,4 +50,4 @@ public:
 
     std::tuple<util::Float3, util::Float3, util::Float3> GetCameraCoordinateSystem() const noexcept;
 };
-}// namespace Pupil
+}// namespace Pupil::world

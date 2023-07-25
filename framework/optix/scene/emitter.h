@@ -8,15 +8,7 @@
 #include "optix/util.h"
 #include "optix/scene/emitter/types.h"
 
-#ifndef PUPIL_OPTIX
-#include <vector>
-
-namespace Pupil::resource {
-class Scene;
-}
-#else
 #include <optix.h>
-#endif
 
 namespace Pupil::optix {
 struct Emitter {
@@ -146,31 +138,4 @@ struct EmitterGroup {
     }
 };
 
-#ifndef PUPIL_OPTIX
-
-class EmitterHelper {
-private:
-    std::vector<Emitter> m_areas;
-    std::vector<Emitter> m_points;
-    std::vector<Emitter> m_directionals;
-    Emitter m_env;
-
-    CUdeviceptr m_areas_cuda_memory;
-    CUdeviceptr m_points_cuda_memory;
-    CUdeviceptr m_directionals_cuda_memory;
-    CUdeviceptr m_env_cuda_memory;
-    CUdeviceptr m_env_cdf_weight_cuda_memory;
-
-    void GenerateEmitters(resource::Scene *) noexcept;
-
-public:
-    EmitterHelper(resource::Scene *) noexcept;
-    ~EmitterHelper() noexcept;
-
-    void Clear() noexcept;
-    void Reset(resource::Scene *) noexcept;
-    EmitterGroup GetEmitterGroup() noexcept;
-};
-
-#endif
 }// namespace Pupil::optix

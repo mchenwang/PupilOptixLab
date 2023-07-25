@@ -103,7 +103,7 @@ bool LoadTextureOrRGB(const resource::xml::Object *obj, resource::Scene *scene, 
         LoadFloat3(param_name, rgb, color, default_value);
         param = util::Singleton<resource::TextureManager>::instance()->GetColorTexture(color);
     } else {
-        scene->InvokeXmlObjLoadCallBack(texture, &param);
+        scene->LoadXmlObj(texture, &param);
     }
     return true;
 }

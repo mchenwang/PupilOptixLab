@@ -17,8 +17,8 @@
 #include "imgui_impl_dx12.h"
 #include "imfilebrowser.h"
 #include "ImGuizmo/ImGuizmo.h"
-#include "optix/scene/render_object.h"
-#include "../world.h"
+#include "world/render_object.h"
+#include "world/world.h"
 
 #include "cuda/util.h"
 
@@ -49,8 +49,8 @@ double m_flip_rate = 1.;
 int m_canvas_display_buffer_index = 0;
 std::string_view m_canvas_display_buffer_name = Pupil::BufferManager::DEFAULT_FINAL_RESULT_BUFFER_NAME;
 
-std::vector<Pupil::optix::RenderObject *> m_render_objects;
-Pupil::optix::RenderObject *m_selected_ro = nullptr;
+std::vector<Pupil::world::RenderObject *> m_render_objects;
+Pupil::world::RenderObject *m_selected_ro = nullptr;
 ImGuizmo::MODE m_zmo_mode = ImGuizmo::WORLD;
 ImGuizmo::OPERATION m_zmo_operation = ImGuizmo::TRANSLATE;
 
@@ -148,11 +148,10 @@ void GuiPass::Init() noexcept {
         });
 
         EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
-            auto world = reinterpret_cast<World *>(p);
+            auto world = reinterpret_cast<world::World *>(p);
             m_selected_ro = nullptr;
-            if (world && world->optix_scene) {
-                m_render_objects = world->optix_scene->GetRenderobjects();
-            }
+            if (world)
+                m_render_objects = world->GetRenderobjects();
         });
     }
 
@@ -681,7 +680,7 @@ void GuiPass::Canvas(bool show) noexcept {
                     }
                 }
 
-                if (auto world = util::Singleton<Pupil::World>::instance(); m_selected_ro && world->camera) {
+                if (auto world = util::Singleton<Pupil::world::World>::instance(); m_selected_ro && world->camera) {
                     ImGuizmo::SetDrawlist();
                     ImGuizmo::SetRect(ImGui::GetWindowPos().x + cursor_x, ImGui::GetWindowPos().y + cursor_y, show_w, show_h);
 
@@ -713,7 +712,7 @@ void GuiPass::Scene(bool show) noexcept {
 
         ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
 
-        auto world = util::Singleton<World>::instance();
+        auto world = util::Singleton<world::World>::instance();
         if (auto camera = world->camera.get(); camera) {
             if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Camera")) {
                 auto desc = camera->GetDesc();

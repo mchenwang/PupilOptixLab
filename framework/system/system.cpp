@@ -1,10 +1,9 @@
 #include "system.h"
-#include "world.h"
+#include "world/world.h"
 
 #include "dx12/context.h"
 #include "cuda/context.h"
 #include "optix/context.h"
-#include "optix/scene/scene.h"
 
 #include "cuda/texture.h"
 #include "cuda/shape.h"
@@ -34,7 +33,7 @@ namespace Pupil {
 void System::Init(bool has_window) noexcept {
     util::Singleton<Log>::instance()->Init();
     util::Singleton<util::ThreadPool>::instance()->Init();
-    util::Singleton<World>::instance()->Init();
+    util::Singleton<world::World>::instance()->Init();
 
     EventBinder<ESystemEvent::Quit>([this](void *) {
         this->quit_flag = true;
@@ -116,7 +115,7 @@ void System::Run() noexcept {
 
 void System::Destroy() noexcept {
     util::Singleton<util::ThreadPool>::instance()->Destroy();
-    util::Singleton<World>::instance()->Destroy();
+    util::Singleton<world::World>::instance()->Destroy();
     util::Singleton<GuiPass>::instance()->Destroy();
     util::Singleton<BufferManager>::instance()->Destroy();
     util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
@@ -145,7 +144,7 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
         util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
 
-        auto world = util::Singleton<World>::instance();
+        auto world = util::Singleton<world::World>::instance();
         if (!world->LoadScene(scene_file_path)) {
             Pupil::Log::Warn("scene load failed.");
             return;

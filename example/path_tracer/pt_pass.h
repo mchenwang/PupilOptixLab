@@ -4,10 +4,9 @@
 
 #include "system/pass.h"
 #include "system/buffer.h"
-#include "system/world.h"
+#include "world/world.h"
 #include "resource/scene.h"
 #include "optix/pass.h"
-#include "optix/scene/scene.h"
 
 #include "cuda/stream.h"
 
@@ -25,7 +24,7 @@ public:
     virtual void OnRun() noexcept override;
     virtual void Inspector() noexcept override;
 
-    void SetScene(World *) noexcept;
+    void SetScene(world::World *) noexcept;
 
 private:
     void BindingEventCallback() noexcept;
@@ -38,6 +37,6 @@ private:
     size_t m_output_pixel_num = 0;
 
     std::atomic_bool m_dirty = true;
-    CameraHelper *m_world_camera = nullptr;
+    world::CameraHelper *m_world_camera = nullptr;
 };
 }// namespace Pupil::pt
