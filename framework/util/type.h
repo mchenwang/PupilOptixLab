@@ -94,7 +94,7 @@ struct Mat4 {
     Mat4(DirectX::XMMATRIX m) noexcept { dx_mat = m; }
     operator DirectX::XMMATRIX() const noexcept { return dx_mat; }
 
-    DirectX::XMMATRIX operator*(const Mat4 &t) const noexcept { return dx_mat * t.dx_mat; }
+    Mat4 operator*(const Mat4 &t) const noexcept { return dx_mat * t.dx_mat; }
     bool operator==(const Mat4 &rhs) const noexcept {
         return r0 == rhs.r0 && r1 == rhs.r1 && r2 == rhs.r2 && r3 == rhs.r3;
     }

@@ -91,6 +91,7 @@ struct Shape {
     unsigned int sub_emitters_num = 0;
 
     util::Transform transform;
+    //aabb before transformation
     util::AABB aabb{};
 
     Shape() noexcept {}

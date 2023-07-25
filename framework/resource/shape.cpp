@@ -150,11 +150,12 @@ Shape *LoadShapeFromXml(const resource::xml::Object *obj, resource::Scene *scene
     for (int i = 0; auto &&name : S_SHAPE_TYPE_NAME) {
         if (obj->type.compare(name) == 0) {
             Shape *shape = S_SHAPE_LOADER[i](obj, scene);
-            auto bsdf = obj->GetUniqueSubObject("bsdf");
-            scene->LoadXmlObj(bsdf, &shape->mat);
-            auto transform = obj->GetUniqueSubObject("transform");
-            scene->LoadXmlObj(transform, &shape->transform);
-            shape->aabb.Transform(shape->transform);
+            auto bsdf_obj = obj->GetUniqueSubObject("bsdf");
+            scene->LoadXmlObj(bsdf_obj, &shape->mat);
+            auto transform_obj = obj->GetUniqueSubObject("transform");
+            util::Transform transform;
+            scene->LoadXmlObj(transform_obj, &transform);
+            shape->transform = shape->type == EShapeType::_sphere ? transform.matrix * shape->transform.matrix : transform;
 
             shape->is_emitter = false;
             if (auto emitter_xml_obj = obj->GetUniqueSubObject("emitter"); emitter_xml_obj) {
@@ -283,13 +284,14 @@ Shape *ShapeDataManager::LoadSphere(std::string_view id, float r, util::Float3 c
     shape->id = shape_id;
     shape->type = EShapeType::_sphere;
     shape->mat.type = material::EMatType::Unknown;
-    shape->sphere.center = c;
-    shape->sphere.radius = r;
+    shape->sphere.center = util::Float3{ 0.f };
+    shape->sphere.radius = 1.f;
     shape->sphere.flip_normals = flip_normals;
-    shape->aabb = util::AABB{
-        { c.x - r, c.y - r, c.z - r },
-        { c.x + r, c.y + r, c.z + r }
-    };
+    util::Transform transform{};
+    transform.Scale(r, r, r);
+    transform.Translate(c.x, c.y, c.z);
+    shape->transform = transform;
+    shape->aabb = util::AABB{ { -1.f, -1.f, -1.f }, { 1.f, 1.f, 1.f } };
     m_shapes.emplace(shape_id, std::move(shape));
 
     return m_shapes[shape_id].get();

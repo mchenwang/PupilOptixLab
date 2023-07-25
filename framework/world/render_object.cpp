@@ -6,15 +6,18 @@
 #include "world.h"
 
 namespace Pupil::world {
-
 RenderObject::RenderObject(const resource::Shape *shape, const util::Transform &trans, std::string_view id, unsigned int v_mask) noexcept
     : id(id), transform(trans), visibility_mask(v_mask) {
     gas = util::Singleton<GASManager>::instance()->GetGASHandle(shape);
+    local_aabb = shape->aabb;
 }
 
 RenderObject::RenderObject(std::string_view shape_id, const util::Transform &trans, std::string_view id, unsigned int v_mask) noexcept
     : id(id), transform(trans), visibility_mask(v_mask) {
     gas = util::Singleton<GASManager>::instance()->GetGASHandle(shape_id);
+    auto shape_mngr = util::Singleton<resource::ShapeDataManager>::instance();
+    auto shape = shape_mngr->GetShape(shape_id);
+    local_aabb = shape->aabb;
 }
 
 void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {

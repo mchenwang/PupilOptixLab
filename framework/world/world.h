@@ -47,8 +47,10 @@ public:
     void SetDirty(unsigned int gas_offset, bool allow_update) noexcept;
     bool IsDirty(unsigned int gas_offset, bool allow_update) const noexcept;
 
-    Pupil::util::Camera &GetUtilCamera() noexcept { return camera->GetUtilCamera(); }
-    Pupil::optix::Camera &GetOptixCamera() noexcept { return camera->GetOptixCamera(); }
+    util::Camera &GetUtilCamera() noexcept { return camera->GetUtilCamera(); }
+    optix::Camera &GetOptixCamera() noexcept { return camera->GetOptixCamera(); }
+
+    util::AABB GetAABB() noexcept;
 
 private:
     std::vector<std::unique_ptr<RenderObject>> m_ros;

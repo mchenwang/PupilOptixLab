@@ -86,6 +86,7 @@ bool World::LoadScene(resource::Scene *scene) noexcept {
     m_ros.reserve(scene->shapes.size());
 
     for (auto &&shape : scene->shapes) {
+        if (shape->type == resource::EShapeType::_unknown) continue;
         m_ros.emplace_back(std::make_unique<RenderObject>(shape, shape->transform, shape->id));
     }
 
@@ -140,6 +141,16 @@ std::vector<RenderObject *> World::GetRenderobjects() noexcept {
     render_objects.reserve(m_ros.size());
     std::transform(m_ros.begin(), m_ros.end(), std::back_inserter(render_objects), [](const std::unique_ptr<RenderObject> &ro) { return ro.get(); });
     return render_objects;
+}
+
+util::AABB World::GetAABB() noexcept {
+    util::AABB aabb;
+    for (auto &&ro : m_ros) {
+        auto ro_aabb = ro->local_aabb;
+        ro_aabb.Transform(ro->transform);
+        aabb.Merge(ro_aabb);
+    }
+    return aabb;
 }
 
 void World::UpdateRenderObject(RenderObject *ro) noexcept {
