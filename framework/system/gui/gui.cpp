@@ -647,6 +647,7 @@ void GuiPass::Canvas(bool show) noexcept {
                 ImGui::Image((ImTextureID)buffer.output_texture_srv.ptr,
                              ImVec2(show_w, show_h));
 
+                bool disable_imguizmo = false;
                 // This will catch our interactions
                 if (!ImGuizmo::IsOver()) {
                     ImGui::SetCursorPos(ImVec2(cursor_x, cursor_y));
@@ -661,12 +662,15 @@ void GuiPass::Canvas(bool show) noexcept {
                             float x, y;
                         } delta{ io.MouseDelta.x, io.MouseDelta.y };
                         EventDispatcher<ECanvasEvent::MouseDragging>(delta);
+                        disable_imguizmo = true;
                     }
 
                     if (is_hovered) {
                         ImGuiIO &io = ImGui::GetIO();
-                        if (io.MouseWheel != 0.f)
+                        if (io.MouseWheel != 0.f) {
                             EventDispatcher<ECanvasEvent::MouseWheel>(io.MouseWheel);
+                            disable_imguizmo = true;
+                        }
 
                         util::Float3 delta_pos;
                         if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos -= util::Camera::X;
@@ -675,12 +679,14 @@ void GuiPass::Canvas(bool show) noexcept {
                         if (ImGui::IsKeyDown(ImGuiKey_S)) delta_pos += util::Camera::Z;
                         if (ImGui::IsKeyDown(ImGuiKey_E)) delta_pos -= util::Camera::Y;
                         if (ImGui::IsKeyDown(ImGuiKey_Q)) delta_pos += util::Camera::Y;
-                        if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f)
+                        if (delta_pos.x != 0.f || delta_pos.y != 0.f || delta_pos.z != 0.f) {
                             EventDispatcher<ECanvasEvent::CameraMove>(delta_pos);
+                            disable_imguizmo = true;
+                        }
                     }
                 }
 
-                if (auto world = util::Singleton<Pupil::world::World>::instance(); m_selected_ro && world->camera) {
+                if (auto world = util::Singleton<Pupil::world::World>::instance(); !disable_imguizmo && m_selected_ro && world->camera) {
                     ImGuizmo::SetDrawlist();
                     ImGuizmo::SetRect(ImGui::GetWindowPos().x + cursor_x, ImGui::GetWindowPos().y + cursor_y, show_w, show_h);
 
@@ -762,7 +768,7 @@ void GuiPass::Scene(bool show) noexcept {
                 for (int selectable_index = 0; auto &&ro : m_render_objects) {
                     if (!ro) continue;
                     std::string ro_name = ro->name;
-                    if (ro_name.empty()) ro_name = "(anonymous)";
+                    if (ro_name.empty()) ro_name = "(anonymous)" + std::to_string(selectable_index++);
                     if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
                         m_selected_ro = ro;
                 }
