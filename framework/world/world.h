@@ -17,6 +17,7 @@ enum class EWorldEvent {
     CameraMove,
     CameraFovChange,
     CameraViewChange,
+    RenderInstanceTransform,
     RenderInstanceUpdate,
     RenderInstanceRemove
 };
@@ -59,6 +60,9 @@ public:
 private:
     std::vector<std::unique_ptr<RenderObject>> m_ros;
     std::unique_ptr<IASManager> m_ias_manager;
+
+    std::unordered_map<const RenderObject *, size_t> m_ro_emitter_offset;
+    std::unordered_map<const RenderObject *, size_t> m_ro_in_scene_index;
 };
 }// namespace world
 }// namespace Pupil

@@ -11,64 +11,64 @@
 namespace {
 using namespace Pupil;
 
-float SplitMesh(std::vector<Pupil::optix::Emitter> &emitters,
-                uint32_t vertex_num, uint32_t face_num, uint32_t *indices,
-                const float *positions, const float *normals, const float *texcoords,
-                const util::Transform &transform, const cuda::Texture &radiance, const float select_weight) noexcept {
-    auto normal_transform = transform.matrix.GetInverse().GetTranspose();
+// float SplitMesh(std::vector<Pupil::optix::Emitter> &emitters,
+//                 uint32_t vertex_num, uint32_t face_num, uint32_t *indices,
+//                 const float *positions, const float *normals, const float *texcoords,
+//                 const util::Transform &transform, const cuda::Texture &radiance, const float select_weight) noexcept {
+//     auto normal_transform = transform.matrix.GetInverse().GetTranspose();
 
-    float weight_sum = 0.f;
+//     float weight_sum = 0.f;
 
-    for (auto i = 0u; i < face_num; ++i) {
-        Pupil::optix::Emitter emitter;
-        emitter.type = Pupil::optix::EEmitterType::TriArea;
+//     for (auto i = 0u; i < face_num; ++i) {
+//         Pupil::optix::Emitter emitter;
+//         emitter.type = Pupil::optix::EEmitterType::TriArea;
 
-        auto idx0 = indices[i * 3 + 0];
-        auto idx1 = indices[i * 3 + 1];
-        auto idx2 = indices[i * 3 + 2];
+//         auto idx0 = indices[i * 3 + 0];
+//         auto idx1 = indices[i * 3 + 1];
+//         auto idx2 = indices[i * 3 + 2];
 
-        util::Float3 p0(positions[idx0 * 3 + 0], positions[idx0 * 3 + 1], positions[idx0 * 3 + 2]);
-        util::Float3 p1(positions[idx1 * 3 + 0], positions[idx1 * 3 + 1], positions[idx1 * 3 + 2]);
-        util::Float3 p2(positions[idx2 * 3 + 0], positions[idx2 * 3 + 1], positions[idx2 * 3 + 2]);
+//         util::Float3 p0(positions[idx0 * 3 + 0], positions[idx0 * 3 + 1], positions[idx0 * 3 + 2]);
+//         util::Float3 p1(positions[idx1 * 3 + 0], positions[idx1 * 3 + 1], positions[idx1 * 3 + 2]);
+//         util::Float3 p2(positions[idx2 * 3 + 0], positions[idx2 * 3 + 1], positions[idx2 * 3 + 2]);
 
-        p0 = util::Transform::TransformPoint(p0, transform.matrix);
-        p1 = util::Transform::TransformPoint(p1, transform.matrix);
-        p2 = util::Transform::TransformPoint(p2, transform.matrix);
+//         p0 = util::Transform::TransformPoint(p0, transform.matrix);
+//         p1 = util::Transform::TransformPoint(p1, transform.matrix);
+//         p2 = util::Transform::TransformPoint(p2, transform.matrix);
 
-        util::Float3 n0(normals[idx0 * 3 + 0], normals[idx0 * 3 + 1], normals[idx0 * 3 + 2]);
-        util::Float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
-        util::Float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
+//         util::Float3 n0(normals[idx0 * 3 + 0], normals[idx0 * 3 + 1], normals[idx0 * 3 + 2]);
+//         util::Float3 n1(normals[idx1 * 3 + 0], normals[idx1 * 3 + 1], normals[idx1 * 3 + 2]);
+//         util::Float3 n2(normals[idx2 * 3 + 0], normals[idx2 * 3 + 1], normals[idx2 * 3 + 2]);
 
-        n0 = util::Transform::TransformNormal(n0, normal_transform);
-        n1 = util::Transform::TransformNormal(n1, normal_transform);
-        n2 = util::Transform::TransformNormal(n2, normal_transform);
+//         n0 = util::Transform::TransformNormal(n0, normal_transform);
+//         n1 = util::Transform::TransformNormal(n1, normal_transform);
+//         n2 = util::Transform::TransformNormal(n2, normal_transform);
 
-        emitter.area.geo.v0.pos = make_float3(p0.x, p0.y, p0.z);
-        emitter.area.geo.v0.normal = make_float3(n0.x, n0.y, n0.z);
-        emitter.area.geo.v0.tex = make_float2(texcoords[idx0 * 2 + 0], texcoords[idx0 * 2 + 1]);
+//         emitter.area.geo.v0.pos = make_float3(p0.x, p0.y, p0.z);
+//         emitter.area.geo.v0.normal = make_float3(n0.x, n0.y, n0.z);
+//         emitter.area.geo.v0.tex = make_float2(texcoords[idx0 * 2 + 0], texcoords[idx0 * 2 + 1]);
 
-        emitter.area.geo.v1.pos = make_float3(p1.x, p1.y, p1.z);
-        emitter.area.geo.v1.normal = make_float3(n1.x, n1.y, n1.z);
-        emitter.area.geo.v1.tex = make_float2(texcoords[idx1 * 2 + 0], texcoords[idx1 * 2 + 1]);
+//         emitter.area.geo.v1.pos = make_float3(p1.x, p1.y, p1.z);
+//         emitter.area.geo.v1.normal = make_float3(n1.x, n1.y, n1.z);
+//         emitter.area.geo.v1.tex = make_float2(texcoords[idx1 * 2 + 0], texcoords[idx1 * 2 + 1]);
 
-        emitter.area.geo.v2.pos = make_float3(p2.x, p2.y, p2.z);
-        emitter.area.geo.v2.normal = make_float3(n2.x, n2.y, n2.z);
-        emitter.area.geo.v2.tex = make_float2(texcoords[idx2 * 2 + 0], texcoords[idx2 * 2 + 1]);
+//         emitter.area.geo.v2.pos = make_float3(p2.x, p2.y, p2.z);
+//         emitter.area.geo.v2.normal = make_float3(n2.x, n2.y, n2.z);
+//         emitter.area.geo.v2.tex = make_float2(texcoords[idx2 * 2 + 0], texcoords[idx2 * 2 + 1]);
 
-        auto v1 = emitter.area.geo.v1.pos - emitter.area.geo.v0.pos;
-        auto v2 = emitter.area.geo.v2.pos - emitter.area.geo.v0.pos;
-        emitter.area.area = length(cross(v1, v2)) * 0.5f;
+//         auto v1 = emitter.area.geo.v1.pos - emitter.area.geo.v0.pos;
+//         auto v2 = emitter.area.geo.v2.pos - emitter.area.geo.v0.pos;
+//         emitter.area.area = length(cross(v1, v2)) * 0.5f;
 
-        emitter.area.radiance = radiance;
-        emitter.weight = select_weight * emitter.area.area;
+//         emitter.area.radiance = radiance;
+//         emitter.weight = select_weight * emitter.area.area;
 
-        weight_sum += emitter.weight;
+//         weight_sum += emitter.weight;
 
-        emitters.emplace_back(emitter);
-    }
+//         emitters.emplace_back(emitter);
+//     }
 
-    return weight_sum;
-}
+//     return weight_sum;
+// }
 
 inline float GetMax(float r, float g, float b) noexcept {
     return (r > g ? (r > b ? r : b) : (g > b ? g : b));
@@ -166,33 +166,111 @@ EmitterHelper::~EmitterHelper() noexcept {
     Clear();
 }
 
-void EmitterHelper::AddAreaEmitter(const resource::ShapeInstance &ins) noexcept {
+void EmitterHelper::SetMeshAreaEmitter(const resource::ShapeInstance &ins, size_t offset) noexcept {
+    auto normal_transform = ins.transform.matrix.GetInverse().GetTranspose();
+    auto &mesh = ins.shape->mesh;
+
     auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
     auto radiance = tex_mngr->GetCudaTexture(ins.emitter.area.radiance);
     float select_weight = GetWeight(ins.emitter.area.radiance);
+
+    for (auto i = 0u; i < ins.shape->mesh.face_num; ++i) {
+        optix::Emitter emitter;
+        emitter.type = optix::EEmitterType::TriArea;
+
+        auto idx0 = mesh.indices[i * 3 + 0];
+        auto idx1 = mesh.indices[i * 3 + 1];
+        auto idx2 = mesh.indices[i * 3 + 2];
+
+        util::Float3 p0(mesh.positions[idx0 * 3 + 0], mesh.positions[idx0 * 3 + 1], mesh.positions[idx0 * 3 + 2]);
+        util::Float3 p1(mesh.positions[idx1 * 3 + 0], mesh.positions[idx1 * 3 + 1], mesh.positions[idx1 * 3 + 2]);
+        util::Float3 p2(mesh.positions[idx2 * 3 + 0], mesh.positions[idx2 * 3 + 1], mesh.positions[idx2 * 3 + 2]);
+
+        p0 = util::Transform::TransformPoint(p0, ins.transform.matrix);
+        p1 = util::Transform::TransformPoint(p1, ins.transform.matrix);
+        p2 = util::Transform::TransformPoint(p2, ins.transform.matrix);
+
+        util::Float3 n0(mesh.normals[idx0 * 3 + 0], mesh.normals[idx0 * 3 + 1], mesh.normals[idx0 * 3 + 2]);
+        util::Float3 n1(mesh.normals[idx1 * 3 + 0], mesh.normals[idx1 * 3 + 1], mesh.normals[idx1 * 3 + 2]);
+        util::Float3 n2(mesh.normals[idx2 * 3 + 0], mesh.normals[idx2 * 3 + 1], mesh.normals[idx2 * 3 + 2]);
+
+        n0 = util::Transform::TransformNormal(n0, normal_transform);
+        n1 = util::Transform::TransformNormal(n1, normal_transform);
+        n2 = util::Transform::TransformNormal(n2, normal_transform);
+
+        emitter.area.geo.v0.pos = ToCudaType(p0);
+        emitter.area.geo.v0.normal = ToCudaType(n0);
+        emitter.area.geo.v0.tex = make_float2(mesh.texcoords[idx0 * 2 + 0], mesh.texcoords[idx0 * 2 + 1]);
+
+        emitter.area.geo.v1.pos = ToCudaType(p1);
+        emitter.area.geo.v1.normal = ToCudaType(n1);
+        emitter.area.geo.v1.tex = make_float2(mesh.texcoords[idx1 * 2 + 0], mesh.texcoords[idx1 * 2 + 1]);
+
+        emitter.area.geo.v2.pos = ToCudaType(p2);
+        emitter.area.geo.v2.normal = ToCudaType(n2);
+        emitter.area.geo.v2.tex = make_float2(mesh.texcoords[idx2 * 2 + 0], mesh.texcoords[idx2 * 2 + 1]);
+
+        auto v1 = emitter.area.geo.v1.pos - emitter.area.geo.v0.pos;
+        auto v2 = emitter.area.geo.v2.pos - emitter.area.geo.v0.pos;
+        emitter.area.area = length(cross(v1, v2)) * 0.5f;
+
+        emitter.area.radiance = radiance;
+        emitter.weight = select_weight * emitter.area.area;
+
+        m_areas[offset + i] = emitter;
+    }
+}
+
+void EmitterHelper::SetSphereAreaEmitter(const resource::ShapeInstance &ins, size_t offset) noexcept {
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    auto radiance = tex_mngr->GetCudaTexture(ins.emitter.area.radiance);
+    float select_weight = GetWeight(ins.emitter.area.radiance);
+
+    Pupil::optix::Emitter emitter;
+    emitter.type = Pupil::optix::EEmitterType::Sphere;
+    util::Float3 o(ins.shape->sphere.center.x, ins.shape->sphere.center.y, ins.shape->sphere.center.z);
+    util::Float3 p(o.x + ins.shape->sphere.radius, o.y, o.z);
+    o = util::Transform::TransformPoint(o, ins.transform.matrix);
+    p = util::Transform::TransformPoint(p, ins.transform.matrix);
+
+    emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
+    emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
+    emitter.sphere.area = 4 * 3.14159265358979323846f * emitter.sphere.geo.radius * emitter.sphere.geo.radius;
+    emitter.sphere.radiance = radiance;
+    emitter.weight = select_weight * emitter.sphere.area;
+
+    m_areas[offset] = emitter;
+}
+
+size_t EmitterHelper::AddAreaEmitter(const resource::ShapeInstance &ins) noexcept {
     switch (ins.shape->type) {
         case resource::EShapeType::_obj:
         case resource::EShapeType::_rectangle:
         case resource::EShapeType::_cube: {
-            SplitMesh(m_areas, ins.shape->mesh.vertex_num, ins.shape->mesh.face_num, ins.shape->mesh.indices,
-                      ins.shape->mesh.positions, ins.shape->mesh.normals, ins.shape->mesh.texcoords,
-                      ins.transform, radiance, select_weight);
+            auto offset = m_areas.size();
+            m_areas.resize(offset + ins.shape->mesh.face_num);
+            SetMeshAreaEmitter(ins, offset);
         } break;
         case resource::EShapeType::_sphere: {
-            Pupil::optix::Emitter emitter;
-            emitter.type = Pupil::optix::EEmitterType::Sphere;
-            util::Float3 o(ins.shape->sphere.center.x, ins.shape->sphere.center.y, ins.shape->sphere.center.z);
-            util::Float3 p(o.x + ins.shape->sphere.radius, o.y, o.z);
-            o = util::Transform::TransformPoint(o, ins.transform.matrix);
-            p = util::Transform::TransformPoint(p, ins.transform.matrix);
+            auto offset = m_areas.size();
+            m_areas.resize(offset + 1);
+            SetSphereAreaEmitter(ins, offset);
+        } break;
+    }
 
-            emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
-            emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
-            emitter.sphere.area = 4 * 3.14159265358979323846f * emitter.sphere.geo.radius * emitter.sphere.geo.radius;
-            emitter.sphere.radiance = radiance;
-            emitter.weight = select_weight * emitter.sphere.area;
+    m_dirty = true;
+    return m_areas.size();
+}
 
-            m_areas.emplace_back(emitter);
+void EmitterHelper::ResetAreaEmitter(const resource::ShapeInstance &ins, size_t offset) noexcept {
+    switch (ins.shape->type) {
+        case resource::EShapeType::_obj:
+        case resource::EShapeType::_rectangle:
+        case resource::EShapeType::_cube: {
+            SetMeshAreaEmitter(ins, offset);
+        } break;
+        case resource::EShapeType::_sphere: {
+            SetSphereAreaEmitter(ins, offset);
         } break;
     }
 

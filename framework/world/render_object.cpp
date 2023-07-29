@@ -45,11 +45,11 @@ RenderObject::~RenderObject() noexcept {
 
 void RenderObject::UpdateTransform(const util::Transform &new_transform) noexcept {
     transform = new_transform;
-    EventDispatcher<EWorldEvent::RenderInstanceUpdate>(this);
+    EventDispatcher<EWorldEvent::RenderInstanceTransform>(this);
 }
 
 void RenderObject::ApplyTransform(const util::Transform &new_transform) noexcept {
     transform.matrix = new_transform.matrix * transform.matrix;
-    EventDispatcher<EWorldEvent::RenderInstanceUpdate>(this);
+    EventDispatcher<EWorldEvent::RenderInstanceTransform>(this);
 }
 }// namespace Pupil::world

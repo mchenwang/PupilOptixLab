@@ -42,6 +42,17 @@ void World::Init() noexcept {
         EventDispatcher<EWorldEvent::CameraChange>();
     });
 
+    EventBinder<EWorldEvent::RenderInstanceTransform>([this](void *p) {
+        auto ro = reinterpret_cast<RenderObject *>(p);
+        auto &ins = scene->shape_instances[m_ro_in_scene_index[ro]];
+        ins.transform = ro->transform;
+        if (ins.is_emitter) {
+            emitters->ResetAreaEmitter(ins, m_ro_emitter_offset[ro]);
+            emitters->ComputeProbability();
+        }
+        EventDispatcher<EWorldEvent::RenderInstanceUpdate>(p);
+    });
+
     EventBinder<EWorldEvent::RenderInstanceUpdate>([this](void *p) {
         auto ro = reinterpret_cast<RenderObject *>(p);
         UpdateRenderObject(ro);
@@ -80,10 +91,6 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
     timer.Stop();
     Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
 
-    // Pupil::Log::Info("scene AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
-    //                  aabb.min.x, aabb.min.y, aabb.min.z,
-    //                  aabb.max.x, aabb.max.y, aabb.max.z);
-
     util::Singleton<GASManager>::instance()->ClearDanglingMemory();
     util::Singleton<resource::ShapeManager>::instance()->ClearDanglingMemory();
 
@@ -109,11 +116,17 @@ bool World::LoadScene(resource::Scene *scene) noexcept {
     m_ros.reserve(scene->shape_instances.size());
 
     emitters->Clear();
-    for (auto &&ins : scene->shape_instances) {
-        if (ins.shape->type == resource::EShapeType::_unknown) continue;
+    size_t emitter_offset = 0;
+    for (size_t index = 0; index < scene->shape_instances.size(); ++index) {
+        auto &ins = scene->shape_instances[index];
+        if (!ins.shape || ins.shape->type == resource::EShapeType::_unknown) continue;
         m_ros.emplace_back(std::make_unique<RenderObject>(ins));
+        m_ro_in_scene_index[m_ros.back().get()] = index;
 
-        if (ins.is_emitter) emitters->AddAreaEmitter(ins);
+        if (ins.is_emitter) {
+            m_ro_emitter_offset[m_ros.back().get()] = emitter_offset;
+            emitter_offset = emitters->AddAreaEmitter(ins);
+        }
     }
 
     for (auto &&emitter : scene->emitters) {

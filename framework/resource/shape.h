@@ -69,8 +69,6 @@ struct ShapeInstance {
     Material mat{};
     bool is_emitter = false;
     Emitter emitter{};
-    // related to emitter generation method
-    unsigned int sub_emitters_num = 0;
 
     util::Transform transform{};
 };

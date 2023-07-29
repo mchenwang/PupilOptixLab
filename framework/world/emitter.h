@@ -4,17 +4,14 @@
 #include "resource/emitter.h"
 #include "resource/shape.h"
 
-namespace Pupil::resource {
-class Scene;
-}
-
 namespace Pupil::world {
 class EmitterHelper {
 public:
     EmitterHelper() noexcept;
     ~EmitterHelper() noexcept;
 
-    void AddAreaEmitter(const resource::ShapeInstance &) noexcept;
+    size_t AddAreaEmitter(const resource::ShapeInstance &) noexcept;
+    void ResetAreaEmitter(const resource::ShapeInstance &, size_t offset) noexcept;
     void AddEmitter(const resource::Emitter &) noexcept;
 
     void ComputeProbability() noexcept;
@@ -23,6 +20,9 @@ public:
     optix::EmitterGroup GetEmitterGroup() noexcept;
 
 private:
+    void SetMeshAreaEmitter(const resource::ShapeInstance &, size_t offset) noexcept;
+    void SetSphereAreaEmitter(const resource::ShapeInstance &, size_t offset) noexcept;
+
     bool m_dirty;
 
     std::vector<optix::Emitter> m_areas;

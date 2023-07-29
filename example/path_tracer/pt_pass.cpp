@@ -44,6 +44,7 @@ void PTPass::OnRun() noexcept {
         m_optix_launch_params.sample_cnt = 0;
         m_optix_launch_params.random_seed = 0;
         m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
+        m_optix_launch_params.emitters = m_world->emitters->GetEmitterGroup();
         m_dirty = false;
     }
 
@@ -147,7 +148,6 @@ void PTPass::SetScene(world::World *world) noexcept {
 
     m_world = world;
     m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
-    m_optix_launch_params.emitters = m_world->emitters->GetEmitterGroup();
 
     {
         optix::SBTDesc<SBTTypes> desc{};
