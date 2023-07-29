@@ -2,7 +2,7 @@
 #include "type.h"
 
 #include "optix/util.h"
-#include "optix/geometry.h"
+#include "render/geometry.h"
 #include "render/material/bsdf/bsdf.h"
 
 #include "cuda/random.h"

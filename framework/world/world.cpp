@@ -48,6 +48,9 @@ void World::Init() noexcept {
     });
 
     m_ias_manager = std::make_unique<IASManager>();
+    camera = std::make_unique<CameraHelper>();
+    emitters = std::make_unique<EmitterHelper>();
+    scene = std::make_unique<resource::Scene>();
 }
 
 void World::Destroy() noexcept {
@@ -67,14 +70,22 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
 
     Pupil::Log::Info("start loading scene [{}].", scene_file_path.string());
 
-    if (scene == nullptr) scene = std::make_unique<resource::Scene>();
-
     Pupil::Timer timer;
     timer.Start();
-    scene->LoadFromXML(scene_file_path);
-    LoadScene(scene.get());
+    m_ros.clear();
+    if (!scene->LoadFromXML(scene_file_path) || !LoadScene(scene.get())) {
+        Pupil::Log::Error("Scene load failed: {}.", scene_file_path.string().c_str());
+        return false;
+    }
     timer.Stop();
     Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
+
+    // Pupil::Log::Info("scene AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
+    //                  aabb.min.x, aabb.min.y, aabb.min.z,
+    //                  aabb.max.x, aabb.max.y, aabb.max.z);
+
+    util::Singleton<GASManager>::instance()->ClearDanglingMemory();
+    util::Singleton<resource::ShapeManager>::instance()->ClearDanglingMemory();
 
     EventDispatcher<EWorldEvent::CameraChange>();
     return true;
@@ -82,15 +93,6 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
 
 bool World::LoadScene(resource::Scene *scene) noexcept {
     if (scene == nullptr) return false;
-    m_ros.clear();
-    m_ros.reserve(scene->shapes.size());
-
-    for (auto &&shape : scene->shapes) {
-        if (shape->type == resource::EShapeType::_unknown) continue;
-        m_ros.emplace_back(std::make_unique<RenderObject>(shape, shape->transform, shape->id));
-    }
-
-    m_ias_manager->SetInstance(GetRenderobjects());
 
     auto &&sensor = scene->sensor;
     auto camera_desc = util::CameraDesc{
@@ -101,15 +103,25 @@ bool World::LoadScene(resource::Scene *scene) noexcept {
         .to_world = sensor.transform
     };
 
-    if (camera)
-        camera->Reset(camera_desc);
-    else
-        camera = std::make_unique<CameraHelper>(camera_desc);
+    camera->Reset(camera_desc);
 
-    if (emitters)
-        emitters->Reset(scene);
-    else
-        emitters = std::make_unique<EmitterHelper>(scene);
+    m_ros.clear();
+    m_ros.reserve(scene->shape_instances.size());
+
+    emitters->Clear();
+    for (auto &&ins : scene->shape_instances) {
+        if (ins.shape->type == resource::EShapeType::_unknown) continue;
+        m_ros.emplace_back(std::make_unique<RenderObject>(ins));
+
+        if (ins.is_emitter) emitters->AddAreaEmitter(ins);
+    }
+
+    for (auto &&emitter : scene->emitters) {
+        emitters->AddEmitter(emitter);
+    }
+    emitters->ComputeProbability();
+
+    m_ias_manager->SetInstance(GetRenderobjects());
     return true;
 }
 
@@ -117,13 +129,13 @@ OptixTraversableHandle World::GetIASHandle(unsigned int gas_offset, bool allow_u
     return m_ias_manager->GetIASHandle(gas_offset, allow_update);
 }
 
-RenderObject *World::GetRenderObject(std::string_view id) const noexcept {
+RenderObject *World::GetRenderObject(std::string_view name) const noexcept {
     for (auto &&ro : m_ros) {
-        if (ro->id.compare(id) == 0)
+        if (ro->name.compare(name) == 0)
             return ro.get();
     }
 
-    Pupil::Log::Warn("Render Object [{}] missing.", id);
+    Pupil::Log::Warn("Render Object [{}] missing.", name);
     return nullptr;
 }
 
@@ -136,6 +148,24 @@ RenderObject *World::GetRenderObject(size_t index) const noexcept {
     return m_ros[index].get();
 }
 
+void World::RemoveRenderObject(std::string_view name) noexcept {
+    for (auto it = m_ros.begin(); it != m_ros.end(); ++it) {
+        if ((*it)->name.compare(name) == 0) {
+            EventDispatcher<EWorldEvent::RenderInstanceRemove>((*it).get());
+            m_ros.erase(it);
+            m_ias_manager->SetInstance(GetRenderobjects());
+            return;
+        }
+    }
+}
+
+void World::RemoveRenderObject(size_t index) noexcept {
+    if (index >= m_ros.size()) return;
+    EventDispatcher<EWorldEvent::RenderInstanceRemove>(m_ros[index].get());
+    m_ros.erase(m_ros.begin() + index);
+    m_ias_manager->SetInstance(GetRenderobjects());
+}
+
 std::vector<RenderObject *> World::GetRenderobjects() noexcept {
     std::vector<RenderObject *> render_objects;
     render_objects.reserve(m_ros.size());
@@ -145,11 +175,9 @@ std::vector<RenderObject *> World::GetRenderobjects() noexcept {
 
 util::AABB World::GetAABB() noexcept {
     util::AABB aabb;
-    for (auto &&ro : m_ros) {
-        auto ro_aabb = ro->local_aabb;
-        ro_aabb.Transform(ro->transform);
-        aabb.Merge(ro_aabb);
-    }
+    for (auto &&ro : m_ros)
+        aabb.Merge(ro->aabb);
+
     return aabb;
 }
 

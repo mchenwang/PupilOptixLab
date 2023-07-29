@@ -17,7 +17,8 @@ enum class EWorldEvent {
     CameraMove,
     CameraFovChange,
     CameraViewChange,
-    RenderInstanceUpdate
+    RenderInstanceUpdate,
+    RenderInstanceRemove
 };
 
 namespace world {
@@ -35,8 +36,11 @@ public:
 
     OptixTraversableHandle GetIASHandle(unsigned int gas_offset = 2, bool allow_update = false) noexcept;
 
-    RenderObject *GetRenderObject(std::string_view id) const noexcept;
+    RenderObject *GetRenderObject(std::string_view name) const noexcept;
     RenderObject *GetRenderObject(size_t index) const noexcept;
+
+    void RemoveRenderObject(std::string_view name) noexcept;
+    void RemoveRenderObject(size_t index) noexcept;
 
     void UpdateRenderObject(RenderObject *) noexcept;
 

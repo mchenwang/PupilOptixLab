@@ -141,8 +141,8 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
 
     {
         std::unique_lock render_lock(m_render_system_mutex);
-        util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
-        util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
+        // util::Singleton<cuda::CudaTextureManager>::instance()->Clear();
+        // util::Singleton<cuda::CudaShapeDataManager>::instance()->Clear();
 
         auto world = util::Singleton<world::World>::instance();
         if (!world->LoadScene(scene_file_path)) {
@@ -165,8 +165,8 @@ void System::SetScene(std::filesystem::path scene_file_path) noexcept {
         m_scene_load_flag = true;
         EventDispatcher<ESystemEvent::SceneLoad>(world);
 
-        util::Singleton<resource::ShapeDataManager>::instance()->Clear();
-        util::Singleton<resource::TextureManager>::instance()->Clear();
+        // util::Singleton<resource::ShapeDataManager>::instance()->ClearDanglingMemory();
+        // util::Singleton<resource::TextureManager>::instance()->Clear();
     }
 
     this->render_flag = true;

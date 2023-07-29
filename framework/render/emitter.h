@@ -3,7 +3,7 @@
 #include "cuda/preprocessor.h"
 #include "cuda/texture.h"
 
-#include "optix/geometry.h"
+#include "render/geometry.h"
 #include "optix/util.h"
 #include "emitter/types.h"
 
@@ -12,9 +12,8 @@
 namespace Pupil::optix {
 struct Emitter {
     EEmitterType type CONST_STATIC_INIT(EEmitterType::None);
+    float weight;
     float select_probability;
-
-    constexpr static unsigned int S_DC_SBT_OFFSET = 2 * 6;
 
     union {
         TriAreaEmitter area;

@@ -15,28 +15,32 @@ struct Shape;
 namespace Pupil::world {
 class GAS {
 public:
-    GAS()
-    noexcept = default;
-    ~GAS() noexcept = default;
+    const Pupil::resource::Shape *ref_shape = nullptr;
 
-    operator OptixTraversableHandle() const noexcept { return handle; }
+    GAS(const Pupil::resource::Shape *)
+    noexcept;
+    ~GAS() noexcept;
 
-    void Create(const OptixBuildInput &input) noexcept;
+    operator OptixTraversableHandle() const noexcept { return m_handle; }
 
-    OptixTraversableHandle handle = 0;
+    void Create() noexcept;
+
+private:
+    OptixTraversableHandle m_handle;
+    CUdeviceptr m_buffer;
 };
 
 class GASManager : util::Singleton<GASManager> {
 public:
-    GAS *GetGASHandle(std::string_view) noexcept;
-    GAS *GetGASHandle(const resource::Shape *) noexcept;
+    GAS *RefGAS(const resource::Shape *) noexcept;
 
-    void Remove(std::string_view) noexcept;
+    void Release(GAS *) noexcept;
     void ClearDanglingMemory() noexcept;
 
     void Destroy() noexcept;
 
-private:
-    std::unordered_map<std::string, std::unique_ptr<GAS>, util::StringHash, std::equal_to<>> m_gass;
+    // key: shape id
+    std::unordered_map<uint32_t, std::unique_ptr<Pupil::world::GAS>> m_gass;
+    std::unordered_map<Pupil::world::GAS *, uint32_t> m_gas_ref_cnt;
 };
 }// namespace Pupil::world

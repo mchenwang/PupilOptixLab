@@ -9,6 +9,7 @@
 #include "system/system.h"
 #include "system/gui/gui.h"
 #include "world/world.h"
+#include "world/render_object.h"
 
 extern "C" char embedded_ptx_code[];
 
@@ -148,65 +149,66 @@ void PTPass::SetScene(world::World *world) noexcept {
     m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
     m_optix_launch_params.emitters = m_world->emitters->GetEmitterGroup();
 
-    SetSBT(world->scene.get());
+    {
+        optix::SBTDesc<SBTTypes> desc{};
+        desc.ray_gen_data = {
+            .program = "__raygen__main"
+        };
+        {
+            int emitter_index_offset = 0;
+            using HitGroupDataRecord = optix::ProgDataDescPair<SBTTypes::HitGroupDataType>;
+            for (auto &&ro : world->GetRenderobjects()) {
+                HitGroupDataRecord hit_default_data{};
+                hit_default_data.program = "__closesthit__default";
+                hit_default_data.data.mat = ro->mat;
+                hit_default_data.data.geo = ro->geo;
+                if (ro->is_emitter) {
+                    hit_default_data.data.emitter_index_offset = emitter_index_offset;
+                    emitter_index_offset += ro->sub_emitters_num;
+                }
+
+                desc.hit_datas.push_back(hit_default_data);
+
+                HitGroupDataRecord hit_shadow_data{};
+                hit_shadow_data.program = "__closesthit__shadow";
+                hit_shadow_data.data.mat.type = ro->mat.type;
+                desc.hit_datas.push_back(hit_shadow_data);
+            }
+        }
+        {
+            optix::ProgDataDescPair<SBTTypes::MissDataType> miss_data = {
+                .program = "__miss__default"
+            };
+            desc.miss_datas.push_back(miss_data);
+            optix::ProgDataDescPair<SBTTypes::MissDataType> miss_shadow_data = {
+                .program = "__miss__shadow"
+            };
+            desc.miss_datas.push_back(miss_shadow_data);
+        }
+        {
+            auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
+            for (auto &mat_prog : mat_programs) {
+                if (mat_prog.cc_entry) {
+                    optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {
+                        .program = mat_prog.cc_entry
+                    };
+                    desc.callables_datas.push_back(cc_data);
+                }
+                if (mat_prog.dc_entry) {
+                    optix::ProgDataDescPair<SBTTypes::CallablesDataType> dc_data = {
+                        .program = mat_prog.dc_entry
+                    };
+                    desc.callables_datas.push_back(dc_data);
+                }
+            }
+        }
+        m_optix_pass->InitSBT(desc);
+    }
 
     m_dirty = true;
 }
 
 void PTPass::SetSBT(resource::Scene *scene) noexcept {
-    optix::SBTDesc<SBTTypes> desc{};
-    desc.ray_gen_data = {
-        .program = "__raygen__main"
-    };
-    {
-        int emitter_index_offset = 0;
-        using HitGroupDataRecord = optix::ProgDataDescPair<SBTTypes::HitGroupDataType>;
-        for (auto &&shape : scene->shapes) {
-            HitGroupDataRecord hit_default_data{};
-            hit_default_data.program = "__closesthit__default";
-            hit_default_data.data.mat.LoadMaterial(shape->mat);
-            hit_default_data.data.geo.LoadGeometry(*shape);
-            if (shape->is_emitter) {
-                hit_default_data.data.emitter_index_offset = emitter_index_offset;
-                emitter_index_offset += shape->sub_emitters_num;
-            }
-
-            desc.hit_datas.push_back(hit_default_data);
-
-            HitGroupDataRecord hit_shadow_data{};
-            hit_shadow_data.program = "__closesthit__shadow";
-            hit_shadow_data.data.mat.type = shape->mat.type;
-            desc.hit_datas.push_back(hit_shadow_data);
-        }
-    }
-    {
-        optix::ProgDataDescPair<SBTTypes::MissDataType> miss_data = {
-            .program = "__miss__default"
-        };
-        desc.miss_datas.push_back(miss_data);
-        optix::ProgDataDescPair<SBTTypes::MissDataType> miss_shadow_data = {
-            .program = "__miss__shadow"
-        };
-        desc.miss_datas.push_back(miss_shadow_data);
-    }
-    {
-        auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
-        for (auto &mat_prog : mat_programs) {
-            if (mat_prog.cc_entry) {
-                optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {
-                    .program = mat_prog.cc_entry
-                };
-                desc.callables_datas.push_back(cc_data);
-            }
-            if (mat_prog.dc_entry) {
-                optix::ProgDataDescPair<SBTTypes::CallablesDataType> dc_data = {
-                    .program = mat_prog.dc_entry
-                };
-                desc.callables_datas.push_back(dc_data);
-            }
-        }
-    }
-    m_optix_pass->InitSBT(desc);
 }
 
 void PTPass::BindingEventCallback() noexcept {

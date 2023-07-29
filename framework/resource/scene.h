@@ -43,9 +43,8 @@ public:
 
     Integrator integrator;
     Sensor sensor;
-    std::vector<Shape *> shapes;
+    std::vector<ShapeInstance> shape_instances;
     std::vector<Emitter> emitters;
-    util::AABB aabb;
 
     Scene() noexcept = default;
     ~Scene() noexcept = default;

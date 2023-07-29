@@ -1,10 +1,30 @@
 #pragma once
 
 #include "render/emitter.h"
+#include "resource/emitter.h"
+#include "resource/shape.h"
+
+namespace Pupil::resource {
+class Scene;
+}
 
 namespace Pupil::world {
 class EmitterHelper {
+public:
+    EmitterHelper() noexcept;
+    ~EmitterHelper() noexcept;
+
+    void AddAreaEmitter(const resource::ShapeInstance &) noexcept;
+    void AddEmitter(const resource::Emitter &) noexcept;
+
+    void ComputeProbability() noexcept;
+
+    void Clear() noexcept;
+    optix::EmitterGroup GetEmitterGroup() noexcept;
+
 private:
+    bool m_dirty;
+
     std::vector<optix::Emitter> m_areas;
     std::vector<optix::Emitter> m_points;
     std::vector<optix::Emitter> m_directionals;
@@ -15,15 +35,5 @@ private:
     CUdeviceptr m_directionals_cuda_memory;
     CUdeviceptr m_env_cuda_memory;
     CUdeviceptr m_env_cdf_weight_cuda_memory;
-
-    void GenerateEmitters(resource::Scene *) noexcept;
-
-public:
-    EmitterHelper(resource::Scene *) noexcept;
-    ~EmitterHelper() noexcept;
-
-    void Clear() noexcept;
-    void Reset(resource::Scene *) noexcept;
-    optix::EmitterGroup GetEmitterGroup() noexcept;
 };
 }// namespace Pupil::world

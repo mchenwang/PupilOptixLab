@@ -1,6 +1,6 @@
 #pragma once
 
-#include "optix/geometry.h"
+#include "render/geometry.h"
 #include "render/camera.h"
 #include "render/emitter.h"
 #include "render/material/optix_material.h"

@@ -1,4 +1,5 @@
 #include "emitter.h"
+#include "world.h"
 #include "resource/scene.h"
 #include "cuda/texture.h"
 #include "cuda/util.h"
@@ -59,9 +60,9 @@ float SplitMesh(std::vector<Pupil::optix::Emitter> &emitters,
         emitter.area.area = length(cross(v1, v2)) * 0.5f;
 
         emitter.area.radiance = radiance;
-        emitter.select_probability = select_weight * emitter.area.area;
+        emitter.weight = select_weight * emitter.area.area;
 
-        weight_sum += emitter.select_probability;
+        weight_sum += emitter.weight;
 
         emitters.emplace_back(emitter);
     }
@@ -103,7 +104,7 @@ std::vector<float> m_col_cdf;
 std::vector<float> m_row_cdf;
 std::vector<float> m_row_weight;
 
-void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_weight_cuda_memory, resource::EnvMap &env_map) noexcept {
+void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, const resource::EnvMap &env_map) noexcept {
     size_t w = env_map.radiance.bitmap.w;
     size_t h = env_map.radiance.bitmap.h;
     m_col_cdf.resize((w + 1) * h);
@@ -142,11 +143,6 @@ void BuildEnvMapCdfTable(optix::EnvMapEmitter &cu_env_map, CUdeviceptr &env_cdf_
     if (row_sum == 0)
         Pupil::Log::Warn("The environment map is completely black.");
 
-    if (env_cdf_weight_cuda_memory) {
-        Pupil::Log::Warn("Redundant environment map and the previous one will be overwritten.");
-        CUDA_FREE(env_cdf_weight_cuda_memory);
-    }
-
     cu_env_map.normalization = 1.f / (row_sum * (2.f * M_PIf / w) * (M_PIf / h));
     cu_env_map.map_size.x = w;
     cu_env_map.map_size.y = h;
@@ -157,173 +153,162 @@ namespace Pupil::world {
 using optix::Emitter;
 using optix::EmitterGroup;
 
-EmitterHelper::EmitterHelper(resource::Scene *scene) noexcept {
+EmitterHelper::EmitterHelper() noexcept {
     m_areas_cuda_memory = 0;
     m_points_cuda_memory = 0;
     m_directionals_cuda_memory = 0;
     m_env_cuda_memory = 0;
     m_env_cdf_weight_cuda_memory = 0;
-    GenerateEmitters(scene);
+    m_env.type = Pupil::optix::EEmitterType::None;
+    m_dirty = true;
 }
 EmitterHelper::~EmitterHelper() noexcept {
     Clear();
 }
 
+void EmitterHelper::AddAreaEmitter(const resource::ShapeInstance &ins) noexcept {
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    auto radiance = tex_mngr->GetCudaTexture(ins.emitter.area.radiance);
+    float select_weight = GetWeight(ins.emitter.area.radiance);
+    switch (ins.shape->type) {
+        case resource::EShapeType::_obj:
+        case resource::EShapeType::_rectangle:
+        case resource::EShapeType::_cube: {
+            SplitMesh(m_areas, ins.shape->mesh.vertex_num, ins.shape->mesh.face_num, ins.shape->mesh.indices,
+                      ins.shape->mesh.positions, ins.shape->mesh.normals, ins.shape->mesh.texcoords,
+                      ins.transform, radiance, select_weight);
+        } break;
+        case resource::EShapeType::_sphere: {
+            Pupil::optix::Emitter emitter;
+            emitter.type = Pupil::optix::EEmitterType::Sphere;
+            util::Float3 o(ins.shape->sphere.center.x, ins.shape->sphere.center.y, ins.shape->sphere.center.z);
+            util::Float3 p(o.x + ins.shape->sphere.radius, o.y, o.z);
+            o = util::Transform::TransformPoint(o, ins.transform.matrix);
+            p = util::Transform::TransformPoint(p, ins.transform.matrix);
+
+            emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
+            emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
+            emitter.sphere.area = 4 * 3.14159265358979323846f * emitter.sphere.geo.radius * emitter.sphere.geo.radius;
+            emitter.sphere.radiance = radiance;
+            emitter.weight = select_weight * emitter.sphere.area;
+
+            m_areas.emplace_back(emitter);
+        } break;
+    }
+
+    m_dirty = true;
+}
+
+void EmitterHelper::AddEmitter(const resource::Emitter &emitter) noexcept {
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    switch (emitter.type) {
+        case resource::EEmitterType::ConstEnv: {
+            m_env.type = Pupil::optix::EEmitterType::ConstEnv;
+            m_env.const_env.color = make_float3(emitter.const_env.radiance.x,
+                                                emitter.const_env.radiance.y,
+                                                emitter.const_env.radiance.z);
+            auto aabb = util::Singleton<World>::instance()->GetAABB();
+            auto center = (aabb.max + aabb.min) * 0.5f;
+            m_env.const_env.center = make_float3(center.x, center.y, center.z);
+            m_env.weight = 1.f;
+        } break;
+        case resource::EEmitterType::EnvMap: {
+            m_env.type = Pupil::optix::EEmitterType::EnvMap;
+            m_env.env_map.radiance = tex_mngr->GetCudaTexture(emitter.env_map.radiance);
+            m_env.env_map.scale = emitter.env_map.scale;
+            auto aabb = util::Singleton<World>::instance()->GetAABB();
+            auto center = (aabb.max + aabb.min) * 0.5f;
+            m_env.env_map.center = make_float3(center.x, center.y, center.z);
+            m_env.weight = 1.f;
+
+            m_env.env_map.to_world.r0 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r0));
+            m_env.env_map.to_world.r1 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r1));
+            m_env.env_map.to_world.r2 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r2));
+
+            auto to_local = emitter.env_map.transform.matrix.GetInverse();
+            m_env.env_map.to_local.r0 = make_float3(ToCudaType(to_local.r0));
+            m_env.env_map.to_local.r1 = make_float3(ToCudaType(to_local.r1));
+            m_env.env_map.to_local.r2 = make_float3(ToCudaType(to_local.r2));
+
+            BuildEnvMapCdfTable(m_env.env_map, emitter.env_map);
+            CUDA_FREE(m_env_cdf_weight_cuda_memory);
+        } break;
+            // TODO
+            // case resource::EEmitterType::Point:
+    }
+
+    m_dirty = true;
+}
+
+void EmitterHelper::ComputeProbability() noexcept {
+    float area_weight_sum = 0.f;
+    for (auto &&e : m_areas)
+        area_weight_sum += e.weight;
+
+    if (m_areas.size() > 0) {
+        for (auto &&e : m_areas)
+            e.select_probability = e.weight / area_weight_sum * m_areas.size();
+    }
+
+    auto emitter_num = (m_env.type == optix::EEmitterType::None ? 0 : 1) +
+                       m_areas.size() + m_points.size() + m_directionals.size();
+    for (auto &&e : m_areas) e.select_probability = e.select_probability / emitter_num;
+    for (auto &&e : m_points) e.select_probability = e.weight / emitter_num;
+    for (auto &&e : m_directionals) e.select_probability = e.weight / emitter_num;
+    m_env.select_probability = m_env.weight / emitter_num;
+}
+
 EmitterGroup EmitterHelper::GetEmitterGroup() noexcept {
     EmitterGroup ret;
 
-    if (!m_areas_cuda_memory && m_areas.size() > 0) {
-        m_areas_cuda_memory = cuda::CudaMemcpyToDevice(m_areas.data(), m_areas.size() * sizeof(Emitter));
-    }
-    ret.areas.SetData(m_areas_cuda_memory, m_areas.size());
-    if (!m_points_cuda_memory && m_points.size() > 0) {
-        m_points_cuda_memory = cuda::CudaMemcpyToDevice(m_points.data(), m_points.size() * sizeof(Emitter));
-    }
-    ret.points.SetData(m_points_cuda_memory, m_points.size());
-    if (!m_directionals_cuda_memory && m_directionals.size() > 0) {
-        m_directionals_cuda_memory = cuda::CudaMemcpyToDevice(m_directionals.data(), m_directionals.size() * sizeof(Emitter));
-    }
-    ret.directionals.SetData(m_directionals_cuda_memory, m_directionals.size());
-    if (!m_env_cuda_memory && m_env.type != Pupil::optix::EEmitterType::None) {
-        if (m_env.type == Pupil::optix::EEmitterType::EnvMap) {
-            CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_env_cdf_weight_cuda_memory),
-                                  sizeof(float) * (m_col_cdf.size() + m_row_cdf.size() + m_row_weight.size())));
-            auto cuda_col_cdf = m_env_cdf_weight_cuda_memory;
-            auto cuda_row_cdf = cuda_col_cdf + sizeof(float) * m_col_cdf.size();
-            auto cuda_row_weight = cuda_row_cdf + sizeof(float) * m_row_cdf.size();
+    if (m_dirty) {
+        m_dirty = false;
 
-            cuda::CudaMemcpyToDevice(cuda_col_cdf, m_col_cdf.data(), sizeof(float) * m_col_cdf.size());
-            cuda::CudaMemcpyToDevice(cuda_row_cdf, m_row_cdf.data(), sizeof(float) * m_row_cdf.size());
-            cuda::CudaMemcpyToDevice(cuda_row_weight, m_row_weight.data(), sizeof(float) * m_row_weight.size());
-
-            m_env.env_map.col_cdf.SetData(cuda_col_cdf, m_col_cdf.size());
-            m_env.env_map.row_cdf.SetData(cuda_row_cdf, m_row_cdf.size());
-            m_env.env_map.row_weight.SetData(cuda_row_weight, m_row_weight.size());
+        if (!m_areas_cuda_memory && m_areas.size() > 0) {
+            m_areas_cuda_memory = cuda::CudaMemcpyToDevice(m_areas.data(), m_areas.size() * sizeof(Emitter));
+        } else {
+            cuda::CudaMemcpyToDevice(m_areas_cuda_memory, m_areas.data(), m_areas.size() * sizeof(Emitter));
         }
-        m_env_cuda_memory = cuda::CudaMemcpyToDevice(&m_env, sizeof(Emitter));
+        if (!m_points_cuda_memory && m_points.size() > 0) {
+            m_points_cuda_memory = cuda::CudaMemcpyToDevice(m_points.data(), m_points.size() * sizeof(Emitter));
+        } else {
+            cuda::CudaMemcpyToDevice(m_points_cuda_memory, m_points.data(), m_points.size() * sizeof(Emitter));
+        }
+        if (!m_directionals_cuda_memory && m_directionals.size() > 0) {
+            m_directionals_cuda_memory = cuda::CudaMemcpyToDevice(m_directionals.data(), m_directionals.size() * sizeof(Emitter));
+        } else {
+            cuda::CudaMemcpyToDevice(m_directionals_cuda_memory, m_directionals.data(), m_directionals.size() * sizeof(Emitter));
+        }
+        if (m_env.type != Pupil::optix::EEmitterType::None) {
+            if (!m_env_cuda_memory) {
+                if (m_env.type == Pupil::optix::EEmitterType::EnvMap) {
+                    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&m_env_cdf_weight_cuda_memory),
+                                          sizeof(float) * (m_col_cdf.size() + m_row_cdf.size() + m_row_weight.size())));
+                    auto cuda_col_cdf = m_env_cdf_weight_cuda_memory;
+                    auto cuda_row_cdf = cuda_col_cdf + sizeof(float) * m_col_cdf.size();
+                    auto cuda_row_weight = cuda_row_cdf + sizeof(float) * m_row_cdf.size();
+
+                    cuda::CudaMemcpyToDevice(cuda_col_cdf, m_col_cdf.data(), sizeof(float) * m_col_cdf.size());
+                    cuda::CudaMemcpyToDevice(cuda_row_cdf, m_row_cdf.data(), sizeof(float) * m_row_cdf.size());
+                    cuda::CudaMemcpyToDevice(cuda_row_weight, m_row_weight.data(), sizeof(float) * m_row_weight.size());
+
+                    m_env.env_map.col_cdf.SetData(cuda_col_cdf, m_col_cdf.size());
+                    m_env.env_map.row_cdf.SetData(cuda_row_cdf, m_row_cdf.size());
+                    m_env.env_map.row_weight.SetData(cuda_row_weight, m_row_weight.size());
+                }
+
+                m_env_cuda_memory = cuda::CudaMemcpyToDevice(&m_env, sizeof(Emitter));
+            } else {
+                cuda::CudaMemcpyToDevice(m_env_cuda_memory, &m_env, sizeof(Emitter));
+            }
+        }
     }
+
+    ret.areas.SetData(m_areas_cuda_memory, m_areas.size());
+    ret.points.SetData(m_points_cuda_memory, m_points.size());
+    ret.directionals.SetData(m_directionals_cuda_memory, m_directionals.size());
     ret.env.SetData(m_env_cuda_memory);
     return ret;
-}
-
-void EmitterHelper::GenerateEmitters(resource::Scene *scene) noexcept {
-    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
-
-    // area emitters
-    unsigned int area_emitter_num = 0;
-    float area_select_weight_sum = 0.f;
-    for (auto &&shape : scene->shapes) {
-        if (!shape || !shape->is_emitter) continue;
-
-        auto radiance = tex_mngr->GetCudaTexture(shape->emitter.area.radiance);
-        float select_weight = GetWeight(shape->emitter.area.radiance);
-
-        size_t pre_emitters_num = m_areas.size();
-
-        switch (shape->type) {
-            case resource::EShapeType::_cube: {
-                area_select_weight_sum += SplitMesh(m_areas, shape->cube.vertex_num, shape->cube.face_num, shape->cube.indices,
-                                                    shape->cube.positions, shape->cube.normals, shape->cube.texcoords,
-                                                    shape->transform, radiance, select_weight);
-            } break;
-            case resource::EShapeType::_obj: {
-                area_select_weight_sum += SplitMesh(m_areas, shape->obj.vertex_num, shape->obj.face_num, shape->obj.indices,
-                                                    shape->obj.positions, shape->obj.normals, shape->obj.texcoords,
-                                                    shape->transform, radiance, select_weight);
-            } break;
-            case resource::EShapeType::_rectangle: {
-                area_select_weight_sum += SplitMesh(m_areas, shape->rect.vertex_num, shape->rect.face_num, shape->rect.indices,
-                                                    shape->rect.positions, shape->rect.normals, shape->rect.texcoords,
-                                                    shape->transform, radiance, select_weight);
-            } break;
-            case resource::EShapeType::_sphere: {
-                Pupil::optix::Emitter emitter;
-                emitter.type = Pupil::optix::EEmitterType::Sphere;
-                util::Float3 o(shape->sphere.center.x, shape->sphere.center.y, shape->sphere.center.z);
-                util::Float3 p(o.x + shape->sphere.radius, o.y, o.z);
-                o = util::Transform::TransformPoint(o, shape->transform.matrix);
-                p = util::Transform::TransformPoint(p, shape->transform.matrix);
-
-                emitter.sphere.geo.center = make_float3(o.x, o.y, o.z);
-                emitter.sphere.geo.radius = length(emitter.sphere.geo.center - make_float3(p.x, p.y, p.z));
-                emitter.sphere.area = 4 * 3.14159265358979323846f * emitter.sphere.geo.radius * emitter.sphere.geo.radius;
-                emitter.sphere.radiance = radiance;
-                emitter.select_probability = select_weight * emitter.sphere.area;
-
-                area_select_weight_sum += emitter.select_probability;
-
-                m_areas.emplace_back(emitter);
-            } break;
-        }
-
-        shape->sub_emitters_num = static_cast<unsigned int>(
-            m_areas.size() - pre_emitters_num);
-        area_emitter_num += shape->sub_emitters_num;
-    }
-
-    bool emitter_valid_flag = false;
-    if (area_select_weight_sum > 0.f && area_emitter_num > 0) {
-        emitter_valid_flag = true;
-        for (auto &&e : m_areas) {
-            e.select_probability = e.select_probability / area_select_weight_sum * area_emitter_num;
-        }
-    }
-
-    unsigned int other_emitter_num = 0;
-    for (auto &&emitter : scene->emitters) {
-        switch (emitter.type) {
-            case resource::EEmitterType::ConstEnv: {
-                ++other_emitter_num;
-                m_env.type = Pupil::optix::EEmitterType::ConstEnv;
-                m_env.const_env.color = make_float3(emitter.const_env.radiance.x,
-                                                    emitter.const_env.radiance.y,
-                                                    emitter.const_env.radiance.z);
-                auto center = (scene->aabb.max + scene->aabb.min) * 0.5f;
-                m_env.const_env.center = make_float3(center.x, center.y, center.z);
-                m_env.select_probability = 1.f;
-            } break;
-            case resource::EEmitterType::EnvMap: {
-                ++other_emitter_num;
-                m_env.type = Pupil::optix::EEmitterType::EnvMap;
-                m_env.env_map.radiance = tex_mngr->GetCudaTexture(emitter.env_map.radiance);
-                m_env.env_map.scale = emitter.env_map.scale;
-                auto center = (scene->aabb.max + scene->aabb.min) * 0.5f;
-                m_env.env_map.center = make_float3(center.x, center.y, center.z);
-                m_env.select_probability = 1.f;
-
-                m_env.env_map.to_world.r0 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r0));
-                m_env.env_map.to_world.r1 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r1));
-                m_env.env_map.to_world.r2 = make_float3(ToCudaType(emitter.env_map.transform.matrix.r2));
-
-                auto to_local = emitter.env_map.transform.matrix.GetInverse();
-                m_env.env_map.to_local.r0 = make_float3(ToCudaType(to_local.r0));
-                m_env.env_map.to_local.r1 = make_float3(ToCudaType(to_local.r1));
-                m_env.env_map.to_local.r2 = make_float3(ToCudaType(to_local.r2));
-
-                BuildEnvMapCdfTable(m_env.env_map, m_env_cdf_weight_cuda_memory, emitter.env_map);
-            } break;
-                // TODO
-                // case resource::EEmitterType::Point:
-        }
-    }
-
-    emitter_valid_flag |= other_emitter_num > 0;
-
-    auto emitter_num = other_emitter_num + area_emitter_num;
-
-    for (auto &&e : m_areas) e.select_probability /= emitter_num;
-    for (auto &&e : m_points) e.select_probability /= emitter_num;
-    for (auto &&e : m_directionals) e.select_probability /= emitter_num;
-    m_env.select_probability /= emitter_num;
-
-    if (!emitter_valid_flag) {
-        Pupil::Log::Error("No valid emitter.");
-    }
-}
-
-void EmitterHelper::Reset(resource::Scene *scene) noexcept {
-    Clear();
-    GenerateEmitters(scene);
 }
 
 void EmitterHelper::Clear() noexcept {

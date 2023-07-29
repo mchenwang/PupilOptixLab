@@ -3,9 +3,7 @@
 #include "cuda/data_view.h"
 #include <vector_types.h>
 
-#ifndef PUPIL_OPTIX
-#include "resource/shape.h"
-#else
+#ifdef PUPIL_OPTIX
 #include <optix.h>
 #include "optix/util.h"
 #include "cuda/vec_math.h"
@@ -46,9 +44,7 @@ struct Geometry {
 
     CUDA_HOSTDEVICE Geometry() noexcept {}
 
-#ifndef PUPIL_OPTIX
-    void LoadGeometry(const Pupil::resource::Shape &) noexcept;
-#else
+#ifdef PUPIL_OPTIX
     CUDA_DEVICE void GetHitLocalGeometry(LocalGeometry &ret) const noexcept {
         switch (type) {
             case EType::TriMesh: {

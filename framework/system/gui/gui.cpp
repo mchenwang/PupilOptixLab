@@ -761,7 +761,7 @@ void GuiPass::Scene(bool show) noexcept {
                 ImGui::BeginChild("Scene", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min((int)m_render_objects.size(), 10)), false);
                 for (int selectable_index = 0; auto &&ro : m_render_objects) {
                     if (!ro) continue;
-                    std::string ro_name = ro->id;
+                    std::string ro_name = ro->name;
                     if (ro_name.empty()) ro_name = "(anonymous)";
                     if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
                         m_selected_ro = ro;

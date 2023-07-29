@@ -18,11 +18,10 @@ using namespace Pupil;
 namespace Pupil::resource {
 void Scene::Reset() noexcept {
     emitters.clear();
-    shapes.clear();
+    shape_instances.clear();
 
     integrator = Integrator{};
     sensor = Sensor{};
-    aabb = util::AABB{};
 }
 
 bool Scene::LoadFromXML(std::filesystem::path file) noexcept {
@@ -40,10 +39,9 @@ bool Scene::LoadFromXML(std::filesystem::path file) noexcept {
                 LoadXmlObj(xml_obj, &sensor);
                 break;
             case xml::ETag::_shape: {
-                auto shape = resource::LoadShapeFromXml(xml_obj, this);
-                if (shape->type != EShapeType::_unknown) {
-                    aabb.Merge(shape->aabb);
-                    shapes.push_back(shape);
+                auto shape_ins = resource::LoadShapeInstanceFromXml(xml_obj, this);
+                if (shape_ins.shape) {
+                    shape_instances.push_back(shape_ins);
                 }
             } break;
             case xml::ETag::_emitter: {
@@ -54,9 +52,6 @@ bool Scene::LoadFromXML(std::filesystem::path file) noexcept {
             } break;
         }
     }
-    Pupil::Log::Info("scene AABB: min[{:.3f},{:.3f},{:.3f}], max[{:.3f},{:.3f},{:.3f}]",
-                     aabb.min.x, aabb.min.y, aabb.min.z,
-                     aabb.max.x, aabb.max.y, aabb.max.z);
     return true;
 }
 
@@ -187,10 +182,10 @@ void Scene::LoadXmlObj(const xml::Object *xml_obj, void *dst) noexcept {
             resource::Material *m = static_cast<resource::Material *>(dst);
             *m = resource::LoadMaterialFromXml(xml_obj, this);
         } break;
-        case xml::ETag::_shape: {
-            Shape **shape_p = static_cast<Shape **>(dst);
-            *shape_p = resource::LoadShapeFromXml(xml_obj, this);
-        } break;
+        // case xml::ETag::_shape: {
+        //     Shape **shape_p = static_cast<Shape **>(dst);
+        //     *shape_p = resource::LoadShapeFromXml(xml_obj, this);
+        // } break;
         case xml::ETag::_emitter: {
             Emitter *emitter = static_cast<Emitter *>(dst);
             if (xml_obj->type.compare("area") == 0) {

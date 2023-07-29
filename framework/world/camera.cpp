@@ -3,11 +3,7 @@
 #include "cuda/util.h"
 
 namespace Pupil::world {
-CameraHelper::CameraHelper(const util::CameraDesc &desc) noexcept {
-    m_camera.SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
-    m_camera.SetWorldTransform(desc.to_world);
-    m_desc = desc;
-    m_camera_cuda_memory_dirty = true;
+CameraHelper::CameraHelper() noexcept {
 }
 
 CameraHelper::~CameraHelper() noexcept {

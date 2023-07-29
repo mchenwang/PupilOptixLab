@@ -173,7 +173,7 @@ void IASManager::SetInstance(const std::vector<RenderObject *> &render_objs) noe
         // m_instances[i].sbtOffset = i;
         m_instances[i].visibilityMask = render_objs[i]->visibility_mask;
         m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-        m_instances[i].traversableHandle = render_objs[i]->gas->handle;
+        m_instances[i].traversableHandle = *render_objs[i]->gas;
 
         m_ro_index[render_objs[i]] = i;
     }
@@ -191,7 +191,7 @@ void IASManager::UpdateInstance(RenderObject *ro) noexcept {
     memcpy(m_instances[i].transform, ro->transform.matrix.e, sizeof(float) * 12);
     m_instances[i].visibilityMask = ro->visibility_mask;
     m_instances[i].flags = OPTIX_INSTANCE_FLAG_NONE;
-    m_instances[i].traversableHandle = ro->gas->handle;
+    m_instances[i].traversableHandle = *ro->gas;
 
     SetDirty();
 }

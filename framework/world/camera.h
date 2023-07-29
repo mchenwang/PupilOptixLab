@@ -17,7 +17,7 @@ private:
     CUdeviceptr m_camera_cuda_memory = 0;
 
 public:
-    CameraHelper(const util::CameraDesc &desc) noexcept;
+    CameraHelper() noexcept;
     ~CameraHelper() noexcept;
 
     void Reset(const util::CameraDesc &desc) noexcept;
