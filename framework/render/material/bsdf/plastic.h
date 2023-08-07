@@ -1,9 +1,9 @@
 #pragma once
 
-#include "predefine.h"
+#include "../predefine.h"
 #include "cuda/texture.h"
 #include "optix/util.h"
-#include "fresnel.h"
+#include "../fresnel.h"
 
 namespace Pupil::optix::material {
 

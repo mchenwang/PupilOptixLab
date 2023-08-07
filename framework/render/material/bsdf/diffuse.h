@@ -1,6 +1,6 @@
 #pragma once
 
-#include "predefine.h"
+#include "../predefine.h"
 #include "cuda/texture.h"
 #include "optix/util.h"
 

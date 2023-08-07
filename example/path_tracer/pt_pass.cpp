@@ -208,9 +208,6 @@ void PTPass::SetScene(world::World *world) noexcept {
     m_dirty = true;
 }
 
-void PTPass::SetSBT(resource::Scene *scene) noexcept {
-}
-
 void PTPass::BindingEventCallback() noexcept {
     EventBinder<EWorldEvent::CameraChange>([this](void *) {
         m_dirty = true;
