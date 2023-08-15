@@ -4,8 +4,7 @@
 #include "resource/shape.h"
 #include "cuda/util.h"
 
-namespace {
-}// namespace
+#include <optix_stubs.h>
 
 namespace Pupil::world {
 GAS *GASManager::RefGAS(const resource::Shape *shape) noexcept {
