@@ -89,6 +89,13 @@ bool World::LoadScene(std::filesystem::path scene_file_path) noexcept {
         return false;
     }
     timer.Stop();
+    size_t tri_num = 0;
+    for (auto &ro : m_ros) {
+        if (ro->geo.type == Pupil::optix::Geometry::EType::TriMesh) {
+            tri_num += ro->geo.tri_mesh.positions.GetNum() / 3;
+        }
+    }
+    Pupil::Log::Info("Scene triangles num: {}", tri_num);
     Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
 
     util::Singleton<GASManager>::instance()->ClearDanglingMemory();
