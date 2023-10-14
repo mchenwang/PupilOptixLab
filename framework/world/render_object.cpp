@@ -22,6 +22,20 @@ RenderObject::RenderObject(const resource::ShapeInstance &ins, unsigned int v_ma
         geo.sphere.radius = 1.f;
         geo.sphere.flip_normal = ins.flip_normals;
         sub_emitters_num = 1;
+    } else if (ins.shape->type == resource::EShapeType::_hair) {
+        if ((ins.shape->hair.flags & 0b11) == 0)
+            geo.type = optix::Geometry::EType::LinearBSpline;
+        else if ((ins.shape->hair.flags & 0b11) == 1)
+            geo.type = optix::Geometry::EType::QuadraticBSpline;
+        else if ((ins.shape->hair.flags & 0b11) == 2)
+            geo.type = optix::Geometry::EType::CubicBSpline;
+        else
+            geo.type = optix::Geometry::EType::CatromSpline;
+
+        auto device_memory =
+            util::Singleton<resource::ShapeManager>::instance()->GetMeshDeviceMemory(ins.shape);
+        geo.curve.positions.SetData(device_memory.position, ins.shape->hair.point_num * 3);
+        geo.curve.indices.SetData(device_memory.index, ins.shape->hair.segments_num);
     } else {
         geo.type = optix::Geometry::EType::TriMesh;
         auto device_memory =

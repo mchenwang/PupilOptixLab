@@ -6,6 +6,8 @@
 #include "cuda/util.h"
 #include "util/log.h"
 
+#include "hair/cemyuksel_hair.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -142,6 +144,19 @@ struct ShapeLoader<EShapeType::_obj> {
     }
 };
 
+template<>
+struct ShapeLoader<EShapeType::_hair> {
+    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
+        auto value = obj->GetProperty("filename");
+        auto path = (scene->scene_root_path / value).make_preferred();
+
+        ShapeInstance ins;
+        ins.name = obj->id;
+        ins.shape = util::Singleton<ShapeManager>::instance()->LoadHair(path.string());
+        return ins;
+    }
+};
+
 using LoaderType = std::function<ShapeInstance(const xml::Object *, Scene *)>;
 
 #define SHAPE_LOADER(mat) ShapeLoader<EShapeType::##_##mat>()
@@ -271,8 +286,8 @@ void ShapeManager::LoadShapeFromFile(std::string_view file_path) noexcept {
 
     mesh_data->device_memory.position = cuda::CudaMemcpyToDevice(mesh_data->positions.data(), mesh_data->positions.size() * sizeof(float));
     mesh_data->device_memory.normal = cuda::CudaMemcpyToDevice(mesh_data->normals.data(), mesh_data->normals.size() * sizeof(float));
-    mesh_data->device_memory.index = cuda::CudaMemcpyToDevice(mesh_data->indices.data(), mesh_data->indices.size() * sizeof(float));
-    mesh_data->device_memory.texcoord = cuda::CudaMemcpyToDevice(mesh_data->texcoords.data(), mesh_data->texcoords.size() * sizeof(uint32_t));
+    mesh_data->device_memory.index = cuda::CudaMemcpyToDevice(mesh_data->indices.data(), mesh_data->indices.size() * sizeof(uint32_t));
+    mesh_data->device_memory.texcoord = cuda::CudaMemcpyToDevice(mesh_data->texcoords.data(), mesh_data->texcoords.size() * sizeof(float));
 
     m_meshes.emplace(file_path, std::move(mesh_data));
 }
@@ -310,12 +325,56 @@ Shape *ShapeManager::LoadMeshShape(std::string_view file_path) noexcept {
     shape->mesh.indices = it->second->indices.data();
     shape->aabb = it->second->aabb;
 
-    MeshDeviceMemory d_mesh{
-        .position = it->second->device_memory.position,
-        .normal = it->second->device_memory.normal,
-        .index = it->second->device_memory.index,
-        .texcoord = it->second->device_memory.texcoord,
-    };
+    m_mesh_shape[file_path.data()] = shape.get();
+    m_id_shapes[id] = std::move(shape);
+    return m_id_shapes[id].get();
+}
+
+Shape *ShapeManager::LoadHair(std::string_view file_path) noexcept {
+    if (m_meshes.find(file_path) != m_meshes.end()) {
+        return m_mesh_shape[file_path.data()];
+    }
+
+    auto hair_shape = CyHair::LoadFromFile(file_path);
+    auto hair_data = std::make_unique<MeshData>();
+    hair_data->positions.reserve(hair_shape.positions.size() * 3);
+    for (auto &pos : hair_shape.positions) {
+        hair_data->positions.push_back(pos.x);
+        hair_data->positions.push_back(pos.y);
+        hair_data->positions.push_back(pos.z);
+    }
+
+    // compute segments index
+    const auto curve_degree = 3u;
+    for (int i = 0; i < hair_shape.strands_index.size() - 1; ++i) {
+        const uint32_t start = hair_shape.strands_index[i];
+        const uint32_t end = hair_shape.strands_index[i + 1] - curve_degree;
+        for (uint32_t segment_index = start; segment_index < end; ++segment_index)
+            hair_data->indices.push_back(segment_index);
+    }
+
+    hair_data->normals.swap(hair_shape.widths);
+    hair_data->device_memory.position = cuda::CudaMemcpyToDevice(hair_data->positions.data(), hair_data->positions.size() * sizeof(float));
+    hair_data->device_memory.width = cuda::CudaMemcpyToDevice(hair_data->normals.data(), hair_data->normals.size() * sizeof(float));
+    hair_data->device_memory.index = cuda::CudaMemcpyToDevice(hair_data->indices.data(), hair_data->indices.size() * sizeof(uint32_t));
+    hair_data->device_memory.texcoord = 0;
+    hair_data->aabb = hair_shape.aabb;
+    m_meshes.emplace(file_path, std::move(hair_data));
+
+    auto it = m_meshes.find(file_path);
+
+    auto id = m_shape_id_cnt++;
+    auto shape = std::make_unique<Shape>();
+    shape->id = id;
+    shape->file_path = file_path;
+    shape->type = EShapeType::_hair;
+    shape->hair.point_num = static_cast<uint32_t>(it->second->positions.size() / 3);
+    shape->hair.segments_num = static_cast<uint32_t>(it->second->indices.size());
+    shape->hair.flags = 2;
+    shape->hair.positions = it->second->positions.data();
+    shape->hair.widths = it->second->normals.data();
+    shape->hair.strands_index = it->second->indices.data();
+    shape->aabb = it->second->aabb;
 
     m_mesh_shape[file_path.data()] = shape.get();
     m_id_shapes[id] = std::move(shape);

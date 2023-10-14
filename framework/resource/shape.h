@@ -26,7 +26,7 @@ struct Object;
 }
 
 #define PUPIL_SCENE_SHAPE \
-    obj, sphere, cube, rectangle
+    obj, sphere, cube, rectangle, hair
 
 PUPIL_ENUM_DEFINE(EShapeType, PUPIL_SCENE_SHAPE)
 PUPIL_ENUM_STRING_ARRAY(S_SHAPE_TYPE_NAME, PUPIL_SCENE_SHAPE)
@@ -46,6 +46,24 @@ struct Sphere {
     util::Float3 center{};
 };
 
+struct Hair {
+    uint32_t segments_num;// number of segments
+    uint32_t point_num;   // number of control points
+    // bits 1~2: spline mode
+    // ---- 00 : linear bspline
+    // ---- 01 : quadratic bspline
+    // ---- 10 : cubic bspline(default)
+    // ---- 11 : catrom spline
+    // bits 3  : radius mode
+    // ---- 0  : constant
+    // ---- 1  : tapered
+    uint32_t flags;
+
+    float *positions;
+    float *widths;
+    uint32_t *strands_index;
+};
+
 struct Shape {
     uint32_t id;
     std::string file_path;
@@ -54,6 +72,7 @@ struct Shape {
     union {
         Mesh mesh;
         Sphere sphere{};
+        Hair hair;
     };
 
     util::AABB aabb{};
@@ -79,7 +98,10 @@ class ShapeManager : public util::Singleton<ShapeManager> {
 public:
     struct MeshDeviceMemory {
         CUdeviceptr position = 0;
-        CUdeviceptr normal = 0;
+        union {
+            CUdeviceptr normal = 0;
+            CUdeviceptr width;// for hair
+        };
         CUdeviceptr index = 0;
         CUdeviceptr texcoord = 0;
     };
@@ -92,6 +114,7 @@ public:
     Shape *LoadSphere(bool flip_normals = false) noexcept;
     Shape *LoadCube(bool flip_normals = false) noexcept;
     Shape *LoadRectangle(bool flip_normals = false) noexcept;
+    Shape *LoadHair(std::string_view) noexcept;
 
     MeshDeviceMemory GetMeshDeviceMemory(const Shape *) noexcept;
 

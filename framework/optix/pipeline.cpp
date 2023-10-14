@@ -20,7 +20,11 @@ OptixPipelineCompileOptions Pipeline::pipeline_compile_options = {
     .pipelineLaunchParamsVariableName = "optix_launch_params",
     .usesPrimitiveTypeFlags =
         static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE) |
-        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE)
+        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE) |
+        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE) |
+        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE) |
+        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR) |
+        static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM)
 };
 
 Pipeline::Pipeline(const PipelineDesc &desc) noexcept {

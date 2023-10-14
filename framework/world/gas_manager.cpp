@@ -94,6 +94,43 @@ void GAS::Create() noexcept {
         d_temp_mem0 = d_center;
         d_temp_mem1 = d_radius;
         d_temp_mem2 = d_sbt_index;
+    } else if (ref_shape->type == resource::EShapeType::_hair) {
+
+        // auto device_memory =
+        //     util::Singleton<resource::ShapeManager>::instance()->GetMeshDeviceMemory(ref_shape);
+
+        CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->hair.positions, sizeof(float) * 3 * ref_shape->hair.point_num);
+        CUdeviceptr d_width = cuda::CudaMemcpyToDevice(ref_shape->hair.widths, sizeof(float) * ref_shape->hair.point_num);
+        CUdeviceptr d_index = cuda::CudaMemcpyToDevice(ref_shape->hair.strands_index, sizeof(uint32_t) * ref_shape->hair.segments_num);
+
+        input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
+        input.curveArray = {
+            .numPrimitives = ref_shape->hair.segments_num,
+            .vertexBuffers = &d_vertex,
+            .numVertices = ref_shape->hair.point_num,
+            .vertexStrideInBytes = sizeof(float3),
+            .widthBuffers = &d_width,
+            .widthStrideInBytes = sizeof(float),
+            .normalBuffers = 0,
+            .normalStrideInBytes = 0,
+            .indexBuffer = d_index,
+            .indexStrideInBytes = sizeof(uint32_t),
+            .flag = OPTIX_GEOMETRY_FLAG_NONE,
+            .primitiveIndexOffset = 0
+        };
+
+        if ((ref_shape->hair.flags & 0b11) == 0)
+            input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+        else if ((ref_shape->hair.flags & 0b11) == 1)
+            input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE;
+        else if ((ref_shape->hair.flags & 0b11) == 2)
+            input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE;
+        else
+            input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+
+        d_temp_mem0 = d_vertex;
+        d_temp_mem1 = d_width;
+        d_temp_mem2 = d_index;
     } else {
         unsigned int vertex_num = ref_shape->mesh.vertex_num;
         CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->mesh.positions, sizeof(float) * 3 * vertex_num);

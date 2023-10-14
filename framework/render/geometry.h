@@ -7,6 +7,7 @@
 #include <optix.h>
 #include "optix/util.h"
 #include "cuda/vec_math.h"
+#include "curve.h"
 #endif
 
 namespace Pupil::optix {
@@ -25,6 +26,11 @@ struct Sphere {
     bool flip_normal;
 };
 
+struct Curve {
+    cuda::ConstArrayView<float3> positions;
+    cuda::ConstArrayView<unsigned int> indices;
+};
+
 struct LocalGeometry {
     float3 position;
     float3 normal;
@@ -34,12 +40,18 @@ struct LocalGeometry {
 struct Geometry {
     enum class EType : unsigned int {
         TriMesh,
-        Sphere
+        Sphere,
+        // for hair
+        LinearBSpline,
+        QuadraticBSpline,
+        CubicBSpline,
+        CatromSpline
     } type;
 
     union {
         TriMesh tri_mesh;
         Sphere sphere;
+        Curve curve;
     };
 
     CUDA_HOSTDEVICE Geometry() noexcept {}
@@ -85,6 +97,78 @@ struct Geometry {
                 ret.texcoord = Pupil::optix::GetSphereTexcoord(normalize(local_pos - sphere.center));
                 ret.normal = normalize(optixTransformNormalFromObjectToWorldSpace(local_pos - sphere.center));
                 if (sphere.flip_normal) ret.normal *= -1.f;
+            } break;
+            case EType::LinearBSpline: {
+                ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto gas = optixGetGASTraversableHandle();
+                const auto prim_idx = optixGetPrimitiveIndex();
+                const auto gas_sbt_idx = optixGetSbtGASIndex();
+                float4 ctrl_points[2];
+
+                optixGetLinearCurveVertexData(gas, prim_idx, gas_sbt_idx, 0.0f, ctrl_points);
+
+                LinearInterpolator interpolator;
+                interpolator.Initialize(ctrl_points);
+
+                float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
+                ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
+                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+                ret.texcoord = make_float2(0.f);
+            } break;
+            case EType::QuadraticBSpline: {
+                ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto gas = optixGetGASTraversableHandle();
+                const auto prim_idx = optixGetPrimitiveIndex();
+                const auto gas_sbt_idx = optixGetSbtGASIndex();
+                float4 ctrl_points[3];
+
+                optixGetQuadraticBSplineVertexData(gas, prim_idx, gas_sbt_idx, 0.0f, ctrl_points);
+
+                QuadraticInterpolator interpolator;
+                interpolator.InitializeFromBSpline(ctrl_points);
+
+                float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
+                ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
+                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+                ret.texcoord = make_float2(0.f);
+            } break;
+            case EType::CubicBSpline: {
+                ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto gas = optixGetGASTraversableHandle();
+                const auto prim_idx = optixGetPrimitiveIndex();
+                const auto gas_sbt_idx = optixGetSbtGASIndex();
+                float4 ctrl_points[4];
+
+                optixGetCubicBSplineVertexData(gas, prim_idx, gas_sbt_idx, 0.0f, ctrl_points);
+
+                CubicInterpolator interpolator;
+                interpolator.InitializeFromBSpline(ctrl_points);
+
+                float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
+                ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
+                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+                ret.texcoord = make_float2(0.f);
+            } break;
+            case EType::CatromSpline: {
+                ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto gas = optixGetGASTraversableHandle();
+                const auto prim_idx = optixGetPrimitiveIndex();
+                const auto gas_sbt_idx = optixGetSbtGASIndex();
+                float4 ctrl_points[4];
+
+                optixGetCubicBSplineVertexData(gas, prim_idx, gas_sbt_idx, 0.0f, ctrl_points);
+
+                CubicInterpolator interpolator;
+                interpolator.InitializeFromCatrom(ctrl_points);
+
+                float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
+                ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
+                ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
+                ret.texcoord = make_float2(0.f);
             } break;
         }
     }
