@@ -60,6 +60,10 @@ void PTPass::InitOptixPipeline() noexcept {
     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
 
     auto sphere_module = module_mngr->GetModule(optix::EModuleBuiltinType::SpherePrimitive);
+    // auto curve_linear_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundLinearPrimitive);
+    // auto curve_quadratic_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundQuadraticBsplinePrimitive);
+    auto curve_cubic_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundCubicBsplinePrimitive);
+    // auto curve_catmullrom_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundCatmullromPrimitive);
     auto pt_module = module_mngr->GetModule(embedded_ptx_code);
 
     optix::PipelineDesc pipeline_desc;
@@ -81,20 +85,36 @@ void PTPass::InitOptixPipeline() noexcept {
     }
 
     {
-        // for sphere geo
         optix::RayTraceProgramDesc forward_ray_desc{
             .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__default",
+            .hit_group = { .ch_entry = "__closesthit__default_sphere",
                            .intersect_module = sphere_module },
         };
         pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
         optix::RayTraceProgramDesc shadow_ray_desc{
             .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__shadow",
+            .hit_group = { .ch_entry = "__closesthit__shadow_sphere",
                            .intersect_module = sphere_module },
         };
         pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
     }
+
+    auto curve_module = curve_cubic_module;
+    {
+        optix::RayTraceProgramDesc forward_ray_desc{
+            .module_ptr = pt_module,
+            .hit_group = { .ch_entry = "__closesthit__default_curve",
+                           .intersect_module = curve_module },
+        };
+        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
+        optix::RayTraceProgramDesc shadow_ray_desc{
+            .module_ptr = pt_module,
+            .hit_group = { .ch_entry = "__closesthit__shadow_curve",
+                           .intersect_module = curve_module },
+        };
+        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    }
+
     {
         auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
         pipeline_desc.callable_programs.insert(
@@ -159,7 +179,12 @@ void PTPass::SetScene(world::World *world) noexcept {
             using HitGroupDataRecord = optix::ProgDataDescPair<SBTTypes::HitGroupDataType>;
             for (auto &&ro : world->GetRenderobjects()) {
                 HitGroupDataRecord hit_default_data{};
-                hit_default_data.program = "__closesthit__default";
+                if (ro->geo.type == optix::Geometry::EType::TriMesh)
+                    hit_default_data.program = "__closesthit__default";
+                else if (ro->geo.type == optix::Geometry::EType::Sphere)
+                    hit_default_data.program = "__closesthit__default_sphere";
+                else
+                    hit_default_data.program = "__closesthit__default_curve";
                 hit_default_data.data.mat = ro->mat;
                 hit_default_data.data.geo = ro->geo;
                 if (ro->is_emitter) {
@@ -170,7 +195,13 @@ void PTPass::SetScene(world::World *world) noexcept {
                 desc.hit_datas.push_back(hit_default_data);
 
                 HitGroupDataRecord hit_shadow_data{};
-                hit_shadow_data.program = "__closesthit__shadow";
+                if (ro->geo.type == optix::Geometry::EType::TriMesh)
+                    hit_shadow_data.program = "__closesthit__shadow";
+                else if (ro->geo.type == optix::Geometry::EType::Sphere)
+                    hit_shadow_data.program = "__closesthit__shadow_sphere";
+                else
+                    hit_shadow_data.program = "__closesthit__shadow_curve";
+
                 hit_shadow_data.data.mat.type = ro->mat.type;
                 desc.hit_datas.push_back(hit_shadow_data);
             }

@@ -31,6 +31,8 @@ struct PathPayloadRecord {
 
     unsigned int depth;
     bool done;
+
+    float test;
 };
 
 extern "C" __global__ void __raygen__main() {
@@ -51,6 +53,7 @@ extern "C" __global__ void __raygen__main() {
     record.radiance = make_float3(0.f);
     record.env_radiance = make_float3(0.f);
     record.random.Init(4, pixel_index, optix_launch_params.random_seed);
+    record.test = 0.f;
 
     const float2 subpixel_jitter = make_float2(record.random.Next(), record.random.Next());
 
@@ -100,6 +103,13 @@ extern "C" __global__ void __raygen__main() {
 
     optix_launch_params.test[pixel_index] = record.random.Next();
 
+    // if (!record.done)
+    // record.radiance = make_float3(record.test);
+
+    // optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
+    // optix_launch_params.frame_buffer[pixel_index] = make_float4(record.radiance, 1.f);
+    // return;
+
     while (!record.done) {
         ++depth;
         if (depth >= optix_launch_params.config.max_depth)
@@ -120,7 +130,7 @@ extern "C" __global__ void __raygen__main() {
                 optix::Emitter::TraceShadowRay(
                     optix_launch_params.handle,
                     local_hit.geo.position, emitter_sample_record.wi,
-                    0.001f, emitter_sample_record.distance - 0.001f);
+                    0.0001f, emitter_sample_record.distance - 0.0001f);
             if (!occluded) {
                 optix::BsdfSamplingRecord eval_record;
                 eval_record.wi = optix::ToLocal(emitter_sample_record.wi, local_hit.geo.normal);
@@ -213,7 +223,8 @@ extern "C" __global__ void __miss__default() {
 extern "C" __global__ void __miss__shadow() {
     // optixSetPayload_0(0u);
 }
-extern "C" __global__ void __closesthit__default() {
+
+__device__ __forceinline__ void ClosestHit() {
     const pt::HitGroupData *sbt_data = (pt::HitGroupData *)optixGetSbtDataPointer();
     auto record = optix::GetPRD<PathPayloadRecord>();
 
@@ -228,6 +239,15 @@ extern "C" __global__ void __closesthit__default() {
     }
     record->hit.bsdf = sbt_data->mat.GetLocalBsdf(record->hit.geo.texcoord);
 }
-extern "C" __global__ void __closesthit__shadow() {
+
+__device__ __forceinline__ void ClosestHitShadow() {
     optixSetPayload_0(1u);
 }
+
+extern "C" __global__ void __closesthit__default() { ClosestHit(); }
+extern "C" __global__ void __closesthit__default_sphere() { ClosestHit(); }
+extern "C" __global__ void __closesthit__default_curve() { ClosestHit(); }
+
+extern "C" __global__ void __closesthit__shadow() { ClosestHitShadow(); }
+extern "C" __global__ void __closesthit__shadow_sphere() { ClosestHitShadow(); }
+extern "C" __global__ void __closesthit__shadow_curve() { ClosestHitShadow(); }
