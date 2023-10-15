@@ -7,15 +7,15 @@
 #include <optix_stubs.h>
 
 namespace Pupil::world {
-GAS *GASManager::RefGAS(const resource::Shape *shape) noexcept {
-    if (shape == nullptr) return nullptr;
+std::pair<GAS *, bool> GASManager::RefGAS(const resource::Shape *shape) noexcept {
+    if (shape == nullptr) return { nullptr, false };
     const uint32_t shape_id = shape->id;
 
     if (m_gass.find(shape_id) != m_gass.end()) {
         auto gas = m_gass[shape_id].get();
         uint32_t ref_cnt = m_gas_ref_cnt.find(gas) == m_gas_ref_cnt.end() ? 0u : m_gas_ref_cnt[gas];
         m_gas_ref_cnt[gas] = ref_cnt + 1;
-        return gas;
+        return { gas, true };
     }
 
     auto gas = std::make_unique<GAS>(shape);
@@ -23,7 +23,14 @@ GAS *GASManager::RefGAS(const resource::Shape *shape) noexcept {
 
     m_gas_ref_cnt[gas.get()] = 1;
     m_gass[shape_id] = std::move(gas);
-    return m_gass[shape_id].get();
+    return { m_gass[shape_id].get(), false };
+}
+
+uint32_t GASManager::GetGASRefCnt(GAS *gas) const noexcept {
+    if (gas && m_gas_ref_cnt.find(gas) != m_gas_ref_cnt.end()) {
+        return m_gas_ref_cnt.at(gas);
+    }
+    return 0;
 }
 
 void GASManager::Release(GAS *gas) noexcept {
@@ -49,16 +56,19 @@ void GASManager::Destroy() noexcept {
 }
 
 GAS::GAS(const Pupil::resource::Shape *shape) noexcept
-    : m_handle(0), ref_shape(shape), m_buffer(0) {
+    : m_handle(0), ref_shape(shape), m_buffer(0), m_temp_buffer(0) {
     util::Singleton<resource::ShapeManager>::instance()->RefShape(shape);
 }
 
 GAS::~GAS() noexcept {
     util::Singleton<resource::ShapeManager>::instance()->Release(ref_shape);
     CUDA_FREE(m_buffer);
+    CUDA_FREE(m_temp_buffer);
 }
 
 void GAS::Create() noexcept {
+    CUDA_FREE(m_temp_buffer);
+    m_temp_buffer = m_buffer;
     if (ref_shape->type == resource::EShapeType::_unknown) {
         Log::Error("GAS creation failed.");
         return;
@@ -70,9 +80,14 @@ void GAS::Create() noexcept {
     CUdeviceptr d_temp_mem1 = 0;
     CUdeviceptr d_temp_mem2 = 0;
 
+    auto device_memory =
+        util::Singleton<resource::ShapeManager>::instance()->GetMeshDeviceMemory(ref_shape);
+
     if (ref_shape->type == resource::EShapeType::_sphere) {
-        CUdeviceptr d_center = cuda::CudaMemcpyToDevice((void *)&ref_shape->sphere.center, sizeof(ref_shape->sphere.center));
-        CUdeviceptr d_radius = cuda::CudaMemcpyToDevice((void *)&ref_shape->sphere.radius, sizeof(ref_shape->sphere.radius));
+        // CUdeviceptr d_center = cuda::CudaMemcpyToDevice((void *)&ref_shape->sphere.center, sizeof(ref_shape->sphere.center));
+        // CUdeviceptr d_radius = cuda::CudaMemcpyToDevice((void *)&ref_shape->sphere.radius, sizeof(ref_shape->sphere.radius));
+        CUdeviceptr d_center = device_memory.position;
+        CUdeviceptr d_radius = device_memory.normal;
         unsigned int sbt_index = 0;
         CUdeviceptr d_sbt_index = cuda::CudaMemcpyToDevice(&sbt_index, sizeof(sbt_index));
 
@@ -91,17 +106,21 @@ void GAS::Create() noexcept {
             .sbtIndexOffsetStrideInBytes = sizeof(sbt_index),
         };
 
-        d_temp_mem0 = d_center;
-        d_temp_mem1 = d_radius;
-        d_temp_mem2 = d_sbt_index;
+        // d_temp_mem0 = d_center;
+        // d_temp_mem1 = d_radius;
+        // d_temp_mem2 = d_sbt_index;
     } else if (ref_shape->type == resource::EShapeType::_hair) {
 
         // auto device_memory =
         //     util::Singleton<resource::ShapeManager>::instance()->GetMeshDeviceMemory(ref_shape);
 
-        CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->hair.positions, sizeof(float) * 3 * ref_shape->hair.point_num);
-        CUdeviceptr d_width = cuda::CudaMemcpyToDevice(ref_shape->hair.widths, sizeof(float) * ref_shape->hair.point_num);
-        CUdeviceptr d_index = cuda::CudaMemcpyToDevice(ref_shape->hair.strands_index, sizeof(uint32_t) * ref_shape->hair.segments_num);
+        // CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->hair.positions, sizeof(float) * 3 * ref_shape->hair.point_num);
+        // CUdeviceptr d_width = cuda::CudaMemcpyToDevice(ref_shape->hair.widths, sizeof(float) * ref_shape->hair.point_num);
+        // CUdeviceptr d_index = cuda::CudaMemcpyToDevice(ref_shape->hair.segments_index, sizeof(uint32_t) * ref_shape->hair.segments_num);
+
+        CUdeviceptr d_vertex = device_memory.position;
+        CUdeviceptr d_width = device_memory.width;
+        CUdeviceptr d_index = device_memory.index;
 
         input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
         input.curveArray = {
@@ -128,14 +147,18 @@ void GAS::Create() noexcept {
         else
             input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
 
-        d_temp_mem0 = d_vertex;
-        d_temp_mem1 = d_width;
-        d_temp_mem2 = d_index;
+        // d_temp_mem0 = d_vertex;
+        // d_temp_mem1 = d_width;
+        // d_temp_mem2 = d_index;
     } else {
         unsigned int vertex_num = ref_shape->mesh.vertex_num;
-        CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->mesh.positions, sizeof(float) * 3 * vertex_num);
+        // CUdeviceptr d_vertex = cuda::CudaMemcpyToDevice(ref_shape->mesh.positions, sizeof(float) * 3 * vertex_num);
         unsigned int index_triplets_num = ref_shape->mesh.face_num;
-        CUdeviceptr d_index = cuda::CudaMemcpyToDevice(ref_shape->mesh.indices, index_triplets_num * 3 * sizeof(unsigned int));
+        // CUdeviceptr d_index = cuda::CudaMemcpyToDevice(ref_shape->mesh.indices, index_triplets_num * 3 * sizeof(unsigned int));
+
+        CUdeviceptr d_vertex = device_memory.position;
+        CUdeviceptr d_index = device_memory.index;
+
         unsigned int sbt_index = 0;
         CUdeviceptr d_sbt_index = Pupil::cuda::CudaMemcpyToDevice(&sbt_index, sizeof(sbt_index));
 
@@ -158,9 +181,9 @@ void GAS::Create() noexcept {
             // .transformFormat = OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
         };
 
-        d_temp_mem0 = d_vertex;
-        d_temp_mem1 = d_index;
-        d_temp_mem2 = d_sbt_index;
+        // d_temp_mem0 = d_vertex;
+        // d_temp_mem1 = d_index;
+        // d_temp_mem2 = d_sbt_index;
     }
 
     auto context = Pupil::util::Singleton<Pupil::optix::Context>::instance();

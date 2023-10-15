@@ -88,7 +88,10 @@ struct ShapeLoader<EShapeType::_cube> {
         ShapeInstance ins;
         ins.name = obj->id;
         ins.shape = util::Singleton<ShapeManager>::instance()->LoadCube();
-        xml::LoadBool(obj, "flip_normals", ins.flip_normals, false);
+        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
+
+        ins.shape->mesh.face_normals = false;
+        ins.shape->mesh.flip_tex_coords = false;
         return ins;
     }
 };
@@ -99,7 +102,10 @@ struct ShapeLoader<EShapeType::_rectangle> {
         ShapeInstance ins;
         ins.name = obj->id;
         ins.shape = util::Singleton<ShapeManager>::instance()->LoadRectangle();
-        xml::LoadBool(obj, "flip_normals", ins.flip_normals, false);
+        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
+
+        ins.shape->mesh.face_normals = false;
+        ins.shape->mesh.flip_tex_coords = false;
         return ins;
     }
 };
@@ -115,7 +121,7 @@ struct ShapeLoader<EShapeType::_sphere> {
         ShapeInstance ins;
         ins.name = obj->id;
         ins.shape = util::Singleton<ShapeManager>::instance()->LoadSphere();
-        xml::LoadBool(obj, "flip_normals", ins.flip_normals, false);
+        xml::LoadBool(obj, "flip_normals", ins.shape->sphere.flip_normals, false);
 
         util::Transform transform;
         transform.Scale(radius, radius, radius);
@@ -136,9 +142,9 @@ struct ShapeLoader<EShapeType::_obj> {
         ins.name = obj->id;
         ins.shape = util::Singleton<ShapeManager>::instance()->LoadMeshShape(path.string());
 
-        xml::LoadBool(obj, "face_normals", ins.face_normals, false);
-        xml::LoadBool(obj, "flip_tex_coords", ins.flip_tex_coords, true);
-        xml::LoadBool(obj, "flip_normals", ins.flip_normals, false);
+        xml::LoadBool(obj, "face_normals", ins.shape->mesh.face_normals, false);
+        xml::LoadBool(obj, "flip_tex_coords", ins.shape->mesh.flip_tex_coords, true);
+        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
 
         return ins;
     }
@@ -152,7 +158,25 @@ struct ShapeLoader<EShapeType::_hair> {
 
         ShapeInstance ins;
         ins.name = obj->id;
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadHair(path.string());
+
+        bool tapered = false;
+        xml::LoadBool(obj, "tapered", tapered, false);
+
+        uint8_t mode = 2;
+        value = obj->GetProperty("spline_mode");
+        if (value.compare("linear") == 0)
+            mode = 0;
+        else if (value.compare("quadratic") == 0)
+            mode = 1;
+        else if (value.compare("cubic") == 0)
+            mode = 2;
+        else if (value.compare("catrom") == 0)
+            mode = 3;
+
+        float width = 0.f;
+        xml::LoadFloat(obj, "radius", width);
+
+        ins.shape = util::Singleton<ShapeManager>::instance()->LoadHair(path.string(), width, tapered, mode);
         return ins;
     }
 };
@@ -170,6 +194,7 @@ SHAPE_LOADER_DEFINE(PUPIL_SCENE_SHAPE);
 namespace {
 ShapeManager::MeshDeviceMemory m_d_cube{};
 ShapeManager::MeshDeviceMemory m_d_rect{};
+ShapeManager::MeshDeviceMemory m_d_sphere{};
 
 ShapeManager::MeshDeviceMemory GetCubeDeviceMemory() noexcept {
     if (m_d_cube.position == 0) {
@@ -188,6 +213,15 @@ ShapeManager::MeshDeviceMemory GetRectDeviceMemory() noexcept {
         m_d_rect.texcoord = cuda::CudaMemcpyToDevice(m_rect_texcoords, sizeof(m_rect_texcoords));
     }
     return m_d_rect;
+}
+ShapeManager::MeshDeviceMemory GetSphereDeviceMemory() noexcept {
+    if (m_d_sphere.position == 0) {
+        util::Float3 center{ 0.f };
+        m_d_sphere.position = cuda::CudaMemcpyToDevice(&center, sizeof(center));
+        float r = 1.f;
+        m_d_sphere.normal = cuda::CudaMemcpyToDevice(&r, sizeof(r));
+    }
+    return m_d_sphere;
 }
 }// namespace
 
@@ -293,13 +327,15 @@ void ShapeManager::LoadShapeFromFile(std::string_view file_path) noexcept {
 }
 
 ShapeManager::MeshDeviceMemory ShapeManager::GetMeshDeviceMemory(const Shape *shape) noexcept {
-    if (shape->type == EShapeType::_obj) {
+    if (shape->type == EShapeType::_obj || shape->type == EShapeType::_hair) {
         if (m_meshes.find(shape->file_path) != m_meshes.end())
             return m_meshes[shape->file_path]->device_memory;
     } else if (shape->type == EShapeType::_cube) {
         return GetCubeDeviceMemory();
     } else if (shape->type == EShapeType::_rectangle) {
         return GetRectDeviceMemory();
+    } else if (shape->type == EShapeType::_sphere) {
+        return GetSphereDeviceMemory();
     }
     return {};
 }
@@ -330,7 +366,7 @@ Shape *ShapeManager::LoadMeshShape(std::string_view file_path) noexcept {
     return m_id_shapes[id].get();
 }
 
-Shape *ShapeManager::LoadHair(std::string_view file_path) noexcept {
+Shape *ShapeManager::LoadHair(std::string_view file_path, float width, bool tapered, uint8_t mode) noexcept {
     if (m_meshes.find(file_path) != m_meshes.end()) {
         return m_mesh_shape[file_path.data()];
     }
@@ -344,8 +380,25 @@ Shape *ShapeManager::LoadHair(std::string_view file_path) noexcept {
         hair_data->positions.push_back(pos.z);
     }
 
+    const auto curve_degree = mode > 2 ? 3u : mode + 1u;
+
+    if (tapered) {
+        if (width == 0.f) width = hair_shape.widths[0];
+
+        for (int i = 0; i < hair_shape.strands_index.size() - 1; ++i) {
+            const uint32_t start = hair_shape.strands_index[i];
+            const uint32_t num = hair_shape.strands_index[i + 1] - start;
+            for (uint32_t index = 0; index < num; ++index)
+                hair_shape.widths[start + index] = width * (num - 1 - index) / static_cast<float>(num - 1);
+        }
+
+    } else if (width != 0.f) {
+        for (auto &w : hair_shape.widths) w = width;
+    }
+
+    hair_data->normals.swap(hair_shape.widths);
+
     // compute segments index
-    const auto curve_degree = 3u;
     for (int i = 0; i < hair_shape.strands_index.size() - 1; ++i) {
         const uint32_t start = hair_shape.strands_index[i];
         const uint32_t end = hair_shape.strands_index[i + 1] - curve_degree;
@@ -353,7 +406,8 @@ Shape *ShapeManager::LoadHair(std::string_view file_path) noexcept {
             hair_data->indices.push_back(segment_index);
     }
 
-    hair_data->normals.swap(hair_shape.widths);
+    hair_data->strand_indices.swap(hair_shape.strands_index);
+
     hair_data->device_memory.position = cuda::CudaMemcpyToDevice(hair_data->positions.data(), hair_data->positions.size() * sizeof(float));
     hair_data->device_memory.width = cuda::CudaMemcpyToDevice(hair_data->normals.data(), hair_data->normals.size() * sizeof(float));
     hair_data->device_memory.index = cuda::CudaMemcpyToDevice(hair_data->indices.data(), hair_data->indices.size() * sizeof(uint32_t));
@@ -368,12 +422,14 @@ Shape *ShapeManager::LoadHair(std::string_view file_path) noexcept {
     shape->id = id;
     shape->file_path = file_path;
     shape->type = EShapeType::_hair;
+    shape->hair.strands_num = static_cast<uint32_t>(it->second->strand_indices.size());
     shape->hair.point_num = static_cast<uint32_t>(it->second->positions.size() / 3);
     shape->hair.segments_num = static_cast<uint32_t>(it->second->indices.size());
-    shape->hair.flags = 2;
+    shape->hair.flags = (tapered ? 0b100 : 0b000) | mode;
+    shape->hair.strands_index = it->second->strand_indices.data();
     shape->hair.positions = it->second->positions.data();
     shape->hair.widths = it->second->normals.data();
-    shape->hair.strands_index = it->second->indices.data();
+    shape->hair.segments_index = it->second->indices.data();
     shape->aabb = it->second->aabb;
 
     m_mesh_shape[file_path.data()] = shape.get();
@@ -519,6 +575,7 @@ void ShapeManager::Clear() noexcept {
     m_sphere = nullptr;
     m_cube = nullptr;
     m_rect = nullptr;
+    m_sphere = nullptr;
     m_shape_ref_cnt.clear();
     m_id_shapes.clear();
     m_meshes.clear();

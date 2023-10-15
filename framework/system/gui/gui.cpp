@@ -808,7 +808,69 @@ void GuiPass::Scene(bool show) noexcept {
                         m_selected_ro->UpdateTransform(new_transform);
                     }
 
-                    ImGui::SeparatorText("Material");
+                    ImGui::SeparatorText("Shape");
+                    auto shape = util::Singleton<resource::ShapeManager>::instance()->GetShape(m_selected_ro->shape_id);
+                    bool dirty = false;
+
+                    if (shape->type == resource::EShapeType::_sphere) {
+                        ImGui::Text("Shape type: Sphere");
+                    } else if (shape->type == resource::EShapeType::_hair) {
+                        ImGui::Text("Shape type: Hair");
+                        const char *mode[] = { "Linear B-Spline", "Quadratic B-Spline", "Cubic B-Spline", "Catrom Spline" };
+                        ImGui::Text("  Curve type: %s", mode[shape->hair.flags & (0b11)]);
+                        ImGui::Text("  Segments number: %d", shape->hair.segments_num);
+                        ImGui::Text("  Control points number: %d", shape->hair.point_num);
+                        bool tapered = shape->hair.flags & (0b100);
+                        ImGui::Text("  ");
+                        ImGui::SameLine();
+
+                        float width = shape->hair.widths[0];
+                        if (ImGui::Checkbox("Tapered width", &tapered)) {
+                            shape->hair.flags ^= 0b100;
+                            dirty = true;
+
+                            if (tapered) {
+                                for (int i = 0; i < shape->hair.strands_num - 1; ++i) {
+                                    const uint32_t start = shape->hair.strands_index[i];
+                                    const uint32_t num = shape->hair.strands_index[i + 1] - start;
+                                    for (uint32_t index = 0; index < num; ++index)
+                                        shape->hair.widths[start + index] = width * (num - 1 - index) / static_cast<float>(num - 1);
+                                }
+                            } else {
+                                std::fill_n(shape->hair.widths, shape->hair.point_num, width);
+                            }
+                        }
+
+                        if (ImGui::InputFloat("Width", &width)) {
+                            dirty = true;
+                            if (tapered) {
+                                for (int i = 0; i < shape->hair.strands_num - 1; ++i) {
+                                    const uint32_t start = shape->hair.strands_index[i];
+                                    const uint32_t num = shape->hair.strands_index[i + 1] - start;
+                                    for (uint32_t index = 0; index < num; ++index)
+                                        shape->hair.widths[start + index] = width * (num - 1 - index) / static_cast<float>(num - 1);
+                                }
+                            } else {
+                                std::fill_n(shape->hair.widths, shape->hair.point_num, width);
+                            }
+                        }
+
+                        if (dirty) {
+                            auto d_hair_memory =
+                                util::Singleton<resource::ShapeManager>::instance()->GetMeshDeviceMemory(shape);
+
+                            cuda::CudaMemcpyToDevice(d_hair_memory.width, shape->hair.widths, shape->hair.point_num * sizeof(float));
+                        }
+
+                    } else {
+                        ImGui::Text("Shape type: Mesh");
+                    }
+
+                    if (dirty) {
+                        m_selected_ro->Reset(shape);
+                        dirty = false;
+                    }
+                    // ImGui::SeparatorText("Material");
                 }
 
                 ImGui::TreePop();

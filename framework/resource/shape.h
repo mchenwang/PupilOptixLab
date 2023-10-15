@@ -32,6 +32,9 @@ PUPIL_ENUM_DEFINE(EShapeType, PUPIL_SCENE_SHAPE)
 PUPIL_ENUM_STRING_ARRAY(S_SHAPE_TYPE_NAME, PUPIL_SCENE_SHAPE)
 
 struct Mesh {
+    bool face_normals;
+    bool flip_normals;
+    bool flip_tex_coords;
     uint32_t vertex_num;
     uint32_t face_num;
 
@@ -42,6 +45,7 @@ struct Mesh {
 };
 
 struct Sphere {
+    bool flip_normals = false;
     float radius;
     util::Float3 center{};
 };
@@ -49,6 +53,7 @@ struct Sphere {
 struct Hair {
     uint32_t segments_num;// number of segments
     uint32_t point_num;   // number of control points
+    uint32_t strands_num; // number of strands
     // bits 1~2: spline mode
     // ---- 00 : linear bspline
     // ---- 01 : quadratic bspline
@@ -61,6 +66,7 @@ struct Hair {
 
     float *positions;
     float *widths;
+    uint32_t *segments_index;
     uint32_t *strands_index;
 };
 
@@ -81,9 +87,6 @@ struct Shape {
 struct ShapeInstance {
     std::string name = "";
     Shape *shape = nullptr;
-    bool face_normals = false;
-    bool flip_tex_coords = false;
-    bool flip_normals = false;
 
     Material mat{};
     bool is_emitter = false;
@@ -114,7 +117,7 @@ public:
     Shape *LoadSphere(bool flip_normals = false) noexcept;
     Shape *LoadCube(bool flip_normals = false) noexcept;
     Shape *LoadRectangle(bool flip_normals = false) noexcept;
-    Shape *LoadHair(std::string_view) noexcept;
+    Shape *LoadHair(std::string_view, float width, bool tapered = false, uint8_t mode = 2) noexcept;
 
     MeshDeviceMemory GetMeshDeviceMemory(const Shape *) noexcept;
 
@@ -138,6 +141,7 @@ private:
         std::vector<float> normals;
         std::vector<float> texcoords;
         std::vector<uint32_t> indices;
+        std::vector<uint32_t> strand_indices;// for hair
         util::AABB aabb{};
 
         MeshDeviceMemory device_memory{};

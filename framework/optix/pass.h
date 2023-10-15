@@ -37,6 +37,8 @@ public:
         m_sbt = std::make_unique<SBT<T>>(desc, m_pipeline.get());
     }
 
+    SBT<T> *GetSBT() noexcept { return m_sbt.get(); }
+
     void SetExternalLaunchParamPtr(CUdeviceptr cuda_memory) noexcept {
         m_param_cuda_memory = reinterpret_cast<void *>(cuda_memory);
         m_use_inner_param = false;

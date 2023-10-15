@@ -28,11 +28,14 @@ public:
 private:
     OptixTraversableHandle m_handle;
     CUdeviceptr m_buffer;
+    CUdeviceptr m_temp_buffer;
 };
 
 class GASManager : util::Singleton<GASManager> {
 public:
-    GAS *RefGAS(const resource::Shape *) noexcept;
+    std::pair<GAS *, bool> RefGAS(const resource::Shape *) noexcept;
+
+    uint32_t GetGASRefCnt(GAS *) const noexcept;
 
     void Release(GAS *) noexcept;
     void ClearDanglingMemory() noexcept;
