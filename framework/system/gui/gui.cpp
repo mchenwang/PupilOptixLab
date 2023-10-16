@@ -915,6 +915,7 @@ void GuiPass::OnDraw() noexcept {
         if (m_scene_file_browser.HasSelected()) {
             EventDispatcher<ESystemEvent::StopRendering>();
             m_waiting_scene_load = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
             if (auto canvas_buffer = GetReadyOutputBuffer().system_buffer; canvas_buffer) {
                 auto size = canvas_buffer->desc.width * canvas_buffer->desc.height * canvas_buffer->desc.stride_in_byte;

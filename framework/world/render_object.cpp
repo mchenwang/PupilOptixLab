@@ -10,6 +10,7 @@ namespace Pupil::world {
 RenderObject::RenderObject(const resource::ShapeInstance &ins, unsigned int v_mask) noexcept
     : name(ins.name), transform(ins.transform), visibility_mask(v_mask) {
     Reset(ins.shape);
+    is_emitter = ins.is_emitter;
 
     mat.LoadMaterial(ins.mat);
 }
@@ -25,7 +26,6 @@ void RenderObject::Reset(const resource::Shape *shape) noexcept {
     shape_id = shape->id;
     aabb = shape->aabb;
     aabb.Transform(transform);
-    is_emitter = is_emitter;
 
     if (shape->type == resource::EShapeType::_sphere) {
         geo.type = optix::Geometry::EType::Sphere;
