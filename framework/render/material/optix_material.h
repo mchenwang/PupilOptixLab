@@ -32,17 +32,41 @@ struct Material {
             RoughPlastic::Local rough_plastic;
         };
 
-#ifdef PUPIL_OPTIX
-        CUDA_DEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
-            optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
-                ((unsigned int)type - 1) * 2, record, *this);
-        }
+        // #ifdef PUPIL_OPTIX
+        //         CUDA_DEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+        //             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
+        //                 ((unsigned int)type - 1) * 2, record, *this);
+        //         }
 
-        CUDA_DEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
-            optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
-                ((unsigned int)type - 1) * 2 + 1, record, *this);
-        }
-#else
+        //         CUDA_DEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
+        //             optixDirectCall<void, BsdfSamplingRecord &, const Material::LocalBsdf &>(
+        //                 ((unsigned int)type - 1) * 2 + 1, record, *this);
+        //         }
+        // #else
+        //         CUDA_DEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
+        //             switch (type) {
+        // #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, attr) \
+//     case EMatType::##enum_type:                          \
+//         attr.Sample(record);                             \
+//         break;
+        // #include "decl/material_decl.inl"
+        // #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
+        //             }
+        //         }
+
+        //         CUDA_DEVICE void Eval(BsdfSamplingRecord &record) const noexcept {
+        //             switch (type) {
+        // #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, attr) \
+//     case EMatType::##enum_type:                          \
+//         attr.GetBsdf(record);                            \
+//         attr.GetPdf(record);                             \
+//         break;
+        // #include "decl/material_decl.inl"
+        // #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
+        //             }
+        //         }
+        // #endif
+
         CUDA_DEVICE void Sample(BsdfSamplingRecord &record) const noexcept {
             switch (type) {
 #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, attr) \
@@ -65,7 +89,7 @@ struct Material {
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
             }
         }
-#endif
+
         CUDA_DEVICE float3 GetAlbedo() const noexcept {
             switch (type) {
                 case EMatType::Diffuse:
