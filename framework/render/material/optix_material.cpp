@@ -117,6 +117,20 @@ MATERIAL_LOAD_FUNC(RoughPlastic) {
     return ret;
 }
 
+MATERIAL_LOAD_FUNC(HairAttr) {
+    Pupil::optix::material::HairAttr ret;
+    auto tex_mngr = util::Singleton<cuda::CudaTextureManager>::instance();
+    ret.sigma_a = tex_mngr->GetCudaTexture(mat.sigma_a);
+
+    ret.longitudinal_v = float3(mat.longitudinal_v.x,mat.longitudinal_v.y,mat.longitudinal_v.z);
+    ret.azimuthal_s = mat.azimuthal_s;
+    
+    ret.sin_2k_alpha = float3(mat.sin_2k_alpha.x,mat.sin_2k_alpha.x,mat.sin_2k_alpha.z);
+    ret.cos_2k_alpha = float3(mat.cos_2k_alpha.x,mat.cos_2k_alpha.y,mat.cos_2k_alpha.z);
+
+    return ret;
+}
+
 namespace Pupil::optix::material {
 void Material::LoadMaterial(Pupil::resource::Material mat) noexcept {
     type = mat.type;

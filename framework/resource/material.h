@@ -62,6 +62,16 @@ struct RoughPlastic {
     util::Texture specular_reflectance;
 };
 
+struct HairAttr {
+    util::Texture sigma_a;
+
+    util::Float3 longitudinal_v;
+    util::Float3 sin_2k_alpha;
+    util::Float3 cos_2k_alpha;
+
+    float azimuthal_s;
+};
+
 // struct PrincipledBSDF {
 // };
 
@@ -77,6 +87,7 @@ struct Material {
         RoughConductor rough_conductor;
         Plastic plastic;
         RoughPlastic rough_plastic;
+        HairAttr hair;
     };
 
     Material() noexcept {}

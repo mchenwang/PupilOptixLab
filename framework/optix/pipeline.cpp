@@ -16,7 +16,7 @@ OptixPipelineCompileOptions Pipeline::pipeline_compile_options = {
     .traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING,
     .numPayloadValues = 2,
     .numAttributeValues = 2,
-    .exceptionFlags = OPTIX_EXCEPTION_FLAG_DEBUG | OPTIX_EXCEPTION_FLAG_TRACE_DEPTH | OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW,
+    .exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE,
     .pipelineLaunchParamsVariableName = "optix_launch_params",
     .usesPrimitiveTypeFlags =
         static_cast<unsigned int>(OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE) |
@@ -157,7 +157,7 @@ Pipeline::Pipeline(const PipelineDesc &desc) noexcept {
     {
         OptixPipelineLinkOptions pipeline_link_options = {};
         pipeline_link_options.maxTraceDepth = desc.max_trace_depth;
-        pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
+        //pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
 
         OPTIX_CHECK_LOG(optixPipelineCreate(
             *ctx,

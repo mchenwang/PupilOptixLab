@@ -115,7 +115,7 @@ void IAS::Create(std::vector<OptixInstance> &instances, unsigned int gas_offset,
 
 void IAS::Update(std::vector<OptixInstance> &instances) noexcept {
     OptixAccelBuildOptions accel_options{
-        .buildFlags = OPTIX_BUILD_FLAG_ALLOW_COMPACTION | OPTIX_BUILD_FLAG_ALLOW_UPDATE,
+        .buildFlags = OPTIX_BUILD_FLAG_ALLOW_COMPACTION | OPTIX_BUILD_FLAG_ALLOW_UPDATE|OPTIX_BUILD_FLAG_PREFER_FAST_TRACE,
         .operation = OPTIX_BUILD_OPERATION_UPDATE
     };
 

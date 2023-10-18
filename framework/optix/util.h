@@ -181,4 +181,18 @@ CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
 CUDA_INLINE CUDA_HOSTDEVICE float Lerp(const float &a, const float &b, const float t) noexcept {
     return a + t * (b - a);
 }
+
+CUDA_INLINE CUDA_HOSTDEVICE float SafeSqrt(float x) noexcept {
+    return sqrt(max(0.f,x));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float Sqr(float x) noexcept {
+    return x*x;
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float SafeASin(float x) noexcept {
+    return asin(clamp(x,-1.f,1.f));
+}
+
+
 }// namespace Pupil::optix
