@@ -18,6 +18,7 @@ struct Material {
         RoughConductor rough_conductor;
         Plastic plastic;
         RoughPlastic rough_plastic;
+        HairAttr hair;
     };
 
     struct LocalBsdf {
@@ -30,6 +31,7 @@ struct Material {
             RoughConductor::Local rough_conductor;
             Plastic::Local plastic;
             RoughPlastic::Local rough_plastic;
+            HairAttr::Local hair;
         };
 
         // #ifdef PUPIL_OPTIX

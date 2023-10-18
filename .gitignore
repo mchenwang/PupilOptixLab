@@ -1,7 +1,9 @@
 build/
+cmake*/
 test/
 target/
 .vscode/
+.idea
 *.ptx
 data/*
 !data/static/*

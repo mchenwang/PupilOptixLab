@@ -155,6 +155,42 @@ struct MaterialLoader<EMatType::Twosided> {
     }
 };
 
+template<>
+struct MaterialLoader<EMatType::Hair> {
+    Material operator()(const resource::xml::Object *obj, resource::Scene *scene) {
+        Material mat{};
+        mat.type = EMatType::Hair;
+        float beta_m, beta_n, alpha;
+        resource::xml::LoadFloat(obj, std::string_view("beta_m"), beta_m, 0.3f);
+        resource::xml::LoadFloat(obj, "beta_n", beta_n, 0.3f);
+        resource::xml::LoadFloat(obj, "alpha", alpha, 0.f);
+
+        util::Float3 v, sin_2k_alpha, cos_2k_alpha;
+
+        v.x = pow(0.726f * beta_m + 0.812f * pow(beta_m, 2) + 3.7f * pow(beta_m, 20.f), 2);
+        v.y = 0.25f * v.x;
+        v.z = 4 * v.x;
+
+        float s;
+        s = 0.626657069f *
+            (0.265f * beta_n + 1.194f * pow(beta_n, 2) + 5.372f * pow(beta_n, 22.f));
+
+        sin_2k_alpha.x = sin(alpha);
+        cos_2k_alpha.x = sqrt(1 - pow(sin_2k_alpha.x, 2));
+        sin_2k_alpha.y = 2 * cos_2k_alpha.x * sin_2k_alpha.x;
+        cos_2k_alpha.y = pow(cos_2k_alpha.x, 2) - pow(sin_2k_alpha.x, 2);
+        sin_2k_alpha.z = 2 * cos_2k_alpha.y * sin_2k_alpha.y;
+        cos_2k_alpha.z = pow(cos_2k_alpha.y, 2) - pow(sin_2k_alpha.y, 2);
+
+        mat.hair.longitudinal_v = v;
+        mat.hair.azimuthal_s = s;
+        mat.hair.sin_2k_alpha = sin_2k_alpha;
+        mat.hair.cos_2k_alpha = cos_2k_alpha;
+        resource::xml::LoadTextureOrRGB(obj, scene, "sigma_a", mat.hair.sigma_a, { 0.06f,0.1f,0.2f });
+        return mat;
+    }
+};
+
 using LoaderType = std::function<Material(const resource::xml::Object *, resource::Scene *)>;
 
 #define MAT_LOADER(mat) MaterialLoader<EMatType::##_##mat>()

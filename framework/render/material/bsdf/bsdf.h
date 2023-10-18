@@ -50,3 +50,4 @@ CUDA_INLINE CUDA_HOSTDEVICE bool operator&(EBsdfLobeType target, EBsdfLobeType t
 #include "rough_conductor.h"
 #include "plastic.h"
 #include "rough_plastic.h"
+#include "HairAttr.h"

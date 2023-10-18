@@ -114,7 +114,13 @@ struct Geometry {
                 float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
-                ret.texcoord = make_float2(0.f);
+
+                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
+                float h = dot(y,ret.normal);
+                
+                ret.normal = tangent;
+                ret.texcoord = make_float2(h,0.f);
             } break;
             case EType::QuadraticBSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
@@ -132,7 +138,13 @@ struct Geometry {
                 float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
-                ret.texcoord = make_float2(0.f);
+
+                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
+                float h = dot(y,ret.normal);
+
+                ret.normal = tangent;
+                ret.texcoord = make_float2(h,0.f);
             } break;
             case EType::CubicBSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
@@ -150,7 +162,13 @@ struct Geometry {
                 float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
-                ret.texcoord = make_float2(0.f);
+
+                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
+                float h = dot(y,ret.normal);
+
+                ret.normal = tangent;
+                ret.texcoord = make_float2(h,0.f);
             } break;
             case EType::CatromSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
@@ -168,7 +186,13 @@ struct Geometry {
                 float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
-                ret.texcoord = make_float2(0.f);
+
+                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
+                float h = dot(y,ret.normal);
+                
+                ret.normal = tangent;
+                ret.texcoord = make_float2(h,0.f);
             } break;
         }
     }
