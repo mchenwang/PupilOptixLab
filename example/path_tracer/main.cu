@@ -103,13 +103,6 @@ extern "C" __global__ void __raygen__main() {
 
     optix_launch_params.test[pixel_index] = record.random.Next();
 
-    // if (!record.done)
-    // record.radiance = make_float3(record.test);
-
-    // optix_launch_params.accum_buffer[pixel_index] = make_float4(record.radiance, 1.f);
-    // optix_launch_params.frame_buffer[pixel_index] = make_float4(record.radiance, 1.f);
-    // return;
-
     while (!record.done) {
         ++depth;
         if (depth >= optix_launch_params.config.max_depth)

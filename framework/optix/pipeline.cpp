@@ -157,7 +157,7 @@ Pipeline::Pipeline(const PipelineDesc &desc) noexcept {
     {
         OptixPipelineLinkOptions pipeline_link_options = {};
         pipeline_link_options.maxTraceDepth = desc.max_trace_depth;
-        //pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+        // pipeline_link_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 
         OPTIX_CHECK_LOG(optixPipelineCreate(
             *ctx,
