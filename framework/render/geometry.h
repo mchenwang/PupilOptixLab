@@ -101,6 +101,8 @@ struct Geometry {
             case EType::LinearBSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
 
+                const auto u = optixGetCurveParameter();
+
                 const auto gas = optixGetGASTraversableHandle();
                 const auto prim_idx = optixGetPrimitiveIndex();
                 const auto gas_sbt_idx = optixGetSbtGASIndex();
@@ -112,18 +114,20 @@ struct Geometry {
                 interpolator.Initialize(ctrl_points);
 
                 float3 local_pos = optixTransformPointFromWorldToObjectSpace(ret.position);
-                ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
+                ret.normal = SurfaceNormal(interpolator, u, local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
 
-                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
-                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
-                float h = dot(y,ret.normal);
-                
+                float3 tangent = CurveTangent(interpolator, u);
+                float3 y = normalize(cross(optixGetWorldRayDirection(), tangent));
+                float v = dot(y, ret.normal);
+
                 ret.normal = tangent;
-                ret.texcoord = make_float2(h,0.f);
+                ret.texcoord = make_float2(u, v);
             } break;
             case EType::QuadraticBSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto u = optixGetCurveParameter();
 
                 const auto gas = optixGetGASTraversableHandle();
                 const auto prim_idx = optixGetPrimitiveIndex();
@@ -139,15 +143,17 @@ struct Geometry {
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
 
-                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
-                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
-                float h = dot(y,ret.normal);
+                float3 tangent = CurveTangent(interpolator, optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(), tangent));
+                float v = dot(y, ret.normal);
 
                 ret.normal = tangent;
-                ret.texcoord = make_float2(h,0.f);
+                ret.texcoord = make_float2(u, v);
             } break;
             case EType::CubicBSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto u = optixGetCurveParameter();
 
                 const auto gas = optixGetGASTraversableHandle();
                 const auto prim_idx = optixGetPrimitiveIndex();
@@ -163,15 +169,17 @@ struct Geometry {
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
 
-                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
-                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
-                float h = dot(y,ret.normal);
+                float3 tangent = CurveTangent(interpolator, optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(), tangent));
+                float v = dot(y, ret.normal);
 
                 ret.normal = tangent;
-                ret.texcoord = make_float2(h,0.f);
+                ret.texcoord = make_float2(u, v);
             } break;
             case EType::CatromSpline: {
                 ret.position = optixGetWorldRayOrigin() + optixGetRayTmax() * optixGetWorldRayDirection();
+
+                const auto u = optixGetCurveParameter();
 
                 const auto gas = optixGetGASTraversableHandle();
                 const auto prim_idx = optixGetPrimitiveIndex();
@@ -187,12 +195,12 @@ struct Geometry {
                 ret.normal = SurfaceNormal(interpolator, optixGetCurveParameter(), local_pos);
                 ret.normal = optixTransformNormalFromObjectToWorldSpace(ret.normal);
 
-                float3 tangent = CurveTangent(interpolator,optixGetCurveParameter());
-                float3 y = normalize(cross(optixGetWorldRayDirection(),tangent));
-                float h = dot(y,ret.normal);
-                
+                float3 tangent = CurveTangent(interpolator, optixGetCurveParameter());
+                float3 y = normalize(cross(optixGetWorldRayDirection(), tangent));
+                float v = dot(y, ret.normal);
+
                 ret.normal = tangent;
-                ret.texcoord = make_float2(h,0.f);
+                ret.texcoord = make_float2(u, v);
             } break;
         }
     }

@@ -50,7 +50,7 @@ struct Sphere {
     util::Float3 center{};
 };
 
-struct Hair {
+struct HairShape {
     uint32_t segments_num;// number of segments
     uint32_t point_num;   // number of control points
     uint32_t strands_num; // number of strands
@@ -78,7 +78,7 @@ struct Shape {
     union {
         Mesh mesh;
         Sphere sphere{};
-        Hair hair;
+        HairShape hair;
     };
 
     util::AABB aabb{};

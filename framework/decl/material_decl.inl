@@ -43,4 +43,15 @@ PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Plastic,         plastic)
 PUPIL_MATERIAL_TYPE_ATTR_DEFINE(RoughPlastic,    rough_plastic)
 PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Hair,            hair)
 #endif
+
+#ifdef PUPIL_MATERIAL_ALBEDO_DEFINE
+PUPIL_MATERIAL_ALBEDO_DEFINE(Diffuse,         diffuse,          reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(Dielectric,      dielectric,       specular_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(RoughDielectric, rough_dielectric, specular_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(Conductor,       conductor,        specular_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(RoughConductor,  rough_conductor,  specular_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(Plastic,         plastic,          diffuse_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(RoughPlastic,    rough_plastic,    diffuse_reflectance)
+PUPIL_MATERIAL_ALBEDO_DEFINE(Hair,            hair,             sigma_a)
+#endif
 // clang-format on

@@ -183,16 +183,31 @@ CUDA_INLINE CUDA_HOSTDEVICE float Lerp(const float &a, const float &b, const flo
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float SafeSqrt(float x) noexcept {
-    return sqrt(max(0.f,x));
+    return sqrt(max(0.f, x));
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float Sqr(float x) noexcept {
-    return x*x;
+    return x * x;
 }
 
 CUDA_INLINE CUDA_HOSTDEVICE float SafeASin(float x) noexcept {
-    return asin(clamp(x,-1.f,1.f));
+    return asin(clamp(x, -1.f, 1.f));
 }
 
+CUDA_INLINE CUDA_HOSTDEVICE float Exp(float x) noexcept {
+    return exp(x);
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float2 Exp(float2 v) noexcept {
+    return make_float2(exp(v.x), exp(v.y));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float3 Exp(float3 v) noexcept {
+    return make_float3(exp(v.x), exp(v.y), exp(v.z));
+}
+
+CUDA_INLINE CUDA_HOSTDEVICE float4 Exp(float4 v) noexcept {
+    return make_float4(exp(v.x), exp(v.y), exp(v.z), exp(v.w));
+}
 
 }// namespace Pupil::optix

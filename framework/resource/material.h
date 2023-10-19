@@ -62,14 +62,12 @@ struct RoughPlastic {
     util::Texture specular_reflectance;
 };
 
-struct HairAttr {
+struct Hair {
+    float azimuthal_s;
     util::Texture sigma_a;
-
     util::Float3 longitudinal_v;
     util::Float3 sin_2k_alpha;
     util::Float3 cos_2k_alpha;
-
-    float azimuthal_s;
 };
 
 // struct PrincipledBSDF {
@@ -80,14 +78,9 @@ struct Material {
     bool twosided = false;
 
     union {
-        Diffuse diffuse{};
-        Dielectric dielectric;
-        RoughDielectric rough_dielectric;
-        Conductor conductor;
-        RoughConductor rough_conductor;
-        Plastic plastic;
-        RoughPlastic rough_plastic;
-        HairAttr hair;
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Type, attr) Type attr;
+#include "decl/material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
     };
 
     Material() noexcept {}
@@ -95,29 +88,29 @@ struct Material {
 
 Material LoadMaterialFromXml(const Pupil::resource::xml::Object *, Pupil::resource::Scene *) noexcept;
 
-inline auto GetMaterialProgramDesc() noexcept {
-    auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
-    auto mat_module_ptr = module_mngr->GetModule(optix::EModuleBuiltinType::Material);
-    return std::array{
-#define _PUPIL_TO_STRING(var) #var
-#define PUPIL_TO_STRING(var) _PUPIL_TO_STRING(var)
-#define PUPIL_MATERIAL_ATTR_DEFINE(attr)                            \
-    optix::CallableProgramDesc{                                     \
-        .module_ptr = mat_module_ptr,                               \
-        .cc_entry = nullptr,                                        \
-        .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_SAMPLE_CALL(attr)),   \
-    },                                                              \
-        optix::CallableProgramDesc{                                 \
-            .module_ptr = mat_module_ptr,                           \
-            .cc_entry = nullptr,                                    \
-            .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_EVAL_CALL(attr)), \
-        },
-#include "decl/material_decl.inl"
-#undef PUPIL_MATERIAL_ATTR_DEFINE
-#undef PUPIL_TO_STRING
-#undef _PUPIL_TO_STRING
-    };
-}
+// inline auto GetMaterialProgramDesc() noexcept {
+//     auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
+//     auto mat_module_ptr = module_mngr->GetModule(optix::EModuleBuiltinType::Material);
+//     return std::array{
+// #define _PUPIL_TO_STRING(var) #var
+// #define PUPIL_TO_STRING(var) _PUPIL_TO_STRING(var)
+// #define PUPIL_MATERIAL_ATTR_DEFINE(attr)                            \
+//     optix::CallableProgramDesc{                                     \
+//         .module_ptr = mat_module_ptr,                               \
+//         .cc_entry = nullptr,                                        \
+//         .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_SAMPLE_CALL(attr)),   \
+//     },                                                              \
+//         optix::CallableProgramDesc{                                 \
+//             .module_ptr = mat_module_ptr,                           \
+//             .cc_entry = nullptr,                                    \
+//             .dc_entry = PUPIL_TO_STRING(PUPIL_MAT_EVAL_CALL(attr)), \
+//         },
+// #include "decl/material_decl.inl"
+// #undef PUPIL_MATERIAL_ATTR_DEFINE
+// #undef PUPIL_TO_STRING
+// #undef _PUPIL_TO_STRING
+//     };
+// }
 }// namespace Pupil::resource
 
 #endif

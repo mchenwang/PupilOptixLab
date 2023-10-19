@@ -47,7 +47,7 @@ macro(cuda_compile_and_embed output_var cuda_file)
             -D PUPIL_OPTIX
             -Xcompiler "/utf-8"
             -I ${OptiX_ROOT_DIR}/include
-            -I ${CMAKE_CURRENT_SOURCE_DIR}
+            # -I ${CMAKE_CURRENT_SOURCE_DIR}
             -I ${pupil_framework_root}
     )
     set(ptx_file ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file}.ptx)
