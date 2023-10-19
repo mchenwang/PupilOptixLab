@@ -15,7 +15,7 @@ public:
     template<typename Func, typename... Ts>
         requires(std::invocable<Func, Ts...> && std::is_same_v<void, std::invoke_result_t<Func, Ts && ...>>)
     void AddTask(Func &&func, Ts &&...args) noexcept {
-        if (!m_init_flag) {
+        if (!m_impl) {
             func(std::forward<Ts>(args)...);
             return;
         }
@@ -26,9 +26,7 @@ public:
     template<typename Func, typename... Ts>
         requires std::invocable<Func, Ts...>
     [[nodiscard]] auto AddTaskWithReturnValue(Func &&func, Ts &&...args) noexcept {
-        if (!m_init_flag) {
-            return func(std::forward<Ts>(args)...);
-        }
+        if (!m_impl) { return func(std::forward<Ts>(args)...); }
 
         using ReturnType = std::invoke_result_t<Func, Ts &&...>;
         auto shared_promise = std::make_shared<std::promise<ReturnType>>();
@@ -41,9 +39,12 @@ public:
         return ret_futre;
     }
 
+    void JoinAll() noexcept;
+
 private:
     void Enqueue(std::function<void()> &&) noexcept;
 
-    bool m_init_flag = false;
+    struct Impl;
+    static Impl *m_impl;
 };
 }// namespace Pupil::util
