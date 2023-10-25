@@ -60,7 +60,7 @@ CyHair CyHair::LoadFromFile(std::string_view file_path) noexcept {
         hair.aabb.Merge(pos);
     }
 
-    hair.aabb.max -= util::Float3(max_width);
+    hair.aabb.min -= util::Float3(max_width);
     hair.aabb.max += util::Float3(max_width);
 
     return hair;
