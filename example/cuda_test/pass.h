@@ -1,7 +1,6 @@
 #pragma once
 
 #include "system/pass.h"
-#include "system/world.h"
 #include "util/timer.h"
 
 #include "cuda/stream.h"
