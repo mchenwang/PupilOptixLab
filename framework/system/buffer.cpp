@@ -51,7 +51,7 @@ Buffer *BufferManager::AllocBuffer(const BufferDesc &desc) noexcept {
         winrt::com_ptr<ID3D12Resource> temp_res;
         DirectX::StopIfFailed(dx12_context->device->CreateCommittedResource(
             &properties, D3D12_HEAP_FLAG_SHARED, &d3d12_buffer_desc,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr,
+            D3D12_RESOURCE_STATE_COMMON, nullptr,
             winrt::guid_of<ID3D12Resource>(), temp_res.put_void()));
         buffer->dx12_ptr = temp_res;
         if (desc.name != nullptr)

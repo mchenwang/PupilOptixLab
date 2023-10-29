@@ -209,10 +209,8 @@ void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
         auto srv_cpu_handle = dx_ctx->srv_heap->GetCPUDescriptorHandleForHeapStart();
         auto srv_gpu_handle = dx_ctx->srv_heap->GetGPUDescriptorHandleForHeapStart();
         auto rtv_cpu_handle = dx_ctx->rtv_heap->GetCPUDescriptorHandleForHeapStart();
-        auto rtv_gpu_handle = dx_ctx->rtv_heap->GetGPUDescriptorHandleForHeapStart();
 
         rtv_cpu_handle.ptr += rtv_descriptor_handle_size * 2;
-        rtv_gpu_handle.ptr += rtv_descriptor_handle_size * 2;
 
         for (auto i = 0u; i < SWAP_BUFFER_NUM; ++i) {
             auto d3d12_res_desc = CD3DX12_RESOURCE_DESC::Tex2D(
@@ -241,7 +239,6 @@ void GuiPass::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
             dx_ctx->device->CreateShaderResourceView(m_flip_buffers[i].res.get(), &tex_srv_desc, srv_cpu_handle);
 
             rtv_cpu_handle.ptr += rtv_descriptor_handle_size;
-            rtv_gpu_handle.ptr += rtv_descriptor_handle_size;
             m_flip_buffers[i].output_rtv = rtv_cpu_handle;
 
             dx_ctx->device->CreateRenderTargetView(m_flip_buffers[i].res.get(), nullptr, rtv_cpu_handle);
@@ -1097,7 +1094,7 @@ void GuiPass::InitRenderToTexturePipeline() noexcept {
             &heap_properties,
             D3D12_HEAP_FLAG_NONE,
             &vb_desc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             winrt::guid_of<ID3D12Resource>(), m_vb.put_void()));
 
