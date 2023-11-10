@@ -1,13 +1,14 @@
+---
 Language: Cpp
-BasedOnStyle: LLVM
+# BasedOnStyle: LLVM
 AccessModifierOffset: -4
-AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: None
+AlignAfterOpenBracket: Align 
+AlignConsecutiveAssignments: true 
+AlignConsecutiveDeclarations: true
+AlignEscapedNewlines: Left
 AlignOperands: Align
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
-AllowAllArgumentsOnNextLine: true
-AllowAllConstructorInitializersOnNextLine: true
-AllowAllParametersOfDeclarationOnNextLine: true
+AlignTrailingComments: true
+AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
@@ -15,11 +16,13 @@ AllowShortIfStatementsOnASingleLine: true
 AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
 AllowShortEnumsOnASingleLine: true
+AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
-AlwaysBreakTemplateDeclarations: MultiLine
-BreakBeforeBraces: Attach
-Cpp11BracedListStyle: false
-IndentWrappedFunctionNames: false
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+AlignConsecutiveMacros: true
+BinPackArguments: true
+BinPackParameters: true
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false
@@ -28,8 +31,8 @@ BraceWrapping:
   AfterFunction: false
   AfterNamespace: false
   AfterUnion: false
-  BeforeCatch: false
-  BeforeElse: false
+  BeforeCatch: true
+  BeforeElse: true
   BeforeLambdaBody: false
   IndentBraces: false
   SplitEmptyFunction: false
@@ -45,8 +48,6 @@ BreakBeforeInheritanceComma: false
 BreakAfterJavaFieldAnnotations: true
 BreakStringLiterals: true
 BreakConstructorInitializersBeforeComma: false
-AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
 ColumnLimit: 0
 SortIncludes: false
 CompactNamespaces: true
@@ -57,10 +58,10 @@ IndentExternBlock: NoIndent
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: true
 MaxEmptyLinesToKeep: 1
-NamespaceIndentation: None
+NamespaceIndentation: All
 ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: false
-PointerAlignment: Right
+PointerAlignment: Left
 ReflowComments: false
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
@@ -83,4 +84,6 @@ UseTab: Never
 IndentRequires: true
 SpacesInConditionalStatement: false
 SortUsingDeclarations: true
-AlignEscapedNewlines: Left
+Standard: c++20
+...
+
