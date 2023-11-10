@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cuda/preprocessor.h"
-#include "cuda/random.h"
+#include "cuda/util.h"
 
 namespace Pupil::optix {
     enum class EBsdfLobeType : unsigned int {

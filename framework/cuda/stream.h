@@ -46,16 +46,16 @@ namespace Pupil::cuda {
     };
 
     /**
- * None ---------------------------------------------------------------->
- * 
- * Shape --> GAS --> IAS ----------------|
- *       \                               |                   Downloading
- *        --------------->               |                  /
- *                         \           Global------> Render ---->
- * Texture --> Material --> SBT ---------|------|
- *         \                             |
- *          ------> Emitter -------------|
-*/
+     * None ---------------------------------------------------------------->
+     * 
+     * Shape --> GAS --> IAS ----------------|
+     *       \                               |                   Downloading
+     *        --------------->               |                  /
+     *                         \           Global------> Render ---->
+     * Texture --> Material --> SBT ---------|------|
+     *         \                             |
+     *          ------> Emitter -------------|
+    */
     enum class EStreamTaskType : unsigned int {
         Render            = 1 << 0,
         ShapeUploading    = 1 << 1,
@@ -69,6 +69,7 @@ namespace Pupil::cuda {
         GASCreation    = 1 << 8,
         IASCreation    = 1 << 9,
         BufferCreation = 1 << 10,
+        GUIInterop     = 1 << 11,
 
         None      = 1 << 12,
         Custom_1  = 1 << 13,
@@ -101,14 +102,14 @@ namespace Pupil::cuda {
         ~StreamManager() noexcept;
 
         /**
-     * @param task_type specific type of task
-     * @note task only has one type
-    */
+         * @param task_type specific type of task
+         * @note task only has one type
+        */
         util::CountableRef<Stream> Alloc(EStreamTaskType task_type) noexcept;
         /**
-     * @param task_type specific types of tasks
-     * @note multi-types can be synchronized at the same time
-    */
+         * @param task_type specific types of tasks
+         * @note multi-types can be synchronized at the same time
+        */
         void Synchronize(EStreamTaskType task_type) noexcept;
 
         void Destroy() noexcept;

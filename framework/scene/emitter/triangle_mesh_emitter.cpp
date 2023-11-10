@@ -1,6 +1,6 @@
 #include "scene/emitter.h"
 
-#include "cuda/util.h"
+#include "cuda/check.h"
 #include "cuda/stream.h"
 
 namespace Pupil {

@@ -1,5 +1,5 @@
 #include "buffer.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 #include "cuda/stream.h"
 #include "cuda/context.h"
 #include "dx12/d3dx12.h"

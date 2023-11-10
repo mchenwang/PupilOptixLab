@@ -2,7 +2,7 @@
 #include "gas.h"
 #include "scene.h"
 #include "cuda/stream.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 #include "optix/context.h"
 #include "optix/check.h"
 

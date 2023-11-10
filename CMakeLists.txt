@@ -34,7 +34,7 @@ find_program(BIN2C bin2c
 
 set(pupil_cuda_device_file_dependencies 
     ${pupil_framework_root}/cuda/preprocessor.h
-    ${pupil_framework_root}/cuda/data_view.h
+    ${pupil_framework_root}/cuda/util.h
     ${pupil_framework_root}/cuda/vec_math.h
     CACHE INTERNAL "")
 

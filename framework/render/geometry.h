@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuda/data_view.h"
+#include "cuda/util.h"
 #include <vector_types.h>
 
 #ifdef PUPIL_OPTIX

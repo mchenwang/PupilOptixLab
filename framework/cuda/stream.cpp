@@ -1,10 +1,10 @@
 #include "stream.h"
+#include "check.h"
 
-#include "util.h"
 #include "util/log.h"
 
 #include <array>
-#include <queue>
+#include <list>
 #include <mutex>
 
 namespace Pupil::cuda {

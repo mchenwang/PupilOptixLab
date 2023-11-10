@@ -1,83 +1,136 @@
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include "vec_math.h"
+#include <cuda.h>
 
-#ifndef PUPIL_OPTIX
-#include "util/log.h"
+struct mat4x4 {
+    float4 r0, r1, r2, r3;
+};
 
-#include <sstream>
-#include <assert.h>
-#include <iostream>
-#include <unordered_map>
-
-inline void CudaCheck(cudaError_t error, const char* call, const char* file, unsigned int line) {
-    if (error != cudaSuccess) {
-        Pupil::Log::Error("CUDA call({}) failed with error: {}\n\tlocation:{} : {}.\n", call, cudaGetErrorString(error), file, line);
-        assert(false);
-    }
+CUDA_INLINE CUDA_HOSTDEVICE float4 operator*(const mat4x4& m, const float4& v) noexcept {
+    return make_float4(dot(m.r0, v), dot(m.r1, v), dot(m.r2, v), dot(m.r3, v));
 }
-inline void CudaCheck(CUresult error, const char* call, const char* file, unsigned int line) {
-    if (error != cudaSuccess) {
-        Pupil::Log::Error("CUDA call({}) failed with error: {}\n\tlocation:{} : {}.\n", call, error, file, line);
-        assert(false);
-    }
-}
-inline void CudaSyncCheck(const char* file, unsigned int line) {
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        Pupil::Log::Error("CUDA error on synchronize with error: {}\n\tlocation:{} : {}.\n", cudaGetErrorString(error), file, line);
-        assert(false);
-    }
-}
-
-#define CUDA_CHECK(call) CudaCheck(call, #call, __FILE__, __LINE__)
-
-#define CUDA_SYNC_CHECK() CudaSyncCheck(__FILE__, __LINE__)
-
-#define CUDA_FREE(var)                                          \
-    do {                                                        \
-        if (var)                                                \
-            CUDA_CHECK(cudaFree(reinterpret_cast<void*>(var))); \
-        var = 0;                                                \
-    } while (false)
-
-#define CUDA_FREE_ASYNC(var, stream)                                         \
-    do {                                                                     \
-        if (var)                                                             \
-            CUDA_CHECK(cudaFreeAsync(reinterpret_cast<void*>(var), stream)); \
-        var = 0;                                                             \
-    } while (false)
-
-// namespace Pupil::cuda {
-// inline CUdeviceptr CudaMemcpyToDevice(void *src, size_t size) {
-//     CUdeviceptr device_memory = 0;
-//     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&device_memory), size));
-//     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(device_memory), src, size, cudaMemcpyHostToDevice));
-//     return device_memory;
-// }
-// inline void CudaMemcpyToDevice(CUdeviceptr dst, void *src, size_t size) {
-//     CUDA_CHECK(cudaMemcpy(reinterpret_cast<void **>(dst), src, size, cudaMemcpyHostToDevice));
-// }
-
-// inline void CudaMemcpyToHost(void *dst, CUdeviceptr src, size_t size) {
-//     CUDA_CHECK(cudaMemcpy(dst, reinterpret_cast<const void *>(src), size, cudaMemcpyDeviceToHost));
-// }
-// inline void CudaMemcpyToHost(void *dst, const void *src, size_t size) {
-//     CUDA_CHECK(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
-// }
-// }// namespace Pupil::cuda
-#endif
 
 namespace Pupil::cuda {
+    /// @brief generate random float [0, 1)
+    class Random {
+    public:
+        CUDA_HOSTDEVICE Random() noexcept : m_seed(0) {}
+
+        CUDA_HOSTDEVICE void Init(unsigned int N, unsigned int val0, unsigned int val1) noexcept {
+            unsigned int v0 = val0;
+            unsigned int v1 = val1;
+            unsigned int s0 = 0;
+
+            for (unsigned int n = 0; n < N; n++) {
+                s0 += 0x9e3779b9;
+                v0 += ((v1 << 4) + 0xa341316c) ^ (v1 + s0) ^ ((v1 >> 5) + 0xc8013ea4);
+                v1 += ((v0 << 4) + 0xad90777d) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7e95761e);
+            }
+
+            m_seed = v0;
+        }
+
+        CUDA_HOSTDEVICE unsigned int GetSeed() const noexcept { return m_seed; }
+        CUDA_HOSTDEVICE void         SetSeed(unsigned int seed) noexcept { m_seed = seed; }
+
+        CUDA_HOSTDEVICE float Next() noexcept {
+            const unsigned int LCG_A = 1664525u;
+            const unsigned int LCG_C = 1013904223u;
+            m_seed                   = (LCG_A * m_seed + LCG_C);
+            return static_cast<float>(m_seed & 0x00FFFFFF) / 0x01000000;
+        }
+
+        CUDA_HOSTDEVICE float2 Next2() noexcept {
+            return make_float2(Next(), Next());
+        }
+
+    private:
+        unsigned int m_seed;
+    };
+
+    // cuda memory needs to be released explicitly
     template<typename T>
-    class DynamicArray {
+    class ConstArrayView {
     private:
         CUdeviceptr m_data CONST_STATIC_INIT(0);
-        CUdeviceptr m_num  CONST_STATIC_INIT(0);
+        size_t m_num       CONST_STATIC_INIT(0);
 
+    public:
+        CUDA_HOSTDEVICE ConstArrayView() noexcept {}
+
+        CUDA_HOST void SetData(CUdeviceptr cuda_data, size_t num) noexcept {
+            m_data = cuda_data;
+            m_num  = num;
+        }
+        CUDA_HOSTDEVICE const T* GetDataPtr() const noexcept { return reinterpret_cast<T*>(m_data); }
+
+        CUDA_HOSTDEVICE          operator bool() const noexcept { return m_data != 0; }
+        CUDA_HOSTDEVICE size_t   GetNum() const noexcept { return m_num; }
+        CUDA_HOSTDEVICE const T& operator[](unsigned int index) const noexcept {
+            return *reinterpret_cast<T*>(m_data + index * sizeof(T));
+        }
+    };
+
+    // cuda memory needs to be released explicitly
+    template<typename T>
+    class ConstDataView {
+    public:
+        CUDA_HOSTDEVICE ConstDataView() noexcept {}
+
+        CUDA_HOST void           SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
+        CUDA_HOSTDEVICE const T* GetDataPtr() const noexcept { return reinterpret_cast<T*>(m_data); }
+
+        CUDA_HOSTDEVICE          operator bool() const noexcept { return m_data != 0; }
+        CUDA_HOSTDEVICE const T* operator->() const noexcept {
+            return reinterpret_cast<T*>(m_data);
+        }
+
+    private:
+        CUdeviceptr m_data CONST_STATIC_INIT(0);
+    };
+
+    template<typename T>
+    class RWArrayView {
+    public:
+        CUDA_HOSTDEVICE RWArrayView() noexcept {}
+
+        CUDA_HOST void SetData(CUdeviceptr cuda_data, size_t num) noexcept {
+            m_data = cuda_data;
+            m_num  = num;
+        }
+        CUDA_HOSTDEVICE T* GetDataPtr() const noexcept { return reinterpret_cast<T*>(m_data); }
+
+        CUDA_HOSTDEVICE        operator bool() const noexcept { return m_data != 0; }
+        CUDA_HOSTDEVICE size_t GetNum() const noexcept { return m_num; }
+        CUDA_HOSTDEVICE T&     operator[](unsigned int index) const noexcept {
+            return *reinterpret_cast<T*>(m_data + index * sizeof(T));
+        }
+
+    private:
+        CUdeviceptr m_data CONST_STATIC_INIT(0);
+        size_t m_num       CONST_STATIC_INIT(0);
+    };
+
+    template<typename T>
+    class RWDataView {
+    public:
+        CUDA_HOSTDEVICE RWDataView() noexcept {}
+
+        CUDA_HOST void     SetData(CUdeviceptr cuda_data) noexcept { m_data = cuda_data; }
+        CUDA_HOSTDEVICE T* GetDataPtr() const noexcept { return reinterpret_cast<T*>(m_data); }
+
+        CUDA_HOSTDEVICE    operator bool() const noexcept { return m_data != 0; }
+        CUDA_HOSTDEVICE T* operator->() const noexcept {
+            return reinterpret_cast<T*>(m_data);
+        }
+
+    private:
+        CUdeviceptr m_data CONST_STATIC_INIT(0);
+    };
+
+    template<typename T>
+    class DynamicArray {
     public:
         CUDA_HOSTDEVICE DynamicArray() noexcept {}
 
@@ -105,44 +158,8 @@ namespace Pupil::cuda {
             return index;
         }
 #endif
+    private:
+        CUdeviceptr m_data CONST_STATIC_INIT(0);
+        CUdeviceptr m_num  CONST_STATIC_INIT(0);
     };
-
-#ifndef PUPIL_OPTIX
-    // class DynamicArrayManager : public util::Singleton<DynamicArrayManager> {
-    // private:
-    //     std::unordered_map<CUdeviceptr, CUdeviceptr> m_cuda_dynamic_array_size;
-
-    // public:
-    //     template<typename T>
-    //     [[nodiscard]] DynamicArray<T> GetDynamicArray(CUdeviceptr data, unsigned int num) noexcept {
-    //         if (m_cuda_dynamic_array_size.find(data) == m_cuda_dynamic_array_size.end()) {
-    //             m_cuda_dynamic_array_size[data] = cuda::CudaMemcpyToDevice(&num, sizeof(num));
-    //         }
-
-    //         DynamicArray<T> ret;
-    //         ret.SetData(data, m_cuda_dynamic_array_size[data]);
-    //         return ret;
-    //     }
-
-    //     template<typename T>
-    //     void ClearDynamicArray(DynamicArray<T>& d_array) noexcept {
-    //         unsigned int num = 0;
-    //         cuda::CudaMemcpyToDevice(d_array.GetNum(), &num, sizeof(num));
-    //     }
-
-    //     template<typename T>
-    //     [[nodiscard]] unsigned int GetDynamicArrayNum(DynamicArray<T>& d_array) noexcept {
-    //         unsigned int ret;
-    //         cuda::CudaMemcpyToHost(&ret, d_array.GetNum(), sizeof(ret));
-    //         return ret;
-    //     }
-
-    //     void Clear() noexcept {
-    //         for (auto& [data, size] : m_cuda_dynamic_array_size)
-    //             CUDA_FREE(size);
-
-    //         m_cuda_dynamic_array_size.clear();
-    //     }
-    // };
-#endif
 }// namespace Pupil::cuda

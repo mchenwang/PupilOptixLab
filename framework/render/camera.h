@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuda/matrix.h"
+#include "cuda/util.h"
 
 namespace Pupil::optix {
     struct Camera {

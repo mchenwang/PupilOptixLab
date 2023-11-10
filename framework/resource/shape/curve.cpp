@@ -1,6 +1,6 @@
 #include "resource/shape.h"
 #include "render/geometry.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 #include "cuda/stream.h"
 
 #include <optix_types.h>

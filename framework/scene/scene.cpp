@@ -3,7 +3,7 @@
 #include "gas.h"
 
 #include "cuda/stream.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 
 #include <unordered_map>
 

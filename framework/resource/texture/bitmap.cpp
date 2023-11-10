@@ -5,7 +5,7 @@
 #include "util/id.h"
 
 #include "cuda/stream.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 
 namespace Pupil::resource {
 

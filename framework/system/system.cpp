@@ -45,7 +45,7 @@ namespace Pupil {
         });
 
         EventBinder<ESystemEvent::Precompute>([this](void*) {
-            CUDA_SYNC_CHECK();
+            util::Singleton<cuda::Context>::instance()->Synchronize();
             for (auto pass : m_pre_passes) pass->Run();
         });
 

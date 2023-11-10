@@ -5,10 +5,11 @@
 #include "util/id.h"
 
 #include "cuda/stream.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 
 #include "render/texture.h"
 
+#include <unordered_map>
 #include <filesystem>
 #include <mutex>
 

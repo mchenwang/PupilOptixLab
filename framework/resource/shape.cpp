@@ -1,11 +1,12 @@
 #include "shape.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
 #include "cuda/stream.h"
 
 #include "util/id.h"
 
 #include "mesh/mesh.h"
 
+#include <unordered_map>
 #include <filesystem>
 #include <mutex>
 

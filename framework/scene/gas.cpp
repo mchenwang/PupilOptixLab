@@ -4,7 +4,8 @@
 #include "optix/context.h"
 
 #include "cuda/stream.h"
-#include "cuda/util.h"
+#include "cuda/check.h"
+#include "cuda/vec_math.h"
 
 #include <unordered_map>
 

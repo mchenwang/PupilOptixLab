@@ -14,7 +14,8 @@ namespace Pupil::optix {
         ~Module() noexcept;
 
         OptixModule optix_module = nullptr;
-                    operator OptixModule() const noexcept { return optix_module; }
+
+        operator OptixModule() const noexcept { return optix_module; }
     };
 
     enum class EModuleBuiltinType {

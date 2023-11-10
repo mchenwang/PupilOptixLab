@@ -19,7 +19,7 @@
 #include "imfilebrowser.h"
 #include "ImGuizmo/ImGuizmo.h"
 
-#include "cuda/util.h"
+#include "cuda/check.h"
 
 #include "buffer_to_canvas.cuh"
 
