@@ -12,10 +12,10 @@ set(pupil_cuda_kernel_files
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_cuda_kernel_files})
 
-cuda_compile_and_embed(g_pupil_material_embedded_ptx_code render/material/bsdf/bsdf.cu)
+# cuda_compile_and_embed(g_pupil_material_embedded_ptx_code render/material/bsdf/bsdf.cu)
 
 set(pupil_builtin_embeding_cu
-    ${g_pupil_material_embedded_ptx_code}
+    # ${g_pupil_material_embedded_ptx_code}
 )
 
 add_library(${pupil_framework_name} STATIC ${ALL_INCLUDE} ${ALL_SOURCES} ${pupil_builtin_embeding_cu} ${pupil_cuda_kernel_files})

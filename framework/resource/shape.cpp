@@ -1,599 +1,200 @@
 #include "shape.h"
-
-#include "scene.h"
-#include "xml/util_loader.h"
-
 #include "cuda/util.h"
-#include "util/log.h"
+#include "cuda/stream.h"
 
-#include "hair/cemyuksel_hair.h"
+#include "util/id.h"
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include "mesh/mesh.h"
 
-#include <functional>
+#include <filesystem>
+#include <mutex>
 
-// static data
-namespace {
-// clang-format off
-
-// XY-range [-1,1]x[-1,1]
-float m_rect_positions[] = {
-    -1.f, -1.f, 0.f,
-     1.f, -1.f, 0.f,
-     1.f,  1.f, 0.f,
-    -1.f,  1.f, 0.f
-};
-float m_rect_normals[] = {
-    0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f
-};
-float m_rect_texcoords[] = {
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-};
-uint32_t m_rect_indices[] = { 0, 1, 2, 0, 2, 3 };
-
-// XYZ-range [-1,-1,-1]x[1,1,1]
-float m_cube_positions[] = {
-    -1.f,-1.f,-1.f, -1.f,-1.f, 1.f, -1.f, 1.f, 1.f, -1.f, 1.f,-1.f,
-     1.f,-1.f,-1.f, -1.f,-1.f,-1.f, -1.f, 1.f,-1.f,  1.f, 1.f,-1.f,
-     1.f,-1.f, 1.f,  1.f,-1.f,-1.f,  1.f, 1.f,-1.f,  1.f, 1.f, 1.f,
-    -1.f,-1.f, 1.f,  1.f,-1.f, 1.f,  1.f, 1.f, 1.f, -1.f, 1.f, 1.f,
-    -1.f, 1.f, 1.f,  1.f, 1.f, 1.f,  1.f, 1.f,-1.f, -1.f, 1.f,-1.f,
-    -1.f,-1.f,-1.f,  1.f,-1.f,-1.f,  1.f,-1.f, 1.f, -1.f,-1.f, 1.f
-};
-float m_cube_normals[] = {
-    -1.f,0.f,0.f, -1.f,0.f,0.f, -1.f,0.f,0.f, -1.f,0.f,0.f,
-    0.f,0.f,-1.f, 0.f,0.f,-1.f, 0.f,0.f,-1.f, 0.f,0.f,-1.f,
-    1.f,0.f,0.f, 1.f,0.f,0.f, 1.f,0.f,0.f, 1.f,0.f,0.f,
-    0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f, 0.f,0.f,1.f,
-    0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f, 0.f,1.f,0.f,
-    0.f,-1.f,0.f, 0.f,-1.f,0.f, 0.f,-1.f,0.f, 0.f,-1.f,0.f
-};
-float m_cube_texcoords[] = {
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f,
-    0.f,0.f, 1.f,0.f, 1.f,1.f, 0.f,1.f
-};
-uint32_t m_cube_indices[] = {
-    0,1,2, 0,2,3,
-    4,5,6, 4,6,7,
-    8,9,10, 8,10,11,
-    12,13,14, 12,14,15,
-    16,17,18, 16,18,19,
-    20,21,22, 20,22,23
-};
-// clang-format on
-}// namespace
-
-namespace {
-using namespace Pupil;
-using namespace Pupil::resource;
-using Pupil::resource::EShapeType;
-
-template<EShapeType Tag>
-struct ShapeLoader {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        Pupil::Log::Warn("Unknown shape type [{}].", obj->type);
-        return {};
-    }
-};
-
-template<>
-struct ShapeLoader<EShapeType::_cube> {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        ShapeInstance ins;
-        ins.name = obj->id;
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadCube();
-        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
-
-        ins.shape->mesh.face_normals = false;
-        ins.shape->mesh.flip_tex_coords = false;
-        return ins;
-    }
-};
-
-template<>
-struct ShapeLoader<EShapeType::_rectangle> {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        ShapeInstance ins;
-        ins.name = obj->id;
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadRectangle();
-        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
-
-        ins.shape->mesh.face_normals = false;
-        ins.shape->mesh.flip_tex_coords = false;
-        return ins;
-    }
-};
-
-template<>
-struct ShapeLoader<EShapeType::_sphere> {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        util::Float3 center;
-        xml::Load3Float(obj, "center", center);
-        float radius;
-        xml::LoadFloat(obj, "radius", radius, 1.f);
-
-        ShapeInstance ins;
-        ins.name = obj->id;
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadSphere();
-        xml::LoadBool(obj, "flip_normals", ins.shape->sphere.flip_normals, false);
-
-        util::Transform transform;
-        transform.Scale(radius, radius, radius);
-        transform.Translate(center.x, center.y, center.z);
-        ins.transform = transform;
-
-        return ins;
-    }
-};
-
-template<>
-struct ShapeLoader<EShapeType::_obj> {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        auto value = obj->GetProperty("filename");
-        auto path = (scene->scene_root_path / value).make_preferred();
-
-        ShapeInstance ins;
-        ins.name = obj->id;
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadMeshShape(path.string());
-
-        xml::LoadBool(obj, "face_normals", ins.shape->mesh.face_normals, false);
-        xml::LoadBool(obj, "flip_tex_coords", ins.shape->mesh.flip_tex_coords, true);
-        xml::LoadBool(obj, "flip_normals", ins.shape->mesh.flip_normals, false);
-
-        return ins;
-    }
-};
-
-template<>
-struct ShapeLoader<EShapeType::_hair> {
-    ShapeInstance operator()(const xml::Object *obj, Scene *scene) {
-        auto value = obj->GetProperty("filename");
-        auto path = (scene->scene_root_path / value).make_preferred();
-
-        ShapeInstance ins;
-        ins.name = obj->id;
-
-        bool tapered = false;
-        xml::LoadBool(obj, "tapered", tapered, false);
-
-        uint8_t mode = 2;
-        value = obj->GetProperty("spline_mode");
-        if (value.compare("linear") == 0)
-            mode = 0;
-        else if (value.compare("quadratic") == 0)
-            mode = 1;
-        else if (value.compare("cubic") == 0)
-            mode = 2;
-        else if (value.compare("catrom") == 0)
-            mode = 3;
-
-        float width = 0.f;
-        xml::LoadFloat(obj, "radius", width);
-
-        ins.shape = util::Singleton<ShapeManager>::instance()->LoadHair(path.string(), width, tapered, mode);
-        return ins;
-    }
-};
-
-using LoaderType = std::function<ShapeInstance(const xml::Object *, Scene *)>;
-
-#define SHAPE_LOADER(mat) ShapeLoader<EShapeType::##_##mat>()
-#define SHAPE_LOADER_DEFINE(...)                             \
-    const std::array<LoaderType, (size_t)EShapeType::_count> \
-        S_SHAPE_LOADER = { MAP_LIST(SHAPE_LOADER, __VA_ARGS__) };
-
-SHAPE_LOADER_DEFINE(PUPIL_SCENE_SHAPE);
-}// namespace
-
-namespace {
-ShapeManager::MeshDeviceMemory m_d_cube{};
-ShapeManager::MeshDeviceMemory m_d_rect{};
-ShapeManager::MeshDeviceMemory m_d_sphere{};
-
-ShapeManager::MeshDeviceMemory GetCubeDeviceMemory() noexcept {
-    if (m_d_cube.position == 0) {
-        m_d_cube.position = cuda::CudaMemcpyToDevice(m_cube_positions, sizeof(m_cube_positions));
-        m_d_cube.normal = cuda::CudaMemcpyToDevice(m_cube_normals, sizeof(m_cube_normals));
-        m_d_cube.index = cuda::CudaMemcpyToDevice(m_cube_indices, sizeof(m_cube_indices));
-        m_d_cube.texcoord = cuda::CudaMemcpyToDevice(m_cube_texcoords, sizeof(m_cube_texcoords));
-    }
-    return m_d_cube;
-}
-ShapeManager::MeshDeviceMemory GetRectDeviceMemory() noexcept {
-    if (m_d_rect.position == 0) {
-        m_d_rect.position = cuda::CudaMemcpyToDevice(m_rect_positions, sizeof(m_rect_positions));
-        m_d_rect.normal = cuda::CudaMemcpyToDevice(m_rect_normals, sizeof(m_rect_normals));
-        m_d_rect.index = cuda::CudaMemcpyToDevice(m_rect_indices, sizeof(m_rect_indices));
-        m_d_rect.texcoord = cuda::CudaMemcpyToDevice(m_rect_texcoords, sizeof(m_rect_texcoords));
-    }
-    return m_d_rect;
-}
-ShapeManager::MeshDeviceMemory GetSphereDeviceMemory() noexcept {
-    if (m_d_sphere.position == 0) {
-        util::Float3 center{ 0.f };
-        m_d_sphere.position = cuda::CudaMemcpyToDevice(&center, sizeof(center));
-        float r = 1.f;
-        m_d_sphere.normal = cuda::CudaMemcpyToDevice(&r, sizeof(r));
-    }
-    return m_d_sphere;
-}
-}// namespace
+#include <optix_types.h>
 
 namespace Pupil::resource {
+    const unsigned int Shape::s_input_flag = OPTIX_GEOMETRY_FLAG_NONE;
 
-ShapeInstance LoadShapeInstanceFromXml(const xml::Object *obj, Scene *scene) noexcept {
-    [[unlikely]] if (obj == nullptr || scene == nullptr) {
-        Pupil::Log::Warn("#LoadShapeFromXml: empty xml obj or scene obj");
-        return {};
+    Shape::Shape(std::string_view name) noexcept
+        : Object(name), m_data_dirty(true) {
+        m_upload_event = std::make_unique<cuda::Event>();
     }
 
-    for (int i = 0; auto &&name : S_SHAPE_TYPE_NAME) {
-        if (obj->type.compare(name) == 0) {
-            ShapeInstance shape_ins = S_SHAPE_LOADER[i](obj, scene);
+    Shape::~Shape() noexcept {
+        m_upload_event.reset();
+    }
 
-            auto bsdf_obj = obj->GetUniqueSubObject("bsdf");
-            scene->LoadXmlObj(bsdf_obj, &shape_ins.mat);
-            auto transform_obj = obj->GetUniqueSubObject("transform");
-            util::Transform transform;
-            scene->LoadXmlObj(transform_obj, &transform);
-            if (shape_ins.shape->type == EShapeType::_sphere) {
-                shape_ins.transform = transform.matrix * shape_ins.transform.matrix;
-            } else {
-                shape_ins.transform = transform;
-            }
-
-            shape_ins.is_emitter = false;
-            if (auto emitter_xml_obj = obj->GetUniqueSubObject("emitter"); emitter_xml_obj) {
-                scene->LoadXmlObj(emitter_xml_obj, &shape_ins.emitter);
-                [[unlikely]] if (shape_ins.emitter.type != EEmitterType::Area) {
-                    Pupil::Log::Warn("shape emitter not support.");
-                } else
-                    shape_ins.is_emitter = true;
-            }
-            return shape_ins;
+    void Shape::WaitForDataUploading() noexcept {
+        if (m_upload_event) {
+            m_upload_event->Synchronize();
         }
-        ++i;
     }
 
-    Pupil::Log::Warn("Unknown shape type [{}].", obj->type);
-    return {};
-}
+    struct ShapeManager::Impl {
+        // std::mutex mutex; TODO: thread safe
 
-void ShapeManager::LoadShapeFromFile(std::string_view file_path) noexcept {
-    auto it = m_meshes.find(file_path);
-    if (it != m_meshes.end()) return;
+        // use absolute path to identify shape
+        std::unordered_map<std::string, uint64_t, util::StringHash, std::equal_to<>> map_path_to_id;
+        // allow the same name
+        std::unordered_multimap<std::string, uint64_t, util::StringHash, std::equal_to<>> map_name_to_id;
+        std::unordered_map<uint64_t, util::Data<Shape>>                                   map_shape;
+        std::unordered_map<uint64_t, std::string>                                         map_mesh_id_to_path;
 
-    Assimp::Importer importer;
-    const auto scene = importer.ReadFile(file_path.data(), aiProcess_Triangulate);
+        util::Data<Cube> default_shape = nullptr;
 
-    if (scene == nullptr) {
-        Pupil::Log::Warn("Mesh load from {} failed.", file_path);
-        return;
-    }
+        util::UintIdAllocator id_allocation;
 
-    if (scene->mNumMeshes != 1) {
-        Pupil::Log::Warn("Mesh load from {} failed.", file_path);
-        return;
-    }
-
-    auto mesh_data = std::make_unique<MeshData>();
-    uint32_t vertex_index_offset = 0;
-    for (auto i = 0u; i < scene->mNumMeshes; i++) {
-
-        const auto mesh = scene->mMeshes[i];
-
-        bool has_normals = mesh->HasNormals();
-        bool has_texcoords = mesh->HasTextureCoords(0);
-
-        for (auto j = 0u; j < mesh->mNumVertices; j++) {
-            mesh_data->positions.emplace_back(mesh->mVertices[j].x);
-            mesh_data->positions.emplace_back(mesh->mVertices[j].y);
-            mesh_data->positions.emplace_back(mesh->mVertices[j].z);
-            mesh_data->aabb.Merge(mesh->mVertices[j].x, mesh->mVertices[j].y, mesh->mVertices[j].z);
-
-            if (has_normals) {
-                mesh_data->normals.emplace_back(mesh->mNormals[j].x);
-                mesh_data->normals.emplace_back(mesh->mNormals[j].y);
-                mesh_data->normals.emplace_back(mesh->mNormals[j].z);
-            }
-
-            if (has_texcoords) {
-                mesh_data->texcoords.emplace_back(mesh->mTextureCoords[0][j].x);
-                mesh_data->texcoords.emplace_back(mesh->mTextureCoords[0][j].y);
-            }
+        Shape* GetShape(uint64_t id) noexcept {
+            if (auto it = map_shape.find(id); it != map_shape.end())
+                return it->second.Get();
+            return nullptr;
         }
+    };
 
-        for (auto j = 0u; j < mesh->mNumFaces; j++) {
-            mesh_data->indices.emplace_back(mesh->mFaces[j].mIndices[0] + vertex_index_offset);
-            mesh_data->indices.emplace_back(mesh->mFaces[j].mIndices[1] + vertex_index_offset);
-            mesh_data->indices.emplace_back(mesh->mFaces[j].mIndices[2] + vertex_index_offset);
+    ShapeManager::ShapeManager() noexcept {
+        if (m_impl) return;
+        m_impl = new Impl();
+
+        m_impl->default_shape = std::make_unique<Cube>(Shape::UserDisableTag{}, DEFAULT_SHAPE_NAME);
+    }
+
+    ShapeManager::~ShapeManager() noexcept {}
+
+    void ShapeManager::SetShapeName(uint64_t id, std::string_view name) noexcept {
+        auto shape = m_impl->GetShape(id);
+        if (shape == nullptr || shape->GetName() == name) return;
+        auto range = m_impl->map_name_to_id.equal_range(shape->GetName());
+        auto it    = range.first;
+        for (; it != range.second; ++it) {
+            if (it->second == id) break;
+        }
+        if (it != range.second)
+            m_impl->map_name_to_id.erase(it);
+
+        if (!shape->m_name.empty())
+            Log::Info("shape rename {} to {}.", shape->m_name, name);
+
+        shape->m_name = name;
+        m_impl->map_name_to_id.emplace(name, id);
+    }
+
+    util::CountableRef<Shape> ShapeManager::Register(util::Data<Shape>&& shape) noexcept {
+        auto id     = m_impl->id_allocation.Allocate();
+        auto name   = shape->GetName();
+        shape->m_id = id;
+
+        auto ref = shape.GetRef();
+        m_impl->map_shape.emplace(id, std::move(shape));
+
+        m_impl->map_name_to_id.emplace(name, id);
+        return ref;
+    }
+
+    util::CountableRef<Shape> ShapeManager::Clone(const util::CountableRef<Shape>& shape) noexcept {
+        return Register(util::Data<Shape>(shape->Clone()));
+    }
+
+    util::CountableRef<Shape> ShapeManager::LoadShapeFromFile(std::string_view path, EShapeLoadFlag flags, std::string_view name) noexcept {
+        if (auto it = m_impl->map_path_to_id.find(path); it != m_impl->map_path_to_id.end()) {
+            Log::Info("shape reuse [{}].", path);
+            return m_impl->map_shape.at(it->second).GetRef();
         }
 
-        vertex_index_offset += mesh->mNumVertices;
-    }
-
-    mesh_data->device_memory.position = cuda::CudaMemcpyToDevice(mesh_data->positions.data(), mesh_data->positions.size() * sizeof(float));
-    mesh_data->device_memory.normal = cuda::CudaMemcpyToDevice(mesh_data->normals.data(), mesh_data->normals.size() * sizeof(float));
-    mesh_data->device_memory.index = cuda::CudaMemcpyToDevice(mesh_data->indices.data(), mesh_data->indices.size() * sizeof(uint32_t));
-    mesh_data->device_memory.texcoord = cuda::CudaMemcpyToDevice(mesh_data->texcoords.data(), mesh_data->texcoords.size() * sizeof(float));
-
-    m_meshes.emplace(file_path, std::move(mesh_data));
-}
-
-ShapeManager::MeshDeviceMemory ShapeManager::GetMeshDeviceMemory(const Shape *shape) noexcept {
-    if (shape->type == EShapeType::_obj || shape->type == EShapeType::_hair) {
-        if (m_meshes.find(shape->file_path) != m_meshes.end())
-            return m_meshes[shape->file_path]->device_memory;
-    } else if (shape->type == EShapeType::_cube) {
-        return GetCubeDeviceMemory();
-    } else if (shape->type == EShapeType::_rectangle) {
-        return GetRectDeviceMemory();
-    } else if (shape->type == EShapeType::_sphere) {
-        return GetSphereDeviceMemory();
-    }
-    return {};
-}
-
-Shape *ShapeManager::LoadMeshShape(std::string_view file_path) noexcept {
-    if (m_meshes.find(file_path) != m_meshes.end()) {
-        return m_mesh_shape[file_path.data()];
-    }
-
-    LoadShapeFromFile(file_path);
-    auto it = m_meshes.find(file_path);
-
-    auto id = m_shape_id_cnt++;
-    auto shape = std::make_unique<Shape>();
-    shape->id = id;
-    shape->file_path = file_path;
-    shape->type = EShapeType::_obj;
-    shape->mesh.vertex_num = static_cast<uint32_t>(it->second->positions.size() / 3);
-    shape->mesh.face_num = static_cast<uint32_t>(it->second->indices.size() / 3);
-    shape->mesh.positions = it->second->positions.data();
-    shape->mesh.normals = it->second->normals.size() > 0 ? it->second->normals.data() : nullptr;
-    shape->mesh.texcoords = it->second->texcoords.size() > 0 ? it->second->texcoords.data() : nullptr;
-    shape->mesh.indices = it->second->indices.data();
-    shape->aabb = it->second->aabb;
-
-    m_mesh_shape[file_path.data()] = shape.get();
-    m_id_shapes[id] = std::move(shape);
-    return m_id_shapes[id].get();
-}
-
-Shape *ShapeManager::LoadHair(std::string_view file_path, float width, bool tapered, uint8_t mode) noexcept {
-    if (m_meshes.find(file_path) != m_meshes.end()) {
-        return m_mesh_shape[file_path.data()];
-    }
-
-    auto hair_shape = CyHair::LoadFromFile(file_path);
-    auto hair_data = std::make_unique<MeshData>();
-    hair_data->positions.reserve(hair_shape.positions.size() * 3);
-    for (auto &pos : hair_shape.positions) {
-        hair_data->positions.push_back(pos.x);
-        hair_data->positions.push_back(pos.y);
-        hair_data->positions.push_back(pos.z);
-    }
-
-    const auto curve_degree = mode > 2 ? 3u : mode + 1u;
-
-    if (tapered) {
-        if (width == 0.f) width = hair_shape.widths[0];
-
-        for (int i = 0; i < hair_shape.strands_index.size() - 1; ++i) {
-            const uint32_t start = hair_shape.strands_index[i];
-            const uint32_t num = hair_shape.strands_index[i + 1] - start;
-            for (uint32_t index = 0; index < num; ++index)
-                hair_shape.widths[start + index] = width * (num - 1 - index) / static_cast<float>(num - 1);
+        auto file_path = std::filesystem::path(path);
+        if (!file_path.has_extension()) {
+            Log::Warn("mesh file [{}] needs to have a extension.", path);
+            Log::Warn("the mesh will be replaced by default shape.");
+            return m_impl->default_shape.GetRef();
         }
 
-    } else if (width != 0.f) {
-        for (auto &w : hair_shape.widths) w = width;
+        std::string shape_name = name.empty() ? file_path.stem().string() : std::string{name};
+        auto        extension  = file_path.extension();
+        if (extension == ".obj") {
+            if (ObjMesh mesh; ObjMesh::Load(path.data(), mesh, flags)) {
+                auto shape = std::make_unique<TriangleMesh>(Shape::UserDisableTag{}, shape_name);
+                shape->SetVertex(mesh.vertex.data(), mesh.vertex.size() / 3);
+                shape->SetNormal(mesh.normal.data(), mesh.normal.size() / 3);
+                shape->SetTexcoord(mesh.texcoord.data(), mesh.texcoord.size() / 2);
+                shape->SetIndex(mesh.index.data(), mesh.index.size() / 3);
+
+                auto ref = Register(util::Data<Shape>(std::move(shape)));
+
+                m_impl->map_path_to_id[std::string{path}] = ref->GetId();
+                return ref;
+            }
+        } else if (extension == ".hair") {
+            if (CyHair hair; CyHair::Load(path.data(), hair)) {
+                auto shape = std::make_unique<CurveHair>(Shape::UserDisableTag{}, Curve::EType::Cubic, shape_name);
+                shape->SetCtrlVertex(hair.positions.data(), hair.positions.size() / 3);
+                shape->SetWidth(hair.widths.data(), hair.widths.size(), false);
+                shape->SetStrandHeadCtrlVertexIndex(hair.strands_index.data(), hair.strands_index.size());
+
+                auto ref = Register(util::Data<Shape>(std::move(shape)));
+
+                m_impl->map_path_to_id[std::string{path}] = ref->GetId();
+                return ref;
+            }
+        } else {
+            Log::Warn("mesh format [{}] does not support.", extension.string());
+        }
+
+        Log::Warn("shape load failed. [{}] will be replaced by default shape.", path);
+        return m_impl->default_shape.GetRef();
     }
 
-    hair_data->normals.swap(hair_shape.widths);
+    std::vector<const Shape*> ShapeManager::GetShape(std::string_view name) noexcept {
+        std::vector<const Shape*> shapes;
 
-    // compute segments index
-    for (int i = 0; i < hair_shape.strands_index.size() - 1; ++i) {
-        const uint32_t start = hair_shape.strands_index[i];
-        const uint32_t end = hair_shape.strands_index[i + 1] - curve_degree;
-        for (uint32_t segment_index = start; segment_index < end; ++segment_index)
-            hair_data->indices.push_back(segment_index);
+        if (name == DEFAULT_SHAPE_NAME) {
+            shapes.push_back(m_impl->default_shape.Get());
+        } else {
+            auto range = m_impl->map_name_to_id.equal_range(name);
+            for (auto it = range.first; it != range.second; ++it) {
+                shapes.push_back(m_impl->map_shape.at(it->second).Get());
+            }
+        }
+
+        return shapes;
     }
 
-    hair_data->strand_indices.swap(hair_shape.strands_index);
+    util::CountableRef<Shape> ShapeManager::GetShape(uint64_t id) noexcept {
+        if (auto it = m_impl->map_shape.find(id); it != m_impl->map_shape.end())
+            return it->second.GetRef();
 
-    hair_data->device_memory.position = cuda::CudaMemcpyToDevice(hair_data->positions.data(), hair_data->positions.size() * sizeof(float));
-    hair_data->device_memory.width = cuda::CudaMemcpyToDevice(hair_data->normals.data(), hair_data->normals.size() * sizeof(float));
-    hair_data->device_memory.index = cuda::CudaMemcpyToDevice(hair_data->indices.data(), hair_data->indices.size() * sizeof(uint32_t));
-    hair_data->device_memory.texcoord = 0;
-    hair_data->aabb = hair_shape.aabb;
-    m_meshes.emplace(file_path, std::move(hair_data));
-
-    auto it = m_meshes.find(file_path);
-
-    auto id = m_shape_id_cnt++;
-    auto shape = std::make_unique<Shape>();
-    shape->id = id;
-    shape->file_path = file_path;
-    shape->type = EShapeType::_hair;
-    shape->hair.strands_num = static_cast<uint32_t>(it->second->strand_indices.size());
-    shape->hair.point_num = static_cast<uint32_t>(it->second->positions.size() / 3);
-    shape->hair.segments_num = static_cast<uint32_t>(it->second->indices.size());
-    shape->hair.flags = (tapered ? 0b100 : 0b000) | mode;
-    shape->hair.strands_index = it->second->strand_indices.data();
-    shape->hair.positions = it->second->positions.data();
-    shape->hair.widths = it->second->normals.data();
-    shape->hair.segments_index = it->second->indices.data();
-    shape->aabb = it->second->aabb;
-
-    m_mesh_shape[file_path.data()] = shape.get();
-    m_id_shapes[id] = std::move(shape);
-    return m_id_shapes[id].get();
-}
-
-Shape *ShapeManager::LoadSphere(bool flip_normals) noexcept {
-    if (m_sphere) return m_sphere;
-
-    auto id = m_shape_id_cnt++;
-    auto shape = std::make_unique<Shape>();
-    shape->id = id;
-    shape->file_path = "sphere";
-    shape->type = EShapeType::_sphere;
-    shape->sphere.center = util::Float3{ 0.f };
-    shape->sphere.radius = 1.f;
-    shape->aabb = util::AABB{ { -1.f, -1.f, -1.f }, { 1.f, 1.f, 1.f } };
-
-    m_sphere = shape.get();
-    m_id_shapes[id] = std::move(shape);
-    return m_sphere;
-}
-
-Shape *ShapeManager::LoadCube(bool flip_normals) noexcept {
-    if (m_cube) return m_cube;
-
-    auto id = m_shape_id_cnt++;
-    auto shape = std::make_unique<Shape>();
-    shape->id = id;
-    shape->file_path = "cube";
-    shape->type = EShapeType::_cube;
-    shape->mesh.vertex_num = 24;
-    shape->mesh.face_num = 12;
-    shape->mesh.positions = m_cube_positions;
-    shape->mesh.normals = m_cube_normals;
-    shape->mesh.texcoords = m_cube_texcoords;
-    shape->mesh.indices = m_cube_indices;
-    shape->aabb = util::AABB{ { -1.f, -1.f, -1.f }, { 1.f, 1.f, 1.f } };
-
-    m_cube = shape.get();
-    m_id_shapes[id] = std::move(shape);
-    return m_cube;
-}
-
-Shape *ShapeManager::LoadRectangle(bool flip_normals) noexcept {
-    if (m_rect) return m_rect;
-
-    auto id = m_shape_id_cnt++;
-    auto shape = std::make_unique<Shape>();
-    shape->id = id;
-    shape->file_path = "rectangle";
-    shape->type = EShapeType::_rectangle;
-    shape->mesh.vertex_num = 4;
-    shape->mesh.face_num = 2;
-    shape->mesh.positions = m_rect_positions;
-    shape->mesh.normals = m_rect_normals;
-    shape->mesh.texcoords = m_rect_texcoords;
-    shape->mesh.indices = m_rect_indices;
-    shape->aabb = util::AABB{ { -1.f, -1.f, 0.f }, { 1.f, 1.f, 0.f } };
-
-    m_rect = shape.get();
-    m_id_shapes[id] = std::move(shape);
-    return m_rect;
-}
-
-Shape *ShapeManager::GetShape(uint32_t id) noexcept {
-    if (m_id_shapes.find(id) == m_id_shapes.end()) return nullptr;
-    return m_id_shapes[id].get();
-}
-
-Shape *ShapeManager::RefShape(uint32_t id) noexcept {
-    if (m_id_shapes.find(id) == m_id_shapes.end()) {
-        Log::Error("RefShape failed. No shape with id [{}].", id);
-        return nullptr;
+        Log::Warn("shape [{}] does not exist.", id);
+        return m_impl->default_shape.GetRef();
     }
-    size_t ref_cnt = m_shape_ref_cnt.find(id) == m_shape_ref_cnt.end() ? 0 : m_shape_ref_cnt[id];
-    m_shape_ref_cnt[id] = ref_cnt + 1;
-    return m_id_shapes[id].get();
-}
 
-Shape *ShapeManager::RefShape(const Shape *shape) noexcept {
-    if (shape == nullptr) {
-        Log::Error("Shape Ref a nullptr.");
-        return nullptr;
+    std::vector<const Shape*> ShapeManager::GetShapes() const noexcept {
+        std::vector<const Shape*> shapes;
+        shapes.reserve(m_impl->map_shape.size());
+        for (auto&& [id, shape] : m_impl->map_shape)
+            shapes.push_back(shape.Get());
+        return shapes;
     }
-    return RefShape(shape->id);
-}
 
-void ShapeManager::Release(uint32_t id) noexcept {
-    if (m_shape_ref_cnt.find(id) != m_shape_ref_cnt.end() &&
-        m_shape_ref_cnt[id] > 0)
-        m_shape_ref_cnt[id]--;
-}
+    void ShapeManager::Clear() noexcept {
+        for (auto it = m_impl->map_shape.begin(); it != m_impl->map_shape.end();) {
+            if (it->second.GetRefCount() == 0) {
+                auto id = it->second->GetId();
+                if (auto path = m_impl->map_mesh_id_to_path.find(id);
+                    path != m_impl->map_mesh_id_to_path.end()) {
+                    m_impl->map_path_to_id.erase(path->second);
+                    m_impl->map_mesh_id_to_path.erase(path);
+                }
 
-void ShapeManager::Release(const Shape *shape) noexcept {
-    if (shape == nullptr) return;
-    Release(shape->id);
-}
+                auto range      = m_impl->map_name_to_id.equal_range(it->second->GetName());
+                auto name_id_it = range.first;
+                for (; name_id_it != range.second; ++name_id_it) {
+                    if (name_id_it->second == id) break;
+                }
+                if (name_id_it != range.second)
+                    m_impl->map_name_to_id.erase(name_id_it);
 
-void ShapeManager::Remove(uint32_t id) noexcept {
-    Remove(GetShape(id));
-}
+                m_impl->id_allocation.Recycle(id);
 
-void ShapeManager::Remove(const Shape *shape) noexcept {
-    if (shape == nullptr) return;
-
-    if (m_shape_ref_cnt.find(shape->id) != m_shape_ref_cnt.end() &&
-        m_shape_ref_cnt[shape->id] > 0) {
-        Log::Warn("Remove shape(id[{}]) without release!", shape->id);
+                it = m_impl->map_shape.erase(it);
+            } else
+                ++it;
+        }
     }
-    if (shape == m_sphere)
-        m_sphere = nullptr;
-    else if (shape == m_cube)
-        m_cube = nullptr;
-    else if (shape == m_rect)
-        m_rect = nullptr;
-    m_mesh_shape.erase(shape->file_path);
-    m_meshes.erase(shape->file_path);
-    m_id_shapes.erase(shape->id);
-    m_shape_ref_cnt.erase(shape->id);
-}
-
-void ShapeManager::ClearDanglingMemory() noexcept {
-    for (auto it = m_shape_ref_cnt.begin(); it != m_shape_ref_cnt.end();) {
-        if (it->second == 0) {
-            m_mesh_shape.erase(m_id_shapes[it->first]->file_path);
-            m_meshes.erase(m_id_shapes[it->first]->file_path);
-            if (m_id_shapes[it->first].get() == m_sphere)
-                m_sphere = nullptr;
-            else if (m_id_shapes[it->first].get() == m_cube)
-                m_cube = nullptr;
-            else if (m_id_shapes[it->first].get() == m_rect)
-                m_rect = nullptr;
-            m_id_shapes.erase(it->first);
-            it = m_shape_ref_cnt.erase(it);
-        } else
-            ++it;
-    }
-}
-
-void ShapeManager::Clear() noexcept {
-    m_sphere = nullptr;
-    m_cube = nullptr;
-    m_rect = nullptr;
-    m_sphere = nullptr;
-    m_shape_ref_cnt.clear();
-    m_id_shapes.clear();
-    m_meshes.clear();
-    CUDA_FREE(m_d_cube.position);
-    CUDA_FREE(m_d_cube.normal);
-    CUDA_FREE(m_d_cube.index);
-    CUDA_FREE(m_d_cube.texcoord);
-    CUDA_FREE(m_d_rect.position);
-    CUDA_FREE(m_d_rect.normal);
-    CUDA_FREE(m_d_rect.index);
-    CUDA_FREE(m_d_rect.texcoord);
-    m_shape_id_cnt = 0;
-}
-
-ShapeManager::MeshData::~MeshData() noexcept {
-    CUDA_FREE(device_memory.position);
-    CUDA_FREE(device_memory.normal);
-    CUDA_FREE(device_memory.index);
-    CUDA_FREE(device_memory.texcoord);
-}
 }// namespace Pupil::resource

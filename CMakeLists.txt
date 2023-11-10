@@ -32,13 +32,20 @@ message(STATUS "cuda version: ${pupil_cuda_version} ")
 find_program(BIN2C bin2c
     DOC "Path to the cuda-sdk bin2c executable.")
 
+set(pupil_cuda_device_file_dependencies 
+    ${pupil_framework_root}/cuda/preprocessor.h
+    ${pupil_framework_root}/cuda/data_view.h
+    ${pupil_framework_root}/cuda/vec_math.h
+    CACHE INTERNAL "")
+
 macro(cuda_compile_and_embed output_var cuda_file)
     set(c_var_name ${output_var})
     add_custom_command(
         OUTPUT ${cuda_file}.ptx
         DEPENDS
             ${cuda_file}
-            ${pupil_framework_name}
+            ${pupil_framework_root}/render/**
+            ${pupil_cuda_device_file_dependencies}
         COMMAND
             nvcc ${CMAKE_CURRENT_LIST_DIR}/${cuda_file}
             -ptx -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file}.ptx

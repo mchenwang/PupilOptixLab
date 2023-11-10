@@ -27,7 +27,7 @@
 //
 #pragma once
 
-#include "optix/util.h"
+#include "util.h"
 #include "cuda/vec_math.h"
 
 //

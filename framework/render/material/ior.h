@@ -6,18 +6,18 @@
 #include <charconv>
 
 namespace Pupil::material {
-struct DielectricIorEntry {
-    const char *name;
-    float value;
-};
+    struct DielectricIorEntry {
+        const char* name;
+        float       value;
+    };
 
-struct ConductorIorEntry {
-    const char *name;
-    util::Float3 eta;
-    util::Float3 k;
-};
+    struct ConductorIorEntry {
+        const char*  name;
+        util::Float3 eta;
+        util::Float3 k;
+    };
 
-// clang-format off
+    // clang-format off
 /**
 * Many values are taken from Hecht, Optics,
 * Fourth Edition.
@@ -173,37 +173,37 @@ const static ConductorIorEntry S_CONDUCTOR_IOR_DATA[] = {
     // 100% 反射镜面
     {"none",        {0,       0,       0},          {1,       1,       1}}
 };
-// clang-format on
+    // clang-format on
 
-static float LoadDielectricIor(std::string_view str, float default_value) noexcept {
-    if (str.empty()) return default_value;
+    static float LoadDielectricIor(std::string_view str, float default_value) noexcept {
+        if (str.empty()) return default_value;
 
-    float value;
-    auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
-    if (ec == std::errc() && p == str.data() + str.size())
-        return value;
+        float value;
+        auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
+        if (ec == std::errc() && p == str.data() + str.size())
+            return value;
 
-    for (auto &[name, ior] : S_DIELECTRIC_IOR_DATA) {
-        if (name != nullptr && str.compare(name) == 0) {
-            return ior;
+        for (auto& [name, ior] : S_DIELECTRIC_IOR_DATA) {
+            if (name != nullptr && str.compare(name) == 0) {
+                return ior;
+            }
         }
+
+        return default_value;
     }
 
-    return default_value;
-}
+    // default is none
+    static bool LoadConductorIor(std::string_view name, util::Float3& eta, util::Float3& k) noexcept {
+        if (name.empty()) return false;
 
-// default is none
-static bool LoadConductorIor(std::string_view name, util::Float3 &eta, util::Float3 &k) noexcept {
-    if (name.empty()) return false;
-
-    for (auto &[name_, eta_, k_] : S_CONDUCTOR_IOR_DATA) {
-        if (name_ != nullptr && name.compare(name_) == 0) {
-            eta = eta_;
-            k = k_;
-            return true;
+        for (auto& [name_, eta_, k_] : S_CONDUCTOR_IOR_DATA) {
+            if (name_ != nullptr && name.compare(name_) == 0) {
+                eta = eta_;
+                k   = k_;
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 
 }// namespace Pupil::material
