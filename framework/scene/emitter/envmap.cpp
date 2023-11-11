@@ -2,10 +2,11 @@
 
 #include "cuda/check.h"
 #include "cuda/stream.h"
+#include "cuda/util.h"
 
 namespace Pupil {
     EnvmapEmitter::EnvmapEmitter(const resource::TextureInstance& radiance) noexcept
-        : Emitter(radiance, util::Transform{}), m_scale(1.f), m_cuda_memory(0) {}
+        : Emitter(radiance, Transform{}), m_scale(1.f), m_cuda_memory(0) {}
 
     EnvmapEmitter::~EnvmapEmitter() noexcept {
         CUDA_FREE(m_cuda_memory);
@@ -146,22 +147,22 @@ namespace Pupil {
         emitter.env_map.row_cdf.SetData(cuda_row_cdf, m_height + 1);
         emitter.env_map.row_weight.SetData(cuda_row_weight, m_height);
 
-        auto to_world = m_transform.matrix;
+        auto to_world = m_transform.GetMatrix4x4();
 
-        emitter.env_map.to_world.r0 = make_float3(to_world.r0.x, to_world.r0.y, to_world.r0.z);
-        emitter.env_map.to_world.r1 = make_float3(to_world.r1.x, to_world.r1.y, to_world.r1.z);
-        emitter.env_map.to_world.r2 = make_float3(to_world.r2.x, to_world.r2.y, to_world.r2.z);
+        emitter.env_map.to_world.r0 = Pupil::cuda::MakeFloat3(to_world.r0);
+        emitter.env_map.to_world.r1 = Pupil::cuda::MakeFloat3(to_world.r1);
+        emitter.env_map.to_world.r2 = Pupil::cuda::MakeFloat3(to_world.r2);
 
-        auto to_local               = to_world.GetInverse();
-        emitter.env_map.to_local.r0 = make_float3(to_local.r0.x, to_local.r0.y, to_local.r0.z);
-        emitter.env_map.to_local.r1 = make_float3(to_local.r1.x, to_local.r1.y, to_local.r1.z);
-        emitter.env_map.to_local.r2 = make_float3(to_local.r2.x, to_local.r2.y, to_local.r2.z);
+        auto to_local               = Pupil::Inverse(to_world);
+        emitter.env_map.to_local.r0 = Pupil::cuda::MakeFloat3(to_local.r0);
+        emitter.env_map.to_local.r1 = Pupil::cuda::MakeFloat3(to_local.r1);
+        emitter.env_map.to_local.r2 = Pupil::cuda::MakeFloat3(to_local.r2);
         return emitter;
     }
 
-    ConstEmitter::ConstEmitter(const util::Float3& radiance) noexcept {
+    ConstEmitter::ConstEmitter(const Float3& radiance) noexcept {
         m_radiance  = resource::RGBTexture::Make(radiance, "const environment");
-        m_transform = util::Transform{};
+        m_transform = Transform{};
     }
 
     ConstEmitter::~ConstEmitter() noexcept {

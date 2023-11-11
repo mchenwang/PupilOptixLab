@@ -1,10 +1,9 @@
 #pragma once
 #include "object.h"
 
-#include "util/type.h"
+#include "util/math.h"
 #include "util/util.h"
 #include "util/data.h"
-#include "util/transform.h"
 
 #include <utility>
 #include <cuda_runtime.h>
@@ -42,7 +41,7 @@ namespace Pupil::resource {
         virtual std::string_view GetResourceType() const noexcept override { return "Texture"; }
 
         virtual void           UploadToCuda() noexcept {}
-        virtual util::Float3   GetPixelAverage() const noexcept = 0;
+        virtual Float3         GetPixelAverage() const noexcept = 0;
         virtual optix::Texture GetOptixTexture() noexcept       = 0;
         // TODO: virtual void OnImGui() noexcept;
 
@@ -79,11 +78,12 @@ namespace Pupil::resource {
         }
 
         auto operator->() const noexcept { return m_resource; }
-             operator util::CountableRef<Texture>() const noexcept { return m_resource; }
-             operator bool() const noexcept { return m_resource.Get() != nullptr; }
+
+        operator util::CountableRef<Texture>() const noexcept { return m_resource; }
+        operator bool() const noexcept { return m_resource.Get() != nullptr; }
 
         void SetTexture(const util::CountableRef<Texture>& texture) { m_resource = texture; }
-        void SetTransform(const util::Transform& transform) noexcept { m_transform = transform; }
+        void SetTransform(const Transform& transform) noexcept { m_transform = transform; }
 
         auto& GetTexture() noexcept { return m_resource; }
         auto  GetTransform() const noexcept { return m_transform; }
@@ -92,7 +92,7 @@ namespace Pupil::resource {
 
     private:
         util::CountableRef<Texture> m_resource;
-        util::Transform             m_transform;
+        Transform                   m_transform;
     };
 
     /**
@@ -160,7 +160,7 @@ namespace Pupil::resource {
         virtual uint64_t GetMemorySizeInByte() const noexcept override;
 
         virtual void           UploadToCuda() noexcept override;
-        virtual util::Float3   GetPixelAverage() const noexcept override;
+        virtual Float3         GetPixelAverage() const noexcept override;
         virtual optix::Texture GetOptixTexture() noexcept override;
 
         void SetAddressMode(EAddressMode address_mode) noexcept;
@@ -194,39 +194,39 @@ namespace Pupil::resource {
 
     class RGBTexture final : public Texture {
     public:
-        RGBTexture(UserDisableTag, std::string_view name, const util::Float3& c) noexcept;
+        RGBTexture(UserDisableTag, std::string_view name, const Float3& c) noexcept;
 
-        static util::CountableRef<Texture> Make(const util::Float3& c, std::string_view name = "") noexcept;
+        static util::CountableRef<Texture> Make(const Float3& c, std::string_view name = "") noexcept;
 
         virtual uint64_t GetMemorySizeInByte() const noexcept override;
 
-        virtual util::Float3   GetPixelAverage() const noexcept override;
+        virtual Float3         GetPixelAverage() const noexcept override;
         virtual optix::Texture GetOptixTexture() noexcept override;
 
-        void SetColor(const util::Float3& c) noexcept { m_color = c; }
+        void SetColor(const Float3& c) noexcept { m_color = c; }
         auto GetColor() const noexcept { return m_color; }
 
     private:
         virtual void* Clone() const noexcept override;
 
-        util::Float3 m_color;
+        Float3 m_color;
     };
 
     class CheckerboardTexture final : public Texture {
     public:
-        CheckerboardTexture(UserDisableTag, std::string_view name, const util::Float3& c1, const util::Float3& c2) noexcept;
+        CheckerboardTexture(UserDisableTag, std::string_view name, const Float3& c1, const Float3& c2) noexcept;
 
         static util::CountableRef<Texture> Make(std::string_view name = "") noexcept;
-        static util::CountableRef<Texture> Make(const util::Float3& c1, const util::Float3& c2, std::string_view name = "") noexcept;
+        static util::CountableRef<Texture> Make(const Float3& c1, const Float3& c2, std::string_view name = "") noexcept;
 
         virtual uint64_t GetMemorySizeInByte() const noexcept override;
 
-        virtual util::Float3   GetPixelAverage() const noexcept override;
+        virtual Float3         GetPixelAverage() const noexcept override;
         virtual optix::Texture GetOptixTexture() noexcept override;
 
-        void SetCheckerboradColor1(const util::Float3& color) noexcept { m_checkerborad_color1 = color; }
-        void SetCheckerboradColor2(const util::Float3& color) noexcept { m_checkerborad_color2 = color; }
-        void SetCheckerboradColor(const util::Float3& c1, const util::Float3& c2) noexcept {
+        void SetCheckerboradColor1(const Float3& color) noexcept { m_checkerborad_color1 = color; }
+        void SetCheckerboradColor2(const Float3& color) noexcept { m_checkerborad_color2 = color; }
+        void SetCheckerboradColor(const Float3& c1, const Float3& c2) noexcept {
             m_checkerborad_color1 = c1;
             m_checkerborad_color2 = c2;
         }
@@ -235,7 +235,7 @@ namespace Pupil::resource {
     private:
         virtual void* Clone() const noexcept override;
 
-        util::Float3 m_checkerborad_color1;
-        util::Float3 m_checkerborad_color2;
+        Float3 m_checkerborad_color1;
+        Float3 m_checkerborad_color2;
     };
 }// namespace Pupil::resource

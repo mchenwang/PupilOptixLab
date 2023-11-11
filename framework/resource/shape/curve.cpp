@@ -77,8 +77,8 @@ namespace Pupil::resource {
 
     util::AABB Curve::GetAABB() const noexcept {
         util::AABB ret = aabb;
-        ret.min -= util::Float3(m_max_width);
-        ret.max += util::Float3(m_max_width);
+        ret.min -= Float3(m_max_width);
+        ret.max += Float3(m_max_width);
         return ret;
     }
 
@@ -154,7 +154,7 @@ namespace Pupil::resource {
 
         aabb = util::AABB{};
         for (int i = 0; i < m_num_ctrl_vertex; i += 3) {
-            aabb.Merge(util::Float3(ctrl_vertex[i], ctrl_vertex[i + 1], ctrl_vertex[i + 2]));
+            aabb.Merge(Float3(ctrl_vertex[i], ctrl_vertex[i + 1], ctrl_vertex[i + 2]));
         }
 
         std::memcpy(m_ctrl_vertex.get(), ctrl_vertex, sizeof(float) * 3 * num_ctrl_vertex);

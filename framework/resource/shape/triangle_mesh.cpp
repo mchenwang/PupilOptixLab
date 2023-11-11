@@ -160,7 +160,7 @@ namespace Pupil::resource {
         }
         aabb = util::AABB{};
         for (int i = 0; i < num_vertex; ++i)
-            aabb.Merge(util::Float3{vertex[i * 3 + 0], vertex[i * 3 + 1], vertex[i * 3 + 2]});
+            aabb.Merge(Float3(vertex[i * 3 + 0], vertex[i * 3 + 1], vertex[i * 3 + 2]));
 
         std::memcpy(m_vertex.get(), vertex, sizeof(float) * 3 * num_vertex);
         m_data_dirty = true;

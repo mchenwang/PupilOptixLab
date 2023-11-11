@@ -9,7 +9,7 @@ namespace Pupil::resource {
 
     Twosided::Twosided(UserDisableTag, std::string_view name) noexcept
         : Material(name) {
-        m_inner_material = Diffuse::Make(util::Float3(1.f), m_name + " diffuse");
+        m_inner_material = Diffuse::Make(Float3(1.f), m_name + " diffuse");
     }
 
     Twosided::~Twosided() noexcept {

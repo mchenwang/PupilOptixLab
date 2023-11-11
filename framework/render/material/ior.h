@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/type.h"
+#include "util/math.h"
 
 #include <string>
 #include <charconv>
@@ -12,9 +12,9 @@ namespace Pupil::material {
     };
 
     struct ConductorIorEntry {
-        const char*  name;
-        util::Float3 eta;
-        util::Float3 k;
+        const char* name;
+        Float3      eta;
+        Float3      k;
     };
 
     // clang-format off
@@ -193,7 +193,7 @@ const static ConductorIorEntry S_CONDUCTOR_IOR_DATA[] = {
     }
 
     // default is none
-    static bool LoadConductorIor(std::string_view name, util::Float3& eta, util::Float3& k) noexcept {
+    static bool LoadConductorIor(std::string_view name, Float3& eta, Float3& k) noexcept {
         if (name.empty()) return false;
 
         for (auto& [name_, eta_, k_] : S_CONDUCTOR_IOR_DATA) {

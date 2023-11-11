@@ -13,12 +13,12 @@ namespace Pupil::resource::mixml {
         bool                         LoadBool(mixml::Object* xml_obj, std::string_view param_name, bool default_value) noexcept;
         int                          LoadInt(mixml::Object* xml_obj, std::string_view param_name, int default_value) noexcept;
         float                        LoadFloat(mixml::Object* xml_obj, std::string_view param_name, float default_value) noexcept;
-        util::Float3                 LoadFloat3(mixml::Object* xml_obj, std::string_view param_name, util::Float3 default_value) noexcept;
+        Float3                       LoadFloat3(mixml::Object* xml_obj, std::string_view param_name, Float3 default_value) noexcept;
         util::CountableRef<Shape>    LoadShape(mixml::Object* xml_obj) noexcept;
         util::CountableRef<Material> LoadMaterial(mixml::Object* xml_obj) noexcept;
-        TextureInstance              LoadTexture(mixml::Object* xml_obj, bool sRGB, util::Float3 default_value) noexcept;
-        TextureInstance              LoadTexture(mixml::Object* xml_obj, std::string_view param_name, bool sRGB, util::Float3 default_value) noexcept;
-        util::Transform              LoadTransform(mixml::Object* xml_obj) noexcept;
+        TextureInstance              LoadTexture(mixml::Object* xml_obj, bool sRGB, Float3 default_value) noexcept;
+        TextureInstance              LoadTexture(mixml::Object* xml_obj, std::string_view param_name, bool sRGB, Float3 default_value) noexcept;
+        Transform                    LoadTransform(mixml::Object* xml_obj) noexcept;
         std::unique_ptr<Emitter>     LoadEmitter(mixml::Object* xml_obj) noexcept;
 
         std::filesystem::path m_scene_root_path;

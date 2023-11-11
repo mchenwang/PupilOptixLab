@@ -9,9 +9,9 @@ namespace Pupil::resource {
 
     Conductor::Conductor(UserDisableTag, std::string_view name) noexcept
         : Material(name) {
-        m_eta                  = RGBTexture::Make(util::Float3(0.f), m_name + " eta");
-        m_k                    = RGBTexture::Make(util::Float3(1.f), m_name + " k");
-        m_specular_reflectance = RGBTexture::Make(util::Float3(1.f), m_name + " specular reflectance");
+        m_eta                  = RGBTexture::Make(Float3(0.f), m_name + " eta");
+        m_k                    = RGBTexture::Make(Float3(1.f), m_name + " k");
+        m_specular_reflectance = RGBTexture::Make(Float3(1.f), m_name + " specular reflectance");
     }
 
     Conductor::~Conductor() noexcept {
@@ -36,15 +36,15 @@ namespace Pupil::resource {
                m_specular_reflectance->GetMemorySizeInByte();
     }
 
-    void Conductor::SetEta(const util::Float3& eta) noexcept {
+    void Conductor::SetEta(const Float3& eta) noexcept {
         m_eta.SetTexture(RGBTexture::Make(eta, m_eta->GetName()));
     }
 
-    void Conductor::SetK(const util::Float3& k) noexcept {
+    void Conductor::SetK(const Float3& k) noexcept {
         m_k.SetTexture(RGBTexture::Make(k, m_k->GetName()));
     }
 
-    void Conductor::SetSpecularReflectance(const util::Float3& reflectance) noexcept {
+    void Conductor::SetSpecularReflectance(const Float3& reflectance) noexcept {
         m_specular_reflectance.SetTexture(RGBTexture::Make(reflectance, m_specular_reflectance->GetName()));
     }
 

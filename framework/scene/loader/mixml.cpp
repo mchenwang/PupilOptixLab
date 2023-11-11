@@ -65,12 +65,13 @@ namespace Pupil::resource::mixml {
                     }
                 }
 
-                float fov = LoadFloat(xml_obj, "fov", 90.f);
+                Angle fov;
+                fov.SetDegree(LoadFloat(xml_obj, "fov", 90.f));
                 if (fov_axis == 'x') {
                     float aspect = static_cast<float>(scene->film_h) / scene->film_w;
-                    float radian = fov * 3.14159265358979323846f / 180.f * 0.5f;
+                    float radian = fov.GetRadian() * 0.5f;
                     float t      = std::tan(radian) * aspect;
-                    fov          = 2.f * std::atan(t) * 180.f / 3.14159265358979323846f;
+                    fov.SetRadian(2.f * std::atan(t));
                 }
                 camera.SetFov(fov);
 
@@ -123,7 +124,7 @@ namespace Pupil::resource::mixml {
         return util::LoadFloat(xml_obj->GetProperty(param_name), default_value);
     }
 
-    util::Float3 MixmlSceneLoader::LoadFloat3(mixml::Object* xml_obj, std::string_view param_name, util::Float3 default_value) noexcept {
+    Float3 MixmlSceneLoader::LoadFloat3(mixml::Object* xml_obj, std::string_view param_name, Float3 default_value) noexcept {
         return util::LoadFloat3(xml_obj->GetProperty(param_name), default_value);
     }
 
@@ -135,7 +136,7 @@ namespace Pupil::resource::mixml {
         if (xml_obj->type == "sphere") {
             shape = Sphere::Make(xml_obj->id);
             shape.As<Sphere>()->SetFlipNormal(LoadBool(xml_obj, "flip_normals", false));
-            shape.As<Sphere>()->SetCenter(LoadFloat3(xml_obj, "center", util::Float3(0.f)));
+            shape.As<Sphere>()->SetCenter(LoadFloat3(xml_obj, "center", Float3(0.f)));
             shape.As<Sphere>()->SetRadius(LoadFloat(xml_obj, "radius", 1.f));
         } else if (xml_obj->type == "cube") {
             shape = Cube::Make(xml_obj->id);
@@ -179,7 +180,7 @@ namespace Pupil::resource::mixml {
 
     util::CountableRef<Material> MixmlSceneLoader::LoadMaterial(mixml::Object* xml_obj) noexcept {
         if (xml_obj == nullptr) [[unlikely]]
-            return Diffuse::Make(util::Float3(0.8f), "");
+            return Diffuse::Make(Float3(0.8f), "");
 
         util::CountableRef<Material> material;
         if (xml_obj->type == "diffuse") {
@@ -199,9 +200,9 @@ namespace Pupil::resource::mixml {
             material.As<RoughDielectric>()->SetSpecularReflectance(LoadTexture(xml_obj, "specular_reflectance", true, {1.f}));
             material.As<RoughDielectric>()->SetSpecularTransmittance(LoadTexture(xml_obj, "specular_transmittance", true, {1.f}));
         } else if (xml_obj->type == "conductor") {
-            material                        = Conductor::Make(xml_obj->id);
-            auto         conductor_mat_name = xml_obj->GetProperty("material");
-            util::Float3 eta, k;
+            material                  = Conductor::Make(xml_obj->id);
+            auto   conductor_mat_name = xml_obj->GetProperty("material");
+            Float3 eta, k;
             if (!material::LoadConductorIor(conductor_mat_name, eta, k)) {
                 eta = {0.f};
                 k   = {1.f};
@@ -210,9 +211,9 @@ namespace Pupil::resource::mixml {
             material.As<Conductor>()->SetK(LoadTexture(xml_obj, "k", false, k));
             material.As<Conductor>()->SetSpecularReflectance(LoadTexture(xml_obj, "specular_reflectance", true, {1.f}));
         } else if (xml_obj->type == "roughconductor") {
-            material                        = RoughConductor::Make(xml_obj->id);
-            auto         conductor_mat_name = xml_obj->GetProperty("material");
-            util::Float3 eta, k;
+            material                  = RoughConductor::Make(xml_obj->id);
+            auto   conductor_mat_name = xml_obj->GetProperty("material");
+            Float3 eta, k;
             if (!material::LoadConductorIor(conductor_mat_name, eta, k)) {
                 eta = {0.f};
                 k   = {1.f};
@@ -247,13 +248,13 @@ namespace Pupil::resource::mixml {
             material.As<Twosided>()->SetMaterial(LoadMaterial(xml_obj->GetUniqueSubObject("bsdf")));
         } else [[unlikely]] {
             Pupil::Log::Warn("unknown bsdf [{}].", xml_obj->type);
-            material = Diffuse::Make(util::Float3(0.8f), xml_obj->id);
+            material = Diffuse::Make(Float3(0.8f), xml_obj->id);
         }
 
         return material;
     }
 
-    TextureInstance MixmlSceneLoader::LoadTexture(mixml::Object* xml_obj, bool sRGB, util::Float3 default_value) noexcept {
+    TextureInstance MixmlSceneLoader::LoadTexture(mixml::Object* xml_obj, bool sRGB, Float3 default_value) noexcept {
         if (xml_obj == nullptr) [[unlikely]]
             return RGBTexture::Make(default_value, "");
 
@@ -294,7 +295,7 @@ namespace Pupil::resource::mixml {
         return instance;
     }
 
-    TextureInstance MixmlSceneLoader::LoadTexture(mixml::Object* xml_obj, std::string_view param_name, bool sRGB, util::Float3 default_value) noexcept {
+    TextureInstance MixmlSceneLoader::LoadTexture(mixml::Object* xml_obj, std::string_view param_name, bool sRGB, Float3 default_value) noexcept {
         if (xml_obj == nullptr)
             return RGBTexture::Make(default_value, param_name);
 
@@ -309,8 +310,8 @@ namespace Pupil::resource::mixml {
         return LoadTexture(tex_obj, sRGB, default_value);
     }
 
-    util::Transform MixmlSceneLoader::LoadTransform(mixml::Object* xml_obj) noexcept {
-        util::Transform transform;
+    Transform MixmlSceneLoader::LoadTransform(mixml::Object* xml_obj) noexcept {
+        Transform transform;
         if (xml_obj == nullptr) return transform;
 
         if (xml_obj->var_name == "to_world") {
@@ -328,11 +329,11 @@ namespace Pupil::resource::mixml {
                     Log::Warn("transform matrix size is {}(must be 9 or 16).", value.size());
                 }
             } else if (auto look_at = xml_obj->GetUniqueSubObject("lookat"); look_at) {
-                util::Float3 origin = LoadFloat3(look_at, "origin", {1.f, 0.f, 0.f});
-                util::Float3 target = LoadFloat3(look_at, "target", {0.f, 0.f, 0.f});
-                util::Float3 up     = LoadFloat3(look_at, "up", {0.f, 1.f, 0.f});
+                Float3 origin = LoadFloat3(look_at, "origin", {1.f, 0.f, 0.f});
+                Float3 target = LoadFloat3(look_at, "target", {0.f, 0.f, 0.f});
+                Float3 up     = LoadFloat3(look_at, "up", {0.f, 1.f, 0.f});
 
-                transform.LookAt(origin, target, up);
+                transform = Pupil::MakeLookatToWorldMatrixRH(origin, target, up);
 
                 // Mitsuba 3: +X points left, +Y points up, +Z points view
                 // LookAt Transform: +X points right, +Y points up, +Z points -view
@@ -343,21 +344,24 @@ namespace Pupil::resource::mixml {
                 transform.matrix.re[1][2] *= -1;
                 transform.matrix.re[2][2] *= -1;
             } else {
-                auto scale = LoadFloat3(xml_obj, "scale", {1.f, 1.f, 1.f});
-                transform.Scale(scale.x, scale.y, scale.z);
-                auto rotate_obj = xml_obj->GetUniqueSubObject("rotate");
-                if (rotate_obj) {
-                    auto axis  = LoadFloat3(rotate_obj, "axis", {0.f, 0.f, 0.f});
-                    auto angle = LoadFloat(rotate_obj, "angle", 0.f);
-                    if (angle != 0.f && axis != util::Float3{0.f, 0.f, 0.f})
-                        transform.Rotate(axis.x, axis.y, axis.z, angle);
+                auto translation = LoadFloat3(xml_obj, "translate", {0.f});
+                auto scaling     = LoadFloat3(xml_obj, "scale", {1.f, 1.f, 1.f});
+
+                Vector3f axis(1.f, 0.f, 0.f);
+                Angle    angle(0.f);
+
+                if (auto rotate_obj = xml_obj->GetUniqueSubObject("rotate"); rotate_obj) {
+                    axis = LoadFloat3(rotate_obj, "axis", {1.f, 0.f, 0.f});
+                    angle.SetDegree(LoadFloat(rotate_obj, "angle", 0.f));
                 }
-                auto translate = LoadFloat3(xml_obj, "translate", {0.f});
-                transform.Translate(translate.x, translate.y, translate.z);
+
+                transform = Pupil::Transform(translation, scaling, Quaternion(axis, angle));
             }
         } else if (xml_obj->var_name == "to_uv") {
-            auto scale = LoadFloat3(xml_obj, "scale", {1.f, 1.f, 1.f});
-            transform.Scale(scale.x, scale.y, scale.z);
+            auto translation = Float3(0.f);
+            auto scaling     = LoadFloat3(xml_obj, "scale", {1.f, 1.f, 1.f});
+            auto quaternion  = Quaternion();
+            transform        = Pupil::Transform(translation, scaling, quaternion);
         } else [[unlikely]] {
             Pupil::Log::Warn("transform [{}] UNKNOWN.", xml_obj->var_name);
         }

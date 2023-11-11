@@ -45,7 +45,7 @@ namespace Pupil {
         EventBinder<ECanvasEvent::CameraMove>([this](void* p) {
             // if (!util::Singleton<System>::instance()->render_flag || !camera) return;
 
-            // util::Float3 delta = *(util::Float3 *)p;
+            // Float3 delta = *(Float3 *)p;
             // camera->Move(delta * util::Camera::sensitivity * util::Camera::sensitivity_scale);
             // EventDispatcher<EWorldEvent::CameraMove>();
             // EventDispatcher<EWorldEvent::CameraChange>();

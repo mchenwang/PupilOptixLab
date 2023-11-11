@@ -10,8 +10,8 @@ namespace Pupil::resource {
     Dielectric::Dielectric(UserDisableTag, std::string_view name) noexcept
         : Material(name),
           m_int_ior(1.5046f), m_ext_ior(1.000277f) {
-        m_specular_reflectance   = RGBTexture::Make(util::Float3(1.f), m_name + " specular reflectance");
-        m_specular_transmittance = RGBTexture::Make(util::Float3(1.f), m_name + " specular transmittance");
+        m_specular_reflectance   = RGBTexture::Make(Float3(1.f), m_name + " specular reflectance");
+        m_specular_transmittance = RGBTexture::Make(Float3(1.f), m_name + " specular transmittance");
     }
 
     Dielectric::~Dielectric() noexcept {
@@ -44,11 +44,11 @@ namespace Pupil::resource {
         m_ext_ior = ior;
     }
 
-    void Dielectric::SetSpecularReflectance(const util::Float3& reflectance) noexcept {
+    void Dielectric::SetSpecularReflectance(const Float3& reflectance) noexcept {
         m_specular_reflectance.SetTexture(RGBTexture::Make(reflectance, m_specular_reflectance->GetName()));
     }
 
-    void Dielectric::SetSpecularTransmittance(const util::Float3& transmittance) noexcept {
+    void Dielectric::SetSpecularTransmittance(const Float3& transmittance) noexcept {
         m_specular_transmittance.SetTexture(RGBTexture::Make(transmittance, m_specular_transmittance->GetName()));
     }
 

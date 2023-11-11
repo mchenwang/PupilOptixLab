@@ -51,7 +51,7 @@ namespace Pupil {
 
     void Scene::AddInstance(std::string_view                              name,
                             const util::CountableRef<resource::Shape>&    shape,
-                            const util::Transform&                        transform,
+                            const Transform&                              transform,
                             const util::CountableRef<resource::Material>& material,
                             const resource::TextureInstance&              emit_radiance) noexcept {
         Instance instance;
@@ -63,8 +63,8 @@ namespace Pupil {
         instance.transform = transform;
         instance.aabb      = util::AABB{};
         auto aabb_ls       = shape->GetAABB();
-        instance.aabb.Merge(util::Transform::TransformPoint(aabb_ls.min, transform.matrix));
-        instance.aabb.Merge(util::Transform::TransformPoint(aabb_ls.max, transform.matrix));
+        instance.aabb.Merge(transform * aabb_ls.min);
+        instance.aabb.Merge(transform * aabb_ls.max);
 
         instance.emitter = nullptr;
         if (emit_radiance) {

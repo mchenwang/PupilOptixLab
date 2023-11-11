@@ -5,18 +5,18 @@ namespace Pupil::resource {
 
     util::CountableRef<Texture> CheckerboardTexture::Make(std::string_view name) noexcept {
         auto tex_mngr = util::Singleton<TextureManager>::instance();
-        return tex_mngr->Register(std::make_unique<CheckerboardTexture>(UserDisableTag{}, name, util::Float3(0.2f), util::Float3(0.8f)));
+        return tex_mngr->Register(std::make_unique<CheckerboardTexture>(UserDisableTag{}, name, Float3(0.2f), Float3(0.8f)));
     }
 
-    util::CountableRef<Texture> CheckerboardTexture::Make(const util::Float3& c1, const util::Float3& c2, std::string_view name) noexcept {
+    util::CountableRef<Texture> CheckerboardTexture::Make(const Float3& c1, const Float3& c2, std::string_view name) noexcept {
         auto tex_mngr = util::Singleton<TextureManager>::instance();
         return tex_mngr->Register(std::make_unique<CheckerboardTexture>(UserDisableTag{}, name, c1, c2));
     }
 
     CheckerboardTexture::CheckerboardTexture(UserDisableTag,
-                                             std::string_view    name,
-                                             const util::Float3& c1,
-                                             const util::Float3& c2) noexcept
+                                             std::string_view name,
+                                             const Float3&    c1,
+                                             const Float3&    c2) noexcept
         : Texture(name),
           m_checkerborad_color1(c1),
           m_checkerborad_color2(c2) {
@@ -43,10 +43,10 @@ namespace Pupil::resource {
         return tex;
     }
 
-    util::Float3 CheckerboardTexture::GetPixelAverage() const noexcept {
+    Float3 CheckerboardTexture::GetPixelAverage() const noexcept {
         float r = m_checkerborad_color1.x + m_checkerborad_color2.x;
         float g = m_checkerborad_color1.y + m_checkerborad_color2.y;
         float b = m_checkerborad_color1.z + m_checkerborad_color2.z;
-        return util::Float3(r, g, b) * 0.5f;
+        return Float3(r, g, b) * 0.5f;
     }
 }// namespace Pupil::resource

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda/preprocessor.h"
-#include "util/enum.h"
 
 #include <array>
 

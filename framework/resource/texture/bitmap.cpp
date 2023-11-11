@@ -130,7 +130,7 @@ namespace Pupil::resource {
         return tex;
     }
 
-    util::Float3 Bitmap::GetPixelAverage() const noexcept {
+    Float3 Bitmap::GetPixelAverage() const noexcept {
         float r = 0.f;
         float g = 0.f;
         float b = 0.f;
@@ -142,6 +142,6 @@ namespace Pupil::resource {
                 idx++;// a
             }
         }
-        return util::Float3(r, g, b) / (1.f * m_height * m_width);
+        return Float3(r, g, b) / (1.f * m_height * m_width);
     }
 }// namespace Pupil::resource

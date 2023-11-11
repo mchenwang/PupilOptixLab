@@ -34,6 +34,7 @@ namespace Pupil::optix {
         CUDA_DEVICE void Eval(EmitEvalRecord& ret, LocalGeometry& emit_local_geo, float3 scatter_pos) const noexcept {
             float3 dir  = normalize(scatter_pos - emit_local_geo.position);
             float  LNoL = dot(emit_local_geo.normal, dir);
+            ret.pdf     = 0.f;
             if (LNoL > 0.f) {
                 float distance = length(scatter_pos - emit_local_geo.position);
                 ret.pdf        = distance * distance / (LNoL * area);

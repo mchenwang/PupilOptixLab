@@ -679,7 +679,7 @@ namespace Pupil {
                                 disable_imguizmo = true;
                             }
 
-                            util::Float3 delta_pos;
+                            Float3 delta_pos;
                             if (ImGui::IsKeyDown(ImGuiKey_A)) delta_pos -= Pupil::Camera::X;
                             if (ImGui::IsKeyDown(ImGuiKey_D)) delta_pos += Pupil::Camera::X;
                             if (ImGui::IsKeyDown(ImGuiKey_W)) delta_pos -= Pupil::Camera::Z;

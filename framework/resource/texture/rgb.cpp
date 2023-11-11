@@ -2,12 +2,12 @@
 #include "render/texture.h"
 
 namespace Pupil::resource {
-    util::CountableRef<Texture> RGBTexture::Make(const util::Float3& c, std::string_view name) noexcept {
+    util::CountableRef<Texture> RGBTexture::Make(const Float3& c, std::string_view name) noexcept {
         auto tex_mngr = util::Singleton<TextureManager>::instance();
         return tex_mngr->Register(std::make_unique<RGBTexture>(UserDisableTag{}, name, c));
     }
 
-    RGBTexture::RGBTexture(UserDisableTag, std::string_view name, const util::Float3& c) noexcept
+    RGBTexture::RGBTexture(UserDisableTag, std::string_view name, const Float3& c) noexcept
         : Texture(name),
           m_color(c) {
     }
@@ -30,7 +30,7 @@ namespace Pupil::resource {
         return tex;
     }
 
-    util::Float3 RGBTexture::GetPixelAverage() const noexcept {
+    Float3 RGBTexture::GetPixelAverage() const noexcept {
         return m_color;
     }
 }// namespace Pupil::resource

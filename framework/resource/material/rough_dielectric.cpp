@@ -10,9 +10,9 @@ namespace Pupil::resource {
     RoughDielectric::RoughDielectric(UserDisableTag, std::string_view name) noexcept
         : Material(name),
           m_int_ior(1.5046f), m_ext_ior(1.000277f) {
-        m_alpha                  = RGBTexture::Make(util::Float3(0.1f), m_name + " alpha");
-        m_specular_reflectance   = RGBTexture::Make(util::Float3(1.f), m_name + " specular reflectance");
-        m_specular_transmittance = RGBTexture::Make(util::Float3(1.f), m_name + " specular transmittance");
+        m_alpha                  = RGBTexture::Make(Float3(0.1f), m_name + " alpha");
+        m_specular_reflectance   = RGBTexture::Make(Float3(1.f), m_name + " specular reflectance");
+        m_specular_transmittance = RGBTexture::Make(Float3(1.f), m_name + " specular transmittance");
     }
 
     RoughDielectric::~RoughDielectric() noexcept {
@@ -48,15 +48,15 @@ namespace Pupil::resource {
         m_ext_ior = ior;
     }
 
-    void RoughDielectric::SetAlpha(const util::Float3& alpha) noexcept {
+    void RoughDielectric::SetAlpha(const Float3& alpha) noexcept {
         m_alpha.SetTexture(RGBTexture::Make(alpha, m_alpha->GetName()));
     }
 
-    void RoughDielectric::SetSpecularReflectance(const util::Float3& reflectance) noexcept {
+    void RoughDielectric::SetSpecularReflectance(const Float3& reflectance) noexcept {
         m_specular_reflectance.SetTexture(RGBTexture::Make(reflectance, m_specular_reflectance->GetName()));
     }
 
-    void RoughDielectric::SetSpecularTransmittance(const util::Float3& transmittance) noexcept {
+    void RoughDielectric::SetSpecularTransmittance(const Float3& transmittance) noexcept {
         m_specular_transmittance.SetTexture(RGBTexture::Make(transmittance, m_specular_transmittance->GetName()));
     }
 

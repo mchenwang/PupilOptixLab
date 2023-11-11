@@ -52,6 +52,7 @@ namespace Pupil::optix {
             auto   area = areas[ret.primitive_index];
             float3 dir  = normalize(scatter_pos - emit_local_geo.position);
             float  LNoL = dot(emit_local_geo.normal, dir);
+            ret.pdf     = 0.f;
             if (LNoL > 0.f) {
                 float distance = length(scatter_pos - emit_local_geo.position);
                 ret.pdf        = distance * distance / (LNoL * area) * inv_num;

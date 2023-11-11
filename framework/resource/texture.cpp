@@ -47,7 +47,7 @@ namespace Pupil::resource {
         if (m_impl) return;
         m_impl = new Impl();
 
-        m_impl->default_texture = std::make_unique<RGBTexture>(Texture::UserDisableTag{}, DEFAULT_TEXTURE_NAME, util::Float3(1.f));
+        m_impl->default_texture = std::make_unique<RGBTexture>(Texture::UserDisableTag{}, DEFAULT_TEXTURE_NAME, Float3(1.f));
     }
 
     TextureManager::~TextureManager() noexcept {

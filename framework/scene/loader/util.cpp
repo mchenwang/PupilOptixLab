@@ -48,12 +48,12 @@ namespace Pupil::util {
         return ret;
     }
 
-    util::Float3 LoadFloat3(std::string_view value, util::Float3 default_value) noexcept {
+    Float3 LoadFloat3(std::string_view value, Float3 default_value) noexcept {
         if (value.empty())
             return default_value;
 
-        auto         xyz = Split(value, ",");
-        util::Float3 ret = default_value;
+        auto   xyz = Split(value, ",");
+        Float3 ret = default_value;
         try {
             if (xyz.size() == 3) {
                 ret.x = std::stof(xyz[0]);
@@ -68,12 +68,12 @@ namespace Pupil::util {
         return ret;
     }
 
-    util::Float3 Load3Float(std::string_view value, util::Float3 default_value) noexcept {
+    Float3 Load3Float(std::string_view value, Float3 default_value) noexcept {
         if (value.empty())
             return default_value;
 
-        auto         xyz = Split(value, ",");
-        util::Float3 ret = default_value;
+        auto   xyz = Split(value, ",");
+        Float3 ret = default_value;
         try {
             if (xyz.size() == 3) {
                 ret.x = std::stof(xyz[0]);

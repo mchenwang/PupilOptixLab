@@ -6,6 +6,7 @@
 
 #include "util/data.h"
 #include "util/util.h"
+#include "util/math.h"
 
 #include <cuda.h>
 
@@ -13,7 +14,7 @@ namespace Pupil {
     class Emitter {
     public:
         Emitter() noexcept = default;
-        Emitter(const resource::TextureInstance& radiance, const util::Transform& transform) noexcept
+        Emitter(const resource::TextureInstance& radiance, const Transform& transform) noexcept
             : m_radiance(radiance), m_transform(transform) {}
         virtual ~Emitter() noexcept = default;
 
@@ -21,25 +22,25 @@ namespace Pupil {
         virtual bool           IsEnvironmentEmitter() const noexcept { return false; }
         virtual void           UploadToCuda() noexcept = 0;
 
-        virtual void SetTransform(const util::Transform& trans) noexcept { m_transform = trans; };
+        virtual void SetTransform(const Transform& trans) noexcept { m_transform = trans; };
         void         SetRadiance(const resource::TextureInstance& radiance) noexcept { m_radiance = radiance; }
         auto         GetTransform() const noexcept { return m_transform; }
         auto&        GetRadiance() const noexcept { return m_radiance; }
 
     protected:
         resource::TextureInstance m_radiance;
-        util::Transform           m_transform;
+        Transform                 m_transform;
     };
 
     class SphereEmitter final : public Emitter {
     public:
         SphereEmitter(const util::CountableRef<resource::Sphere>& shape,
-                      const util::Transform&                      transform,
+                      const Transform&                            transform,
                       const resource::TextureInstance&            radiance) noexcept;
         ~SphereEmitter() noexcept;
 
         virtual optix::Emitter GetOptixEmitter() noexcept override;
-        virtual void           SetTransform(const util::Transform& trans) noexcept override;
+        virtual void           SetTransform(const Transform& trans) noexcept override;
         virtual void           UploadToCuda() noexcept override;
 
         auto GetShape() const noexcept { return m_shape.Get(); }
@@ -55,12 +56,12 @@ namespace Pupil {
     class TriMeshEmitter final : public Emitter {
     public:
         TriMeshEmitter(const util::CountableRef<resource::TriangleMesh>& shape,
-                       const util::Transform&                            transform,
+                       const Transform&                                  transform,
                        const resource::TextureInstance&                  radiance) noexcept;
         ~TriMeshEmitter() noexcept;
 
         virtual optix::Emitter GetOptixEmitter() noexcept override;
-        virtual void           SetTransform(const util::Transform& trans) noexcept override;
+        virtual void           SetTransform(const Transform& trans) noexcept override;
         virtual void           UploadToCuda() noexcept override;
 
         auto GetShape() const noexcept { return m_shape.Get(); }
@@ -101,7 +102,7 @@ namespace Pupil {
 
     class ConstEmitter final : public Emitter {
     public:
-        ConstEmitter(const util::Float3& radiance) noexcept;
+        ConstEmitter(const Float3& radiance) noexcept;
         ~ConstEmitter() noexcept;
 
         virtual optix::Emitter GetOptixEmitter() noexcept override;

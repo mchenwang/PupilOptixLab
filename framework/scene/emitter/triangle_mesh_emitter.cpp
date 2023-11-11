@@ -5,7 +5,7 @@
 
 namespace Pupil {
     TriMeshEmitter::TriMeshEmitter(const util::CountableRef<resource::TriangleMesh>& shape,
-                                   const util::Transform&                            transform,
+                                   const Transform&                                  transform,
                                    const resource::TextureInstance&                  radiance) noexcept
         : Emitter(radiance, transform), m_data_dirty(true), m_cuda_memory(0), m_shape(shape) {
         m_num_face   = m_shape->GetFaceNum();
@@ -57,11 +57,11 @@ namespace Pupil {
             CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_cuda_memory), size, *stream));
 
         auto [indices, pos_ws, nor_ws, tex_ls, areas] = GetTriMeshEmitterCudaMemory(m_cuda_memory, m_num_face, m_num_vertex);
-        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(indices), m_mesh_index.get(), sizeof(uint32_t) * m_num_face * 3, cudaMemcpyHostToDevice, *stream));
-        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(pos_ws), m_mesh_vertex_ws.get(), sizeof(float) * m_num_vertex * 3, cudaMemcpyHostToDevice, *stream));
-        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(nor_ws), m_mesh_normal_ws.get(), sizeof(float) * m_num_vertex * 3, cudaMemcpyHostToDevice, *stream));
-        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(tex_ls), m_mesh_texcoord_ls.get(), sizeof(float) * m_num_vertex * 2, cudaMemcpyHostToDevice, *stream));
-        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(areas), m_areas.get(), sizeof(float) * m_num_face, cudaMemcpyHostToDevice, *stream));
+        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(indices), m_mesh_index.get(), sizeof(uint32_t) * m_num_face * 3, cudaMemcpyHostToDevice, *stream));
+        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(pos_ws), m_mesh_vertex_ws.get(), sizeof(float) * m_num_vertex * 3, cudaMemcpyHostToDevice, *stream));
+        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(nor_ws), m_mesh_normal_ws.get(), sizeof(float) * m_num_vertex * 3, cudaMemcpyHostToDevice, *stream));
+        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(tex_ls), m_mesh_texcoord_ls.get(), sizeof(float) * m_num_vertex * 2, cudaMemcpyHostToDevice, *stream));
+        CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(areas), m_areas.get(), sizeof(float) * m_num_face, cudaMemcpyHostToDevice, *stream));
 
         m_radiance->UploadToCuda();
 
@@ -83,9 +83,9 @@ namespace Pupil {
         return emitter;
     }
 
-    void TriMeshEmitter::SetTransform(const util::Transform& trans) noexcept {
+    void TriMeshEmitter::SetTransform(const Transform& trans) noexcept {
         m_transform           = trans;
-        auto normal_transform = trans.matrix.GetInverse().GetTranspose();
+        auto normal_transform = GetDiagonal3x3(Transpose(trans.Inverse().GetMatrix4x4()));
         auto vertex           = m_shape->GetVertex();
         auto normal           = m_shape->GetNormal();
         auto texcoord         = m_shape->GetTexcoord();
@@ -93,23 +93,19 @@ namespace Pupil {
             uint32_t idx[3];
             for (auto j = 0u; j < 3u; j++) idx[j] = m_mesh_index[i * 3 + j];
 
-            float3 p[3];
+            Float3 p[3];
             for (auto j = 0u; j < 3u; j++) {
-                auto pos = util::Float3(vertex[idx[j] * 3], vertex[idx[j] * 3 + 1], vertex[idx[j] * 3 + 2]);
-                pos      = util::Transform::TransformPoint(pos, m_transform.matrix);
-                p[j]     = make_float3(pos.x, pos.y, pos.z);
+                p[j] = m_transform * Float3(vertex[idx[j] * 3], vertex[idx[j] * 3 + 1], vertex[idx[j] * 3 + 2]);
 
                 m_mesh_vertex_ws[idx[j] * 3 + 0] = p[j].x;
                 m_mesh_vertex_ws[idx[j] * 3 + 1] = p[j].y;
                 m_mesh_vertex_ws[idx[j] * 3 + 2] = p[j].z;
             }
 
-            float3 n[3];
+            Float3 n[3];
             if (normal) {
                 for (auto j = 0u; j < 3u; j++) {
-                    auto nor = util::Float3(normal[idx[j] * 3], normal[idx[j] * 3 + 1], normal[idx[j] * 3 + 2]);
-                    nor      = util::Transform::TransformNormal(nor, normal_transform);
-                    n[j]     = make_float3(nor.x, nor.y, nor.z);
+                    n[j] = Normalizef(normal_transform * Float3(normal[idx[j] * 3], normal[idx[j] * 3 + 1], normal[idx[j] * 3 + 2]));
 
                     m_mesh_normal_ws[idx[j] * 3 + 0] = n[j].x;
                     m_mesh_normal_ws[idx[j] * 3 + 1] = n[j].y;
@@ -118,7 +114,7 @@ namespace Pupil {
             } else {
                 auto v1 = p[0] - p[1];
                 auto v2 = p[2] - p[1];
-                n[0] = n[1] = n[2] = normalize(cross(make_float3(v2.x, v2.y, v2.z), make_float3(v1.x, v1.y, v1.z)));
+                n[0] = n[1] = n[2] = Normalizef(Cross(v2, v1));
 
                 for (auto j = 0u; j < 3u; j++) {
                     m_mesh_normal_ws[idx[j] * 3 + 0] = n[j].x;
@@ -132,9 +128,10 @@ namespace Pupil {
                 m_mesh_texcoord_ls[idx[j] * 2 + 1] = texcoord ? texcoord[idx[j] * 2 + 1] : 0.f;
             }
 
-            auto v1    = p[0] - p[1];
-            auto v2    = p[2] - p[1];
-            m_areas[i] = length(cross(v1, v2)) * 0.5f;
+            auto v1 = p[0] - p[1];
+            auto v2 = p[2] - p[1];
+
+            m_areas[i] = Lengthf(Cross(v1, v2)) * 0.5f;
         }
 
         m_data_dirty = true;

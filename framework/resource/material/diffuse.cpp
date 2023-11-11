@@ -7,12 +7,12 @@ namespace Pupil::resource {
         return mat_mngr->Register(std::make_unique<Diffuse>(UserDisableTag{}, name));
     }
 
-    util::CountableRef<Material> Diffuse::Make(const util::Float3& c, std::string_view name) noexcept {
+    util::CountableRef<Material> Diffuse::Make(const Float3& c, std::string_view name) noexcept {
         auto mat_mngr = util::Singleton<MaterialManager>::instance();
         return mat_mngr->Register(std::make_unique<Diffuse>(UserDisableTag{}, name, c));
     }
 
-    Diffuse::Diffuse(UserDisableTag, std::string_view name, const util::Float3& c) noexcept
+    Diffuse::Diffuse(UserDisableTag, std::string_view name, const Float3& c) noexcept
         : Material(name) {
         m_reflectance = RGBTexture::Make(c, m_name + " reflectance");
     }
@@ -34,7 +34,7 @@ namespace Pupil::resource {
         return m_reflectance->GetMemorySizeInByte();
     }
 
-    void Diffuse::SetReflectance(const util::Float3& color) noexcept {
+    void Diffuse::SetReflectance(const Float3& color) noexcept {
         m_reflectance.SetTexture(RGBTexture::Make(color, m_reflectance->GetName()));
     }
 

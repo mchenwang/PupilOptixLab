@@ -129,7 +129,7 @@ namespace Pupil::resource {
     class Sphere final : public Shape {
     public:
         Sphere(UserDisableTag, std::string_view name = "") noexcept;
-        Sphere(UserDisableTag, const util::Float3& c, float r, std::string_view name = "") noexcept;
+        Sphere(UserDisableTag, const Float3& c, float r, std::string_view name = "") noexcept;
         ~Sphere() noexcept;
 
         static util::CountableRef<Shape> Make(std::string_view name = "") noexcept;
@@ -140,7 +140,7 @@ namespace Pupil::resource {
         virtual optix::Geometry GetOptixGeometry() noexcept override;
         virtual OptixBuildInput GetOptixBuildInput() noexcept override;
 
-        void SetCenter(const util::Float3& center) noexcept;
+        void SetCenter(const Float3& center) noexcept;
         void SetRadius(float radius) noexcept;
         void SetFlipNormal(bool flip_normal) noexcept;
 
@@ -151,9 +151,9 @@ namespace Pupil::resource {
     private:
         virtual void* Clone() const noexcept override;
 
-        bool         m_flip_normal;
-        float        m_radius;
-        util::Float3 m_center;
+        bool   m_flip_normal;
+        float  m_radius;
+        Float3 m_center;
 
         CUdeviceptr m_device_memory_radius;
         CUdeviceptr m_device_memory_center;

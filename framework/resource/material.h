@@ -75,18 +75,18 @@ namespace Pupil::resource {
 
     class Diffuse : public Material {
     public:
-        Diffuse(UserDisableTag, std::string_view name = "", const util::Float3& c = util::Float3(0.f)) noexcept;
+        Diffuse(UserDisableTag, std::string_view name = "", const Float3& c = Float3(0.f)) noexcept;
         ~Diffuse() noexcept;
 
         static util::CountableRef<Material> Make(std::string_view name = "") noexcept;
-        static util::CountableRef<Material> Make(const util::Float3& c, std::string_view name = "") noexcept;
+        static util::CountableRef<Material> Make(const Float3& c, std::string_view name = "") noexcept;
 
         virtual uint64_t GetMemorySizeInByte() const noexcept override;
 
         virtual void            UploadToCuda() noexcept override;
         virtual optix::Material GetOptixMaterial() noexcept override;
 
-        void SetReflectance(const util::Float3& color) noexcept;
+        void SetReflectance(const Float3& color) noexcept;
         void SetReflectance(const TextureInstance& reflectance) noexcept;
 
         TextureInstance GetReflectance() const noexcept { return m_reflectance; }
@@ -111,8 +111,8 @@ namespace Pupil::resource {
 
         void SetIntIOR(float ior) noexcept;
         void SetExtIOR(float ior) noexcept;
-        void SetSpecularReflectance(const util::Float3& reflectance) noexcept;
-        void SetSpecularTransmittance(const util::Float3& transmittance) noexcept;
+        void SetSpecularReflectance(const Float3& reflectance) noexcept;
+        void SetSpecularTransmittance(const Float3& transmittance) noexcept;
         void SetSpecularReflectance(const TextureInstance& reflectance) noexcept;
         void SetSpecularTransmittance(const TextureInstance& transmittance) noexcept;
 
@@ -144,9 +144,9 @@ namespace Pupil::resource {
 
         void SetIntIOR(float ior) noexcept;
         void SetExtIOR(float ior) noexcept;
-        void SetAlpha(const util::Float3& alpha) noexcept;
-        void SetSpecularReflectance(const util::Float3& reflectance) noexcept;
-        void SetSpecularTransmittance(const util::Float3& transmittance) noexcept;
+        void SetAlpha(const Float3& alpha) noexcept;
+        void SetSpecularReflectance(const Float3& reflectance) noexcept;
+        void SetSpecularTransmittance(const Float3& transmittance) noexcept;
         void SetAlpha(const TextureInstance& alpha) noexcept;
         void SetSpecularReflectance(const TextureInstance& reflectance) noexcept;
         void SetSpecularTransmittance(const TextureInstance& transmittance) noexcept;
@@ -179,9 +179,9 @@ namespace Pupil::resource {
         virtual void            UploadToCuda() noexcept override;
         virtual optix::Material GetOptixMaterial() noexcept override;
 
-        void SetEta(const util::Float3& eta) noexcept;
-        void SetK(const util::Float3& k) noexcept;
-        void SetSpecularReflectance(const util::Float3& reflectance) noexcept;
+        void SetEta(const Float3& eta) noexcept;
+        void SetK(const Float3& k) noexcept;
+        void SetSpecularReflectance(const Float3& reflectance) noexcept;
         void SetEta(const TextureInstance& eta) noexcept;
         void SetK(const TextureInstance& k) noexcept;
         void SetSpecularReflectance(const TextureInstance& reflectance) noexcept;
@@ -210,10 +210,10 @@ namespace Pupil::resource {
         virtual void            UploadToCuda() noexcept override;
         virtual optix::Material GetOptixMaterial() noexcept override;
 
-        void SetAlpha(const util::Float3& alpha) noexcept;
-        void SetEta(const util::Float3& eta) noexcept;
-        void SetK(const util::Float3& k) noexcept;
-        void SetSpecularReflectance(const util::Float3& reflectance) noexcept;
+        void SetAlpha(const Float3& alpha) noexcept;
+        void SetEta(const Float3& eta) noexcept;
+        void SetK(const Float3& k) noexcept;
+        void SetSpecularReflectance(const Float3& reflectance) noexcept;
         void SetAlpha(const TextureInstance& alpha) noexcept;
         void SetEta(const TextureInstance& eta) noexcept;
         void SetK(const TextureInstance& k) noexcept;
@@ -248,8 +248,8 @@ namespace Pupil::resource {
         void SetIntIOR(float ior) noexcept;
         void SetExtIOR(float ior) noexcept;
         void SetLinear(float is_linear) noexcept;
-        void SetDiffuseReflectance(const util::Float3& diffuse) noexcept;
-        void SetSpecularReflectance(const util::Float3& specular) noexcept;
+        void SetDiffuseReflectance(const Float3& diffuse) noexcept;
+        void SetSpecularReflectance(const Float3& specular) noexcept;
         void SetDiffuseReflectance(const TextureInstance& diffuse) noexcept;
         void SetSpecularReflectance(const TextureInstance& specular) noexcept;
 
@@ -284,9 +284,9 @@ namespace Pupil::resource {
         void SetIntIOR(float ior) noexcept;
         void SetExtIOR(float ior) noexcept;
         void SetLinear(float is_linear) noexcept;
-        void SetAlpha(const util::Float3& alpha) noexcept;
-        void SetDiffuseReflectance(const util::Float3& diffuse) noexcept;
-        void SetSpecularReflectance(const util::Float3& specular) noexcept;
+        void SetAlpha(const Float3& alpha) noexcept;
+        void SetDiffuseReflectance(const Float3& diffuse) noexcept;
+        void SetSpecularReflectance(const Float3& specular) noexcept;
         void SetAlpha(const TextureInstance& alpha) noexcept;
         void SetDiffuseReflectance(const TextureInstance& diffuse) noexcept;
         void SetSpecularReflectance(const TextureInstance& specular) noexcept;
@@ -324,7 +324,7 @@ namespace Pupil::resource {
         void SetBetaM(float beta_m) noexcept;
         void SetBetaN(float beta_n) noexcept;
         void SetAlpha(float alpha) noexcept;
-        void SetSigmaA(const util::Float3& sigma_a) noexcept;
+        void SetSigmaA(const Float3& sigma_a) noexcept;
         void SetSigmaA(const TextureInstance& sigma_a) noexcept;
 
         auto GetBetaM() const noexcept { return m_beta_m; }

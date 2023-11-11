@@ -10,9 +10,9 @@ namespace Pupil::resource {
     RoughPlastic::RoughPlastic(UserDisableTag, std::string_view name) noexcept
         : Material(name),
           m_int_ior(1.5046f), m_ext_ior(1.000277f), m_nonlinear(false) {
-        m_alpha                = RGBTexture::Make(util::Float3(0.1f), m_name + " alpha");
-        m_diffuse_reflectance  = RGBTexture::Make(util::Float3(1.f), m_name + " diffuse reflectance");
-        m_specular_reflectance = RGBTexture::Make(util::Float3(1.f), m_name + " specular reflectance");
+        m_alpha                = RGBTexture::Make(Float3(0.1f), m_name + " alpha");
+        m_diffuse_reflectance  = RGBTexture::Make(Float3(1.f), m_name + " diffuse reflectance");
+        m_specular_reflectance = RGBTexture::Make(Float3(1.f), m_name + " specular reflectance");
     }
 
     RoughPlastic::~RoughPlastic() noexcept {
@@ -53,15 +53,15 @@ namespace Pupil::resource {
         m_nonlinear = !is_linear;
     }
 
-    void RoughPlastic::SetAlpha(const util::Float3& alpha) noexcept {
+    void RoughPlastic::SetAlpha(const Float3& alpha) noexcept {
         m_alpha.SetTexture(RGBTexture::Make(alpha, m_alpha->GetName()));
     }
 
-    void RoughPlastic::SetDiffuseReflectance(const util::Float3& diffuse) noexcept {
+    void RoughPlastic::SetDiffuseReflectance(const Float3& diffuse) noexcept {
         m_diffuse_reflectance.SetTexture(RGBTexture::Make(diffuse, m_diffuse_reflectance->GetName()));
     }
 
-    void RoughPlastic::SetSpecularReflectance(const util::Float3& specular) noexcept {
+    void RoughPlastic::SetSpecularReflectance(const Float3& specular) noexcept {
         m_specular_reflectance.SetTexture(RGBTexture::Make(specular, m_specular_reflectance->GetName()));
     }
 

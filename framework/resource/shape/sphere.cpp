@@ -11,7 +11,7 @@ namespace Pupil::resource {
         return shape_mngr->Register(std::make_unique<Sphere>(UserDisableTag{}, name));
     }
 
-    inline util::AABB SetAABB(const util::Float3& c, float r) noexcept {
+    inline util::AABB SetAABB(const Float3& c, float r) noexcept {
         util::AABB aabb;
         aabb.min = c - r;
         aabb.max = c + r;
@@ -20,13 +20,13 @@ namespace Pupil::resource {
 
     Sphere::Sphere(UserDisableTag, std::string_view name) noexcept
         : Shape(name), m_device_memory_radius(0), m_device_memory_center(0), m_device_memory_sbt_index(0) {
-        m_center      = util::Float3(0.f);
+        m_center      = Float3(0.f);
         m_radius      = 1.f;
         m_flip_normal = false;
         aabb          = SetAABB(m_center, m_radius);
     }
 
-    Sphere::Sphere(UserDisableTag, const util::Float3& c, float r, std::string_view name) noexcept
+    Sphere::Sphere(UserDisableTag, const Float3& c, float r, std::string_view name) noexcept
         : Shape(name), m_center(c), m_radius(r),
           m_device_memory_radius(0), m_device_memory_center(0), m_device_memory_sbt_index(0) {
         m_flip_normal = false;
@@ -44,7 +44,7 @@ namespace Pupil::resource {
 
     uint64_t Sphere::GetMemorySizeInByte() const noexcept { return sizeof(m_center) + sizeof(m_radius); }
 
-    void Sphere::SetCenter(const util::Float3& center) noexcept {
+    void Sphere::SetCenter(const Float3& center) noexcept {
         m_center = center;
         aabb     = SetAABB(m_center, m_radius);
 
@@ -68,16 +68,16 @@ namespace Pupil::resource {
 
             if (m_device_memory_radius == 0)
                 CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_device_memory_radius), sizeof(m_radius), *stream));
-            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(m_device_memory_radius), &m_radius, sizeof(m_radius), cudaMemcpyHostToDevice, *stream));
+            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(m_device_memory_radius), &m_radius, sizeof(m_radius), cudaMemcpyHostToDevice, *stream));
 
             if (m_device_memory_center == 0)
                 CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_device_memory_center), sizeof(m_center), *stream));
-            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(m_device_memory_center), m_center.e, sizeof(m_center), cudaMemcpyHostToDevice, *stream));
+            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(m_device_memory_center), m_center.e, sizeof(m_center), cudaMemcpyHostToDevice, *stream));
 
             unsigned int sbt_index = 0;
             if (m_device_memory_sbt_index == 0)
                 CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_device_memory_sbt_index), sizeof(sbt_index), *stream));
-            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(m_device_memory_sbt_index), &sbt_index, sizeof(sbt_index), cudaMemcpyHostToDevice, *stream));
+            CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void*>(m_device_memory_sbt_index), &sbt_index, sizeof(sbt_index), cudaMemcpyHostToDevice, *stream));
 
             m_upload_event->Reset(stream.Get());
             m_data_dirty = false;
@@ -100,7 +100,7 @@ namespace Pupil::resource {
         input.type        = OPTIX_BUILD_INPUT_TYPE_SPHERES;
         input.sphereArray = {
             .vertexBuffers               = &m_device_memory_center,
-            .vertexStrideInBytes         = sizeof(util::Float3),
+            .vertexStrideInBytes         = sizeof(Float3),
             .numVertices                 = 1,
             .radiusBuffers               = &m_device_memory_radius,
             .radiusStrideInBytes         = sizeof(float),

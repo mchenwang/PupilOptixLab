@@ -1,7 +1,5 @@
 #pragma once
 
-#include "type.h"
-
 #include <memory>
 #include <vector>
 #include <string>

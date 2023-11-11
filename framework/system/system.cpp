@@ -139,8 +139,10 @@ namespace Pupil {
             std::unique_lock render_lock(m_render_system_mutex);
 
             auto world = util::Singleton<World>::instance();
-            if (!world->LoadScene(scene_file_path))
+            if (!world->LoadScene(scene_file_path)) {
+                EventDispatcher<ESystemEvent::StartRendering>();
                 return;
+            }
 
             auto buf_mngr = util::Singleton<BufferManager>::instance();
 

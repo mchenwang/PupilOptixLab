@@ -7,8 +7,6 @@
 #include "camera.h"
 #include "gas.h"
 
-#include "util/transform.h"
-
 #include <vector>
 #include <filesystem>
 
@@ -22,8 +20,8 @@ namespace Pupil {
         util::CountableRef<resource::Material> material;
         Emitter*                               emitter;
 
-        util::Transform transform;
-        util::AABB      aabb;
+        Transform  transform;
+        util::AABB aabb;
     };
 
     class Scene {
@@ -45,7 +43,7 @@ namespace Pupil {
 
         void AddInstance(std::string_view                              name,
                          const util::CountableRef<resource::Shape>&    shape,
-                         const util::Transform&                        transform,
+                         const Transform&                              transform,
                          const util::CountableRef<resource::Material>& material,
                          const resource::TextureInstance&              emit_radiance) noexcept;
         void AddEmitter(std::unique_ptr<Emitter>&& emitter) noexcept;

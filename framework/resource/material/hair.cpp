@@ -10,7 +10,7 @@ namespace Pupil::resource {
     Hair::Hair(UserDisableTag, std::string_view name) noexcept
         : Material(name),
           m_beta_m(0.3f), m_beta_n(0.3f), m_alpha(0.f) {
-        m_sigma_a = RGBTexture::Make(util::Float3(0.06f, 0.1f, 0.2f), m_name + " sigma_a");
+        m_sigma_a = RGBTexture::Make(Float3(0.06f, 0.1f, 0.2f), m_name + " sigma_a");
     }
 
     Hair::~Hair() noexcept {
@@ -45,7 +45,7 @@ namespace Pupil::resource {
         m_alpha = alpha;
     }
 
-    void Hair::SetSigmaA(const util::Float3& sigma_a) noexcept {
+    void Hair::SetSigmaA(const Float3& sigma_a) noexcept {
         m_sigma_a.SetTexture(RGBTexture::Make(sigma_a, m_sigma_a->GetName()));
     }
 
@@ -62,7 +62,7 @@ namespace Pupil::resource {
         mat.twosided = false;
         mat.type     = EMatType::Hair;
 
-        util::Float3 v, sin_2k_alpha, cos_2k_alpha;
+        Float3 v, sin_2k_alpha, cos_2k_alpha;
 
         v.x = pow(0.726f * m_beta_m + 0.812f * pow(m_beta_m, 2) + 3.7f * pow(m_beta_m, 20.f), 2);
         v.y = 0.25f * v.x;
