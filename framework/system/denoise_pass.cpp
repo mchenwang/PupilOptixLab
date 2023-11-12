@@ -51,7 +51,7 @@ namespace Pupil {
         m_impl->denoiser_mode = (config.use_albedo ? optix::Denoiser::EMode::UseAlbedo : 0) |
                                 (config.use_normal ? optix::Denoiser::EMode::UseNormal : 0);
 
-        m_impl->denoiser = std::make_unique<optix::Denoiser>(m_impl->denoiser_mode, m_impl->stream.Get());
+        m_impl->denoiser = std::make_unique<optix::Denoiser>(m_impl->stream, m_impl->denoiser_mode);
 
         EventBinder<ESystemEvent::SceneLoad>([this](void*) {
             auto scene = util::Singleton<World>::instance()->GetScene();
@@ -60,8 +60,7 @@ namespace Pupil {
                 m_impl->film_h     = scene->film_h;
                 m_impl->film_dirty = true;
             }
-            m_impl->denoiser->tile_w = m_impl->tile_w;
-            m_impl->denoiser->tile_h = m_impl->tile_h;
+            m_impl->denoiser->SetTile(m_impl->tile_w, m_impl->tile_h);
 
             auto buf_mngr = util::Singleton<BufferManager>::instance();
 

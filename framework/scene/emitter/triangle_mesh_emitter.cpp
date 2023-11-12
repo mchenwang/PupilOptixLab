@@ -23,7 +23,8 @@ namespace Pupil {
 
     TriMeshEmitter::~TriMeshEmitter() noexcept {
         m_shape.Reset();
-        CUDA_FREE(m_cuda_memory);
+        auto stream = util::Singleton<cuda::StreamManager>::instance()->Alloc(cuda::EStreamTaskType::None).Get();
+        CUDA_FREE_ASYNC(m_cuda_memory, *stream);
     }
 
     struct TriMeshEmitterCudaMemory {

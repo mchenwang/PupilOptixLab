@@ -62,28 +62,21 @@ namespace Pupil::cuda {
     }
 
     struct StreamManager::Impl {
-        std::mutex mtx;
-
+        std::mutex                    mtx;
         std::list<util::Data<Stream>> stream_pool;
-
         std::list<util::Data<Stream>> stream_groups[32];
-
-        util::Data<Stream> default_stream = nullptr;
     };
 
     StreamManager::StreamManager() noexcept {
         if (m_impl) return;
 
         m_impl = new Impl();
-
-        m_impl->default_stream = std::make_unique<Stream>();
     }
 
     StreamManager::~StreamManager() noexcept {
     }
 
     util::CountableRef<Stream> StreamManager::Alloc(EStreamTaskType task_type) noexcept {
-        return m_impl->default_stream.GetRef();
         std::unique_lock lock(m_impl->mtx);
         auto             group_idx = GenericFfs(static_cast<unsigned int>(task_type));
 
@@ -98,8 +91,6 @@ namespace Pupil::cuda {
     }
 
     void StreamManager::Synchronize(EStreamTaskType task_type) noexcept {
-        m_impl->default_stream->Synchronize();
-        return;
         std::unique_lock lock(m_impl->mtx);
         for (auto i = 0u; i < 32u; ++i) {
             if (task_type & static_cast<EStreamTaskType>(1 << i)) {

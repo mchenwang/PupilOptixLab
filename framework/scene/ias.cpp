@@ -6,6 +6,8 @@
 #include "optix/context.h"
 #include "optix/check.h"
 
+#include <optix_stubs.h>
+
 namespace Pupil {
     IAS::IAS() noexcept {
         m_handle           = 0;

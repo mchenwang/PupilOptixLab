@@ -24,34 +24,64 @@ namespace {
 }// namespace
 
 namespace Pupil::optix {
-    Denoiser::Denoiser(unsigned int mode, cuda::Stream* stream) noexcept {
-        m_stream = stream;
+    struct Denoiser::Impl {
+        util::CountableRef<cuda::Stream> stream;
+        OptixDenoiser                    denoiser = nullptr;
+        OptixDenoiserParams              params{};
+        OptixDenoiserGuideLayer          guide_layer{};
+
+        CUdeviceptr  scratch      = 0;
+        size_t       scratch_size = 0;
+        unsigned int overlap      = 0;
+
+        CUdeviceptr state      = 0;
+        size_t      state_size = 0;
+
+        CUdeviceptr hdr_intensity     = 0;
+        CUdeviceptr hdr_average_color = 0;
+
+        unsigned int mode = EMode::UseAlbedo | EMode::UseNormal;
+
+        unsigned int input_w = 0;
+        unsigned int input_h = 0;
+        unsigned int tile_w  = 100;
+        unsigned int tile_h  = 100;
+    };
+
+    Denoiser::Denoiser(util::CountableRef<cuda::Stream> stream, unsigned int mode) noexcept {
+        m_impl         = new Impl();
+        m_impl->stream = stream;
         SetMode(mode);
     }
     Denoiser::~Denoiser() noexcept { Destroy(); }
 
-    void Denoiser::Destroy() noexcept {
-        OPTIX_CHECK(optixDenoiserDestroy(m_denoiser));
-        m_denoiser = nullptr;
+    Denoiser::operator OptixDenoiser() const noexcept { return m_impl->denoiser; }
 
-        CUDA_FREE(m_hdr_intensity);
-        CUDA_FREE(m_hdr_average_color);
-        CUDA_FREE(m_guide_layer.outputInternalGuideLayer.data);
-        CUDA_FREE(m_guide_layer.previousOutputInternalGuideLayer.data);
-        CUDA_FREE(m_scratch);
-        CUDA_FREE(m_state);
+    void Denoiser::Destroy() noexcept {
+        if (m_impl->denoiser)
+            OPTIX_CHECK(optixDenoiserDestroy(m_impl->denoiser));
+        m_impl->denoiser = nullptr;
+
+        auto stream = util::Singleton<cuda::StreamManager>::instance()->Alloc(cuda::EStreamTaskType::None);
+
+        CUDA_FREE_ASYNC(m_impl->hdr_intensity, *stream);
+        CUDA_FREE_ASYNC(m_impl->hdr_average_color, *stream);
+        CUDA_FREE_ASYNC(m_impl->guide_layer.outputInternalGuideLayer.data, *stream);
+        CUDA_FREE_ASYNC(m_impl->guide_layer.previousOutputInternalGuideLayer.data, *stream);
+        CUDA_FREE_ASYNC(m_impl->scratch, *stream);
+        CUDA_FREE_ASYNC(m_impl->state, *stream);
     }
 
     void Denoiser::SetMode(unsigned int mode) noexcept {
-        if (m_denoiser) {
-            if (mode == this->mode)
+        if (m_impl->denoiser) {
+            if (mode == m_impl->mode)
                 return;
 
-            OPTIX_CHECK(optixDenoiserDestroy(m_denoiser));
-            m_denoiser = nullptr;
+            OPTIX_CHECK(optixDenoiserDestroy(m_impl->denoiser));
+            m_impl->denoiser = nullptr;
         }
 
-        this->mode = mode;
+        m_impl->mode = mode;
 
         OptixDenoiserOptions options{
             .guideAlbedo = mode & EMode::UseAlbedo,
@@ -73,194 +103,196 @@ namespace Pupil::optix {
         }
 
         auto ctx = util::Singleton<optix::Context>::instance();
-        OPTIX_CHECK(optixDenoiserCreate(*ctx, kind, &options, &m_denoiser));
+        OPTIX_CHECK(optixDenoiserCreate(*ctx, kind, &options, &m_impl->denoiser));
     }
 
     void Denoiser::SetTile(unsigned int tile_w, unsigned int tile_h) noexcept {
-        if (tile_w > input_w || tile_h > input_h) {
-            Log::Warn("tile size({}x{}) must be smaller than "
-                      "input film size({}x{}).",
-                      tile_w, tile_h, input_w, input_h);
-            return;
-        }
-        this->tile_w = tile_w;
-        this->tile_h = tile_h;
+        m_impl->tile_w = tile_w;
+        m_impl->tile_h = tile_h;
     }
 
     void Denoiser::Setup(unsigned int w, unsigned int h) noexcept {
         if (w == 0 || h == 0) {
-            Log::Error(" [Denoiser Setup] size must be >0.");
+            Log::Error("Optix Denoiser: size must be >0.");
             return;
         }
-        input_w = w;
-        input_h = h;
+        m_impl->input_w = w;
+        m_impl->input_h = h;
 
-        auto size_w = mode & EMode::Tiled ? tile_w : w;
-        auto size_h = mode & EMode::Tiled ? tile_w : h;
+        if (m_impl->tile_w > m_impl->input_w || m_impl->tile_h > m_impl->input_h) {
+            Log::Warn("Optix Denoiser: tile size({}x{}) must be smaller than input film size({}x{}).",
+                      m_impl->tile_w, m_impl->tile_h, m_impl->input_w, m_impl->input_h);
+
+            m_impl->tile_w = w;
+            m_impl->tile_h = h;
+        }
+
+        auto size_w = m_impl->mode & EMode::Tiled ? m_impl->tile_w : w;
+        auto size_h = m_impl->mode & EMode::Tiled ? m_impl->tile_h : h;
 
         OptixDenoiserSizes sizes{};
-        OPTIX_CHECK(optixDenoiserComputeMemoryResources(m_denoiser, size_w, size_h, &sizes));
+        OPTIX_CHECK(optixDenoiserComputeMemoryResources(m_impl->denoiser, size_w, size_h, &sizes));
 
-        if (mode & EMode::Tiled) {
-            m_scratch_size = sizes.withOverlapScratchSizeInBytes;
-            m_overlap      = sizes.overlapWindowSizeInPixels;
+        if (m_impl->mode & EMode::Tiled) {
+            m_impl->scratch_size = sizes.withOverlapScratchSizeInBytes;
+            m_impl->overlap      = sizes.overlapWindowSizeInPixels;
         } else {
-            m_scratch_size = sizes.withoutOverlapScratchSizeInBytes;
-            m_overlap      = 0;
+            m_impl->scratch_size = sizes.withoutOverlapScratchSizeInBytes;
+            m_impl->overlap      = 0;
         }
 
-        if (mode & EMode::UseUpscale2X || mode & EMode::ApplyToAOV) {
-            if (m_hdr_average_color == 0)
-                CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_hdr_average_color), 3 * sizeof(float)));
+        if (m_impl->mode & EMode::UseUpscale2X || m_impl->mode & EMode::ApplyToAOV) {
+            if (m_impl->hdr_average_color == 0)
+                CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_impl->hdr_average_color), 3 * sizeof(float), *m_impl->stream));
         } else {
-            if (m_hdr_intensity == 0)
-                CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_hdr_intensity), sizeof(float)));
+            if (m_impl->hdr_intensity == 0)
+                CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_impl->hdr_intensity), sizeof(float), *m_impl->stream));
         }
 
-        CUDA_FREE(m_scratch);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_scratch), m_scratch_size));
+        CUDA_FREE_ASYNC(m_impl->scratch, *m_impl->stream);
+        CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_impl->scratch), m_impl->scratch_size, *m_impl->stream));
 
-        m_state_size = sizes.stateSizeInBytes;
-        CUDA_FREE(m_state);
-        CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_state), m_state_size));
+        m_impl->state_size = sizes.stateSizeInBytes;
+        CUDA_FREE_ASYNC(m_impl->state, *m_impl->stream);
+        CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_impl->state), m_impl->state_size, *m_impl->stream));
 
         OPTIX_CHECK(optixDenoiserSetup(
-            m_denoiser,
-            *m_stream,
-            mode & EMode::Tiled ? tile_w + 2 * m_overlap : w,
-            mode & EMode::Tiled ? tile_h + 2 * m_overlap : h,
-            m_state,
-            m_state_size,
-            m_scratch,
-            m_scratch_size));
+            m_impl->denoiser,
+            *m_impl->stream,
+            m_impl->mode & EMode::Tiled ? m_impl->tile_w + 2 * m_impl->overlap : w,
+            m_impl->mode & EMode::Tiled ? m_impl->tile_h + 2 * m_impl->overlap : h,
+            m_impl->state,
+            m_impl->state_size,
+            m_impl->scratch,
+            m_impl->scratch_size));
 
-        m_params.denoiseAlpha                  = OPTIX_DENOISER_ALPHA_MODE_COPY;
-        m_params.hdrIntensity                  = m_hdr_intensity;
-        m_params.hdrAverageColor               = m_hdr_average_color;
-        m_params.blendFactor                   = 0.0f;
-        m_params.temporalModeUsePreviousLayers = 0;
+        m_impl->params.denoiseAlpha                  = OPTIX_DENOISER_ALPHA_MODE_COPY;
+        m_impl->params.hdrIntensity                  = m_impl->hdr_intensity;
+        m_impl->params.hdrAverageColor               = m_impl->hdr_average_color;
+        m_impl->params.blendFactor                   = 0.0f;
+        m_impl->params.temporalModeUsePreviousLayers = 0;
 
-        if (mode & EMode::UseTemporal) {
+        if (m_impl->mode & EMode::UseTemporal) {
             CUdeviceptr internal_memory_in  = 0;
             CUdeviceptr internal_memory_out = 0;
-            size_t      internal_size       = (mode & EMode::Tiled ? 4 : 1) *
-                                   input_h * input_w *
+            size_t      internal_size       = (m_impl->mode & EMode::Tiled ? 4 : 1) *
+                                   m_impl->input_h * m_impl->input_w *
                                    sizes.internalGuideLayerPixelSizeInBytes;
-            CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&internal_memory_in), internal_size));
-            CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&internal_memory_out), internal_size));
-            CUDA_CHECK(cudaMemset(reinterpret_cast<void*>(internal_memory_in), 0, internal_size));
+            CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&internal_memory_in), internal_size, *m_impl->stream));
+            CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&internal_memory_out), internal_size, *m_impl->stream));
+            CUDA_CHECK(cudaMemsetAsync(reinterpret_cast<void*>(internal_memory_in), 0, internal_size, *m_impl->stream));
 
-            CUDA_FREE(m_guide_layer.previousOutputInternalGuideLayer.data);
-            CUDA_FREE(m_guide_layer.outputInternalGuideLayer.data);
+            CUDA_FREE_ASYNC(m_impl->guide_layer.previousOutputInternalGuideLayer.data, *m_impl->stream);
+            CUDA_FREE_ASYNC(m_impl->guide_layer.outputInternalGuideLayer.data, *m_impl->stream);
 
-            m_guide_layer.previousOutputInternalGuideLayer.data               = internal_memory_in;
-            m_guide_layer.previousOutputInternalGuideLayer.width              = (mode & EMode::Tiled ? 2 : 1) * input_w;
-            m_guide_layer.previousOutputInternalGuideLayer.height             = (mode & EMode::Tiled ? 2 : 1) * input_h;
-            m_guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes = unsigned(sizes.internalGuideLayerPixelSizeInBytes);
-            m_guide_layer.previousOutputInternalGuideLayer.rowStrideInBytes   = m_guide_layer.previousOutputInternalGuideLayer.width *
-                                                                              m_guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes;
-            m_guide_layer.previousOutputInternalGuideLayer.format = OPTIX_PIXEL_FORMAT_INTERNAL_GUIDE_LAYER;
+            m_impl->guide_layer.previousOutputInternalGuideLayer.data               = internal_memory_in;
+            m_impl->guide_layer.previousOutputInternalGuideLayer.width              = (m_impl->mode & EMode::Tiled ? 2 : 1) * m_impl->input_w;
+            m_impl->guide_layer.previousOutputInternalGuideLayer.height             = (m_impl->mode & EMode::Tiled ? 2 : 1) * m_impl->input_h;
+            m_impl->guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes = unsigned(sizes.internalGuideLayerPixelSizeInBytes);
+            m_impl->guide_layer.previousOutputInternalGuideLayer.rowStrideInBytes   = m_impl->guide_layer.previousOutputInternalGuideLayer.width *
+                                                                                    m_impl->guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes;
+            m_impl->guide_layer.previousOutputInternalGuideLayer.format = OPTIX_PIXEL_FORMAT_INTERNAL_GUIDE_LAYER;
 
-            m_guide_layer.outputInternalGuideLayer      = m_guide_layer.previousOutputInternalGuideLayer;
-            m_guide_layer.outputInternalGuideLayer.data = internal_memory_out;
+            m_impl->guide_layer.outputInternalGuideLayer      = m_impl->guide_layer.previousOutputInternalGuideLayer;
+            m_impl->guide_layer.outputInternalGuideLayer.data = internal_memory_out;
         }
     }
 
     void Denoiser::Execute(const ExecutionData& data) noexcept {
-        if (input_h == 0 || input_w == 0) [[unlikely]] {
-            Log::Warn("Denoiser does not setup.");
+        if (m_impl->input_h == 0 || m_impl->input_w == 0) [[unlikely]] {
+            Log::Warn("Optix Denoiser: does not setup.");
             return;
         }
 
         OptixDenoiserLayer layer{};
-        if (!FillOptixImageStruct(layer.input, data.input, input_w, input_h)) {
-            Log::Error("Denoiser input ptr can not be NULL.");
+        if (!FillOptixImageStruct(layer.input, data.input, m_impl->input_w, m_impl->input_h)) {
+            Log::Error("Optix Denoiser: input ptr can not be NULL.");
             return;
         }
 
-        if (!FillOptixImageStruct(layer.output, data.output, input_w, input_h, mode & EMode::UseUpscale2X)) {
-            Log::Error("Denoiser output ptr can not be NULL.");
+        if (!FillOptixImageStruct(layer.output, data.output, m_impl->input_w, m_impl->input_h, m_impl->mode & EMode::UseUpscale2X)) {
+            Log::Error("Optix Denoiser: output ptr can not be NULL.");
             return;
         }
 
-        if (mode & EMode::UseAlbedo) {
-            if (!FillOptixImageStruct(m_guide_layer.albedo, data.albedo, input_w, input_h)) {
-                Log::Error("Denoiser input albedo ptr can not be NULL.");
+        if (m_impl->mode & EMode::UseAlbedo) {
+            if (!FillOptixImageStruct(m_impl->guide_layer.albedo, data.albedo, m_impl->input_w, m_impl->input_h)) {
+                Log::Error("Optix Denoiser: input albedo ptr can not be NULL.");
                 return;
             }
         }
 
-        if (mode & EMode::UseNormal) {
-            if (!FillOptixImageStruct(m_guide_layer.normal, data.normal, input_w, input_h)) {
-                Log::Error("Denoiser input normal ptr can not be NULL.");
+        if (m_impl->mode & EMode::UseNormal) {
+            if (!FillOptixImageStruct(m_impl->guide_layer.normal, data.normal, m_impl->input_w, m_impl->input_h)) {
+                Log::Error("Optix Denoiser: input normal ptr can not be NULL.");
                 return;
             }
         }
 
-        if (mode & EMode::UseTemporal) {
-            if (!FillOptixImageStruct(layer.previousOutput, data.prev_output, input_w, input_h, mode & EMode::UseUpscale2X)) {
-                Log::Error("Denoiser input prev_output ptr can not be NULL.");
+        if (m_impl->mode & EMode::UseTemporal) {
+            if (!FillOptixImageStruct(layer.previousOutput, data.prev_output, m_impl->input_w, m_impl->input_h, m_impl->mode & EMode::UseUpscale2X)) {
+                Log::Error("Optix Denoiser: input prev_output ptr can not be NULL.");
                 return;
             }
-            if (!FillOptixImageStruct(m_guide_layer.flow, data.motion_vector, input_w, input_h, mode & EMode::UseUpscale2X)) {
-                Log::Error("Denoiser input motion_vector ptr can not be NULL.");
+            if (!FillOptixImageStruct(m_impl->guide_layer.flow, data.motion_vector, m_impl->input_w, m_impl->input_h, m_impl->mode & EMode::UseUpscale2X)) {
+                Log::Error("Optix Denoiser: input motion_vector ptr can not be NULL.");
                 return;
             }
         }
 
-        if (m_hdr_intensity) {
+        if (m_impl->hdr_intensity) {
             OPTIX_CHECK(optixDenoiserComputeIntensity(
-                m_denoiser,
-                *m_stream,
+                m_impl->denoiser,
+                *m_impl->stream,
                 &layer.input,
-                m_hdr_intensity,
-                m_scratch,
-                m_scratch_size));
+                m_impl->hdr_intensity,
+                m_impl->scratch,
+                m_impl->scratch_size));
         }
-        if (m_hdr_average_color) {
+        if (m_impl->hdr_average_color) {
             OPTIX_CHECK(optixDenoiserComputeAverageColor(
-                m_denoiser,
-                *m_stream,
+                m_impl->denoiser,
+                *m_impl->stream,
                 &layer.input,
-                m_hdr_average_color,
-                m_scratch,
-                m_scratch_size));
+                m_impl->hdr_average_color,
+                m_impl->scratch,
+                m_impl->scratch_size));
         }
 
-        if (mode & EMode::Tiled) {
+        if (m_impl->mode & EMode::Tiled) {
             OPTIX_CHECK(optixUtilDenoiserInvokeTiled(
-                m_denoiser,
-                *m_stream,
-                &m_params,
-                m_state,
-                m_state_size,
-                &m_guide_layer,
+                m_impl->denoiser,
+                *m_impl->stream,
+                &m_impl->params,
+                m_impl->state,
+                m_impl->state_size,
+                &m_impl->guide_layer,
                 &layer,
                 1,
-                m_scratch,
-                m_scratch_size,
-                m_overlap,
-                tile_w,
-                tile_h));
+                m_impl->scratch,
+                m_impl->scratch_size,
+                m_impl->overlap,
+                m_impl->tile_w,
+                m_impl->tile_h));
         } else {
             OPTIX_CHECK(optixDenoiserInvoke(
-                m_denoiser,
-                *m_stream,
-                &m_params,
-                m_state,
-                m_state_size,
-                &m_guide_layer,
+                m_impl->denoiser,
+                *m_impl->stream,
+                &m_impl->params,
+                m_impl->state,
+                m_impl->state_size,
+                &m_impl->guide_layer,
                 &layer,
                 1,
                 0,// input offset X
                 0,// input offset y
-                m_scratch,
-                m_scratch_size));
+                m_impl->scratch,
+                m_impl->scratch_size));
         }
 
-        if (mode & EMode::UseTemporal) {
-            std::swap(m_guide_layer.outputInternalGuideLayer, m_guide_layer.previousOutputInternalGuideLayer);
+        if (m_impl->mode & EMode::UseTemporal) {
+            std::swap(m_impl->guide_layer.outputInternalGuideLayer, m_impl->guide_layer.previousOutputInternalGuideLayer);
         }
-        m_params.temporalModeUsePreviousLayers = 1;
+        m_impl->params.temporalModeUsePreviousLayers = 1;
     }
 }// namespace Pupil::optix

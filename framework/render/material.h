@@ -10,18 +10,9 @@ namespace Pupil::optix {
         EMatType type;
         bool     twosided;
         union {
-            // #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Type, attr) Type attr;
-            // #include "decl/material_decl.inl"
-            // #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
-
-            material::Diffuse         diffuse;
-            material::Dielectric      dielectric;
-            material::RoughDielectric rough_dielectric;
-            material::Conductor       conductor;
-            material::RoughConductor  rough_conductor;
-            material::Plastic         plastic;
-            material::RoughPlastic    rough_plastic;
-            material::Hair            hair;
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Type, attr) material::Type attr;
+#include "decl/material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
         };
 
         CUDA_HOSTDEVICE Material() {}
@@ -29,18 +20,9 @@ namespace Pupil::optix {
         struct LocalBsdf {
             EMatType type;
             union {
-                // #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Type, attr) material::Type## ::Local attr;
-                // #include "decl/material_decl.inl"
-                // #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
-
-                material::Diffuse::Local         diffuse;
-                material::Dielectric::Local      dielectric;
-                material::RoughDielectric::Local rough_dielectric;
-                material::Conductor::Local       conductor;
-                material::RoughConductor::Local  rough_conductor;
-                material::Plastic::Local         plastic;
-                material::RoughPlastic::Local    rough_plastic;
-                material::Hair::Local            hair;
+#define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(Type, attr) material::Type## ::Local attr;
+#include "decl/material_decl.inl"
+#undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
             };
 
 #ifdef PUPIL_OPTIX

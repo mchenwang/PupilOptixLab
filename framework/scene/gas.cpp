@@ -45,13 +45,11 @@ namespace Pupil {
         auto        stream        = util::Singleton<cuda::StreamManager>::instance()->Alloc(cuda::EStreamTaskType::GASCreation);
         CUdeviceptr d_temp_buffer = 0;
         CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&d_temp_buffer), gas_buffer_sizes.tempSizeInBytes, *stream));
-        // CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_temp_buffer), gas_buffer_sizes.tempSizeInBytes));
 
         // non-compacted output
         CUdeviceptr d_buffer_temp_output_gas_and_compacted_size{};
         size_t      compacted_size_offset = roundUp<size_t>(gas_buffer_sizes.outputSizeInBytes, 8ull);
         CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&d_buffer_temp_output_gas_and_compacted_size), compacted_size_offset + 8, *stream));
-        // CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_buffer_temp_output_gas_and_compacted_size), compacted_size_offset + 8));
 
         OptixAccelEmitDesc emit_property = {};
         emit_property.type               = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
