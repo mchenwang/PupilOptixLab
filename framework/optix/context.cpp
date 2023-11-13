@@ -44,7 +44,7 @@ namespace Pupil::optix {
         OptixDeviceContextOptions options{};
         options.logCallbackFunction = &ContextLogCB;
         options.logCallbackLevel    = 4;
-        OPTIX_CHECK(optixDeviceContextCreate(*cuda_ctx, &options, &context));
+        OPTIX_CHECK(optixDeviceContextCreate(*cuda_ctx, &options, &m_context));
         m_init_flag = true;
         Pupil::Log::Info("OPTIX is initialized.");
     }

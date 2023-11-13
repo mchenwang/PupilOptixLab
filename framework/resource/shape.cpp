@@ -3,6 +3,7 @@
 #include "cuda/stream.h"
 
 #include "util/id.h"
+#include "util/hash.h"
 
 #include "mesh/mesh.h"
 

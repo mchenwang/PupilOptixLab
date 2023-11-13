@@ -1,61 +1,142 @@
 #pragma once
 
 #include <optix.h>
-#include <vector>
-#include <unordered_map>
 #include <string>
 
 namespace Pupil::optix {
-struct Module;
+    enum class EModuleType {
+        UserDefined,
+        BuiltinSphereIS,
+        BuiltinCurveQuadraticIS,
+        BuiltinCurveCubicIS,
+        BuiltinCurveLinearIS,
+        BuiltinCurveCatmullromIS,
+        BuiltinCustomIS
+    };
 
-// The implementation of pipeline should be constrained in the same module,
-// while builtin intersection module can be separated
-struct RayTraceProgramDesc {
-    Module *module_ptr = nullptr;
-    const char *ray_gen_entry = nullptr;
-    const char *miss_entry = nullptr;
-    struct {
-        const char *ch_entry = nullptr;
-        const char *ah_entry = nullptr;
-        Module *intersect_module = nullptr;
-        const char *is_entry = nullptr;
-    } hit_group;
-};
-struct CallableProgramDesc {
-    Module *module_ptr = nullptr;
-    const char *cc_entry = nullptr;
-    const char *dc_entry = nullptr;
-};
-// TODO: user's exception programs
-struct PipelineDesc {
-    std::vector<RayTraceProgramDesc> ray_trace_programs;
-    std::vector<CallableProgramDesc> callable_programs;
+    class Pipeline;
+    struct Module {
+    public:
+        Module(Pipeline* pipeline, OptixPrimitiveType) noexcept;
+        Module(Pipeline* pipeline, std::string_view) noexcept;
+        ~Module() noexcept;
 
-    unsigned int max_trace_depth = 2;// forward ray and shadow ray
-    unsigned int max_cc_depth = 1;   // for material
-    unsigned int max_dc_depth = 1;   // for ...TODO
-};
+        operator OptixModule() const noexcept { return m_module; }
 
-// A pipeline object only contains one ray_gen_entry
-struct Pipeline {
-private:
-    OptixPipeline m_pipeline = nullptr;
-    std::vector<OptixProgramGroup> m_programs;
-    std::unordered_map<std::string, OptixProgramGroup> m_program_map;
+    private:
+        OptixModule m_module = nullptr;
+    };
 
-    std::string m_ray_gen_program_name;
-    OptixProgramGroup m_ray_gen_program = nullptr;
+    struct Program {
+    public:
+        virtual ~Program() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept = 0;
 
-public:
-    static OptixPipelineCompileOptions pipeline_compile_options;
+        operator OptixProgramGroup() const noexcept { return m_program; }
 
-    operator OptixPipeline() const noexcept { return m_pipeline; }
+        void Set(OptixProgramGroup program) noexcept { m_program = program; }
 
-    Pipeline(const PipelineDesc &desc) noexcept;
-    ~Pipeline() noexcept;
+    protected:
+        OptixProgramGroup m_program = nullptr;
+    };
 
-    std::string_view GetRayGenProgramName() const noexcept { return m_ray_gen_program_name; }
-    OptixProgramGroup GetRayGenProgram() const noexcept { return m_ray_gen_program; }
-    OptixProgramGroup FindProgram(std::string) const noexcept;
-};
+    struct RayGenProgram : public Program, public OptixProgramGroupSingleModule {
+    public:
+        RayGenProgram() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept override;
+
+        RayGenProgram& SetModule(Module* module) noexcept;
+        RayGenProgram& SetEntry(std::string_view entry) noexcept;
+    };
+
+    struct MissProgram : public Program, public OptixProgramGroupSingleModule {
+    public:
+        MissProgram() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept override;
+
+        MissProgram& SetModule(Module* module) noexcept;
+        MissProgram& SetEntry(std::string_view entry) noexcept;
+    };
+
+    struct HitgroupProgram : public Program, public OptixProgramGroupHitgroup {
+    public:
+        HitgroupProgram() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept override;
+
+        HitgroupProgram& SetCHModule(Module* module) noexcept;
+        HitgroupProgram& SetCHEntry(std::string_view entry) noexcept;
+        HitgroupProgram& SetAHModule(Module* module) noexcept;
+        HitgroupProgram& SetAHEntry(std::string_view entry) noexcept;
+        HitgroupProgram& SetISModule(Module* module) noexcept;
+        HitgroupProgram& SetISEntry(std::string_view entry) noexcept;
+    };
+
+    struct CallableProgram : public Program, public OptixProgramGroupCallables {
+    public:
+        CallableProgram() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept override;
+
+        CallableProgram& SetDCModule(Module* module) noexcept;
+        CallableProgram& SetDCEntry(std::string_view entry) noexcept;
+        CallableProgram& SetCCModule(Module* module) noexcept;
+        CallableProgram& SetCCEntry(std::string_view entry) noexcept;
+    };
+
+    struct ExceptionProgram : public Program, public OptixProgramGroupSingleModule {
+    public:
+        ExceptionProgram() noexcept;
+        virtual OptixProgramGroupDesc GetOptixProgramGroupDesc() const noexcept override;
+
+        ExceptionProgram& SetModule(Module* module) noexcept;
+        ExceptionProgram& SetEntry(std::string_view entry) noexcept;
+    };
+
+    class Pipeline {
+    public:
+        enum class EPrimitiveType {
+            Default,
+            Sphere,
+            CurveQuadratic,
+            CurveCubic,
+            CurveLinear,
+            CurveCatrom,
+            Curve = CurveCubic
+        };
+
+        Pipeline() noexcept;
+        ~Pipeline() noexcept;
+        operator OptixPipeline() const noexcept;
+
+        // Set pipeline compile options
+        Pipeline& SetMaxTraceDepth(unsigned int depth) noexcept;
+        Pipeline& SetMaxCCDepth(unsigned int depth) noexcept;
+        Pipeline& SetMaxDCDepth(unsigned int depth) noexcept;
+        Pipeline& EnableMotionBlur(bool enable = true) noexcept;
+        Pipeline& SetTraversableGraphFlags(OptixTraversableGraphFlags flags) noexcept;
+        Pipeline& SetNumPayloadValues(unsigned int num) noexcept;
+        Pipeline& SetNumAttributeValues(unsigned int num) noexcept;
+        Pipeline& SetExceptionFlags(OptixExceptionFlags flags) noexcept;
+        Pipeline& SetPipelineLaunchParamsVariableName(const char* name) noexcept;
+        Pipeline& EnalbePrimitiveType(EPrimitiveType type) noexcept;
+
+        OptixPipelineCompileOptions GetCompileOptions() const noexcept;
+
+        // Set pipeline modules
+        Module* CreateModule(EModuleType type, std::string_view embedded_ptx_code = "") noexcept;
+
+        // Set pipeline programs
+        RayGenProgram&    CreateRayGen(std::string_view name = "") noexcept;
+        MissProgram&      CreateMiss(std::string_view name = "") noexcept;
+        HitgroupProgram&  CreateHitgroup(std::string_view name = "") noexcept;
+        CallableProgram&  CreateCallable(std::string_view name = "") noexcept;
+        ExceptionProgram& CreateException(std::string_view name = "") noexcept;
+
+        void Finish() noexcept;
+
+        Program* FindProgram(std::string_view name) const noexcept;
+
+    private:
+        struct Impl;
+        Impl* m_impl = nullptr;
+    };
 }// namespace Pupil::optix

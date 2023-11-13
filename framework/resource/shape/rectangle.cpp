@@ -1,7 +1,5 @@
 #include "resource/shape.h"
 
-#include "util/util.h"
-
 namespace {
     // clang-format off
 

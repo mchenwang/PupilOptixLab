@@ -1,5 +1,4 @@
 #include "resource/shape.h"
-#include "util/util.h"
 
 namespace Pupil::resource {
     util::CountableRef<Shape> CurveHair::Make(EType type, std::string_view name) noexcept {

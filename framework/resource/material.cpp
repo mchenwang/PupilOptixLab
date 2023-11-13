@@ -2,6 +2,7 @@
 
 #include "util/log.h"
 #include "util/id.h"
+#include "util/hash.h"
 
 #include <unordered_map>
 
