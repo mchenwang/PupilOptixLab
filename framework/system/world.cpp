@@ -59,6 +59,11 @@ namespace Pupil {
     }
 
     void World::Destroy() noexcept {
+        m_impl->scene.reset();
+        util::Singleton<resource::ShapeManager>::instance()->Clear();
+        util::Singleton<resource::MaterialManager>::instance()->Clear();
+        util::Singleton<resource::TextureManager>::instance()->Clear();
+
         delete m_impl;
         m_impl = nullptr;
     }
@@ -98,6 +103,9 @@ namespace Pupil {
         m_impl->scene.reset(scene.release());
 
         m_impl->LogInformation();
+        util::Singleton<resource::ShapeManager>::instance()->Clear();
+        util::Singleton<resource::MaterialManager>::instance()->Clear();
+        util::Singleton<resource::TextureManager>::instance()->Clear();
 
         m_impl->scene->UploadToCuda();
         return true;

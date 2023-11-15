@@ -103,24 +103,31 @@ namespace Pupil::resource {
         return materials;
     }
 
-    void MaterialManager::Clear() noexcept {
-        for (auto it = m_impl->map_material.begin(); it != m_impl->map_material.end();) {
+    void Clear(auto& map, auto& name_to_id, auto& id_allocation) noexcept {
+        for (auto it = map.begin(); it != map.end();) {
             if (it->second.GetRefCount() == 0) {
                 auto id = it->second->GetId();
 
-                auto range      = m_impl->map_name_to_id.equal_range(it->second->GetName());
+                auto range      = name_to_id.equal_range(it->second->GetName());
                 auto name_id_it = range.first;
                 for (; name_id_it != range.second; ++name_id_it) {
                     if (name_id_it->second == id) break;
                 }
                 if (name_id_it != range.second)
-                    m_impl->map_name_to_id.erase(name_id_it);
+                    name_to_id.erase(name_id_it);
 
-                m_impl->id_allocation.Recycle(id);
+                id_allocation.Recycle(id);
 
-                it = m_impl->map_material.erase(it);
+                it = map.erase(it);
             } else
                 ++it;
         }
+    }
+
+    void MaterialManager::Clear() noexcept {
+        // sigle layer material
+        resource::Clear(m_impl->map_material, m_impl->map_name_to_id, m_impl->id_allocation);
+        // inner material in two-sided material
+        resource::Clear(m_impl->map_material, m_impl->map_name_to_id, m_impl->id_allocation);
     }
 }// namespace Pupil::resource
