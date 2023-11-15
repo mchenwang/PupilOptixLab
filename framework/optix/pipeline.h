@@ -1,12 +1,14 @@
 #pragma once
 
 #include <optix.h>
+#include <optix_types.h>
 #include <string>
 
 namespace Pupil::optix {
     enum class EModuleType {
         UserDefined,
         BuiltinSphereIS,
+        BuiltinCurveIS,
         BuiltinCurveQuadraticIS,
         BuiltinCurveCubicIS,
         BuiltinCurveLinearIS,
@@ -35,9 +37,11 @@ namespace Pupil::optix {
         operator OptixProgramGroup() const noexcept { return m_program; }
 
         void Set(OptixProgramGroup program) noexcept { m_program = program; }
+        auto GetKind() const noexcept { return m_kind; }
 
     protected:
-        OptixProgramGroup m_program = nullptr;
+        OptixProgramGroup     m_program = nullptr;
+        OptixProgramGroupKind m_kind;
     };
 
     struct RayGenProgram : public Program, public OptixProgramGroupSingleModule {

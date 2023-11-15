@@ -172,7 +172,28 @@ namespace Pupil::optix {
     }
 
     Pipeline& Pipeline::EnalbePrimitiveType(EPrimitiveType type) noexcept {
-        m_impl->pipeline_compile_options.usesPrimitiveTypeFlags |= static_cast<unsigned int>(type);
+        OptixPrimitiveTypeFlags optix_primitive_type;
+        switch (type) {
+            case EPrimitiveType::Default:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
+                break;
+            case EPrimitiveType::Sphere:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
+                break;
+            case EPrimitiveType::CurveQuadratic:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE;
+                break;
+            case EPrimitiveType::CurveCubic:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE;
+                break;
+            case EPrimitiveType::CurveLinear:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
+                break;
+            case EPrimitiveType::CurveCatrom:
+                optix_primitive_type = OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
+                break;
+        }
+        m_impl->pipeline_compile_options.usesPrimitiveTypeFlags |= static_cast<unsigned int>(optix_primitive_type);
         return *this;
     }
 
@@ -202,7 +223,7 @@ namespace Pupil::optix {
         OptixBuiltinISOptions options{.builtinISModuleType = type};
         auto                  pipline_compile_options = pipeline->GetCompileOptions();
 
-        OPTIX_CHECK_LOG(optixBuiltinISModuleGet(
+        OPTIX_CHECK(optixBuiltinISModuleGet(
             *ctx,
             &module_compile_options,
             &pipline_compile_options,
@@ -254,6 +275,17 @@ namespace Pupil::optix {
             case EModuleType::BuiltinSphereIS:
                 m_impl->builtin_modules.emplace(type, std::make_unique<Module>(this, OPTIX_PRIMITIVE_TYPE_SPHERE));
                 return m_impl->builtin_modules.at(type).get();
+            case EModuleType::BuiltinCurveIS:
+                if (m_impl->pipeline_compile_options.usesPrimitiveTypeFlags & OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE) {
+                    return CreateModule(EModuleType::BuiltinCurveQuadraticIS);
+                } else if (m_impl->pipeline_compile_options.usesPrimitiveTypeFlags & OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR) {
+                    return CreateModule(EModuleType::BuiltinCurveLinearIS);
+                } else if (m_impl->pipeline_compile_options.usesPrimitiveTypeFlags & OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM) {
+                    return CreateModule(EModuleType::BuiltinCurveCatmullromIS);
+                } else {
+                    return CreateModule(EModuleType::BuiltinCurveCubicIS);
+                }
+                break;
             case EModuleType::BuiltinCurveQuadraticIS:
                 m_impl->builtin_modules.emplace(type, std::make_unique<Module>(this, OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE));
                 return m_impl->builtin_modules.at(type).get();
@@ -319,11 +351,12 @@ namespace Pupil::optix {
         this->module            = nullptr;
         this->entryFunctionName = nullptr;
         this->m_program         = nullptr;
+        this->m_kind            = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     }
 
     OptixProgramGroupDesc RayGenProgram::GetOptixProgramGroupDesc() const noexcept {
         OptixProgramGroupDesc desc;
-        desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+        desc.kind                     = m_kind;
         desc.flags                    = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
         desc.raygen.module            = module;
         desc.raygen.entryFunctionName = entryFunctionName;
@@ -344,11 +377,12 @@ namespace Pupil::optix {
         this->module            = nullptr;
         this->entryFunctionName = nullptr;
         this->m_program         = nullptr;
+        this->m_kind            = OPTIX_PROGRAM_GROUP_KIND_MISS;
     }
 
     OptixProgramGroupDesc MissProgram::GetOptixProgramGroupDesc() const noexcept {
         OptixProgramGroupDesc desc;
-        desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
+        desc.kind                   = m_kind;
         desc.flags                  = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
         desc.miss.module            = module;
         desc.miss.entryFunctionName = entryFunctionName;
@@ -373,11 +407,12 @@ namespace Pupil::optix {
         this->moduleIS            = nullptr;
         this->entryFunctionNameIS = nullptr;
         this->m_program           = nullptr;
+        this->m_kind              = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
     }
 
     OptixProgramGroupDesc HitgroupProgram::GetOptixProgramGroupDesc() const noexcept {
         OptixProgramGroupDesc desc;
-        desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+        desc.kind                         = m_kind;
         desc.flags                        = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
         desc.hitgroup.moduleCH            = moduleCH;
         desc.hitgroup.entryFunctionNameCH = entryFunctionNameCH;
@@ -424,11 +459,12 @@ namespace Pupil::optix {
         this->moduleCC            = nullptr;
         this->entryFunctionNameCC = nullptr;
         this->m_program           = nullptr;
+        this->m_kind              = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
     }
 
     OptixProgramGroupDesc CallableProgram::GetOptixProgramGroupDesc() const noexcept {
         OptixProgramGroupDesc desc;
-        desc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
+        desc.kind                          = m_kind;
         desc.flags                         = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
         desc.callables.moduleDC            = moduleDC;
         desc.callables.entryFunctionNameDC = entryFunctionNameDC;
@@ -461,11 +497,12 @@ namespace Pupil::optix {
         this->module            = nullptr;
         this->entryFunctionName = nullptr;
         this->m_program         = nullptr;
+        this->m_kind            = OPTIX_PROGRAM_GROUP_KIND_EXCEPTION;
     }
 
     OptixProgramGroupDesc ExceptionProgram::GetOptixProgramGroupDesc() const noexcept {
         OptixProgramGroupDesc desc;
-        desc.kind                        = OPTIX_PROGRAM_GROUP_KIND_EXCEPTION;
+        desc.kind                        = m_kind;
         desc.flags                       = OPTIX_PROGRAM_GROUP_FLAGS_NONE;
         desc.exception.module            = module;
         desc.exception.entryFunctionName = entryFunctionName;
