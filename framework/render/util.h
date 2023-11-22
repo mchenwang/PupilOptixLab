@@ -176,7 +176,42 @@ namespace Pupil::optix {
 
     CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float3 v) noexcept {
         return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS;
-        // return v.x == 0.f && v.y == 0.f && v.z == 0.f;
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsZero(float4 v) noexcept {
+        return abs(v.x) < EPS && abs(v.y) < EPS && abs(v.z) < EPS && abs(v.w) < EPS;
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsNaN(float v) noexcept {
+        return isnan(v);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsNaN(float2 v) noexcept {
+        return isnan(v.x) || isnan(v.y);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsNaN(float3 v) noexcept {
+        return isnan(v.x) || isnan(v.y) || isnan(v.z);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsNaN(float4 v) noexcept {
+        return isnan(v.x) || isnan(v.y) || isnan(v.z) || isnan(v.w);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsValid(float v) noexcept {
+        return !IsZero(v) && !IsNaN(v);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsValid(float2 v) noexcept {
+        return !IsZero(v) && !IsNaN(v);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsValid(float3 v) noexcept {
+        return !IsZero(v) && !IsNaN(v);
+    }
+
+    CUDA_INLINE CUDA_HOSTDEVICE bool IsValid(float4 v) noexcept {
+        return !IsZero(v) && !IsNaN(v);
     }
 
     CUDA_INLINE CUDA_HOSTDEVICE float Lerp(const float& a, const float& b, const float t) noexcept {

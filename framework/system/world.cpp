@@ -80,8 +80,6 @@ namespace Pupil {
 
         m_impl->LogInformation();
 
-        // m_impl->scene->UploadToCuda();
-
         return true;
     }
 

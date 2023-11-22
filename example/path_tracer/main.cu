@@ -74,7 +74,7 @@ __forceinline__ __device__ void ScatterRays(const unsigned int pixel_index, Path
 
         float emit_pdf  = emitter_sample_record.pdf * emitter->select_probability;
         nee->shadow_ray = 0;
-        if (!optix::IsZero(emit_pdf * bsdf_eval_f)) {
+        if (optix::IsValid(emit_pdf)) {
             nee->shadow_ray       = 1;
             nee->shadow_ray_dir   = emitter_sample_record.wi;
             nee->shadow_ray_o     = geo.position;
@@ -94,16 +94,16 @@ __forceinline__ __device__ void ScatterRays(const unsigned int pixel_index, Path
         bsdf_sample_record.sampler = &record->random;
         bsdf.Sample(bsdf_sample_record);
 
-        if (optix::IsZero(bsdf_sample_record.f * bsdf_sample_record.wi.z * bsdf_sample_record.pdf)) {
+        if (optix::IsValid(bsdf_sample_record.pdf)) {
+            record->bsdf_sample_pdf  = bsdf_sample_record.pdf;
+            record->bsdf_sample_type = bsdf_sample_record.sampled_type;
+            record->throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
+
+            record->ray_dir = optix::ToWorld(bsdf_sample_record.wi, geo.normal);
+            record->ray_o   = geo.position;
+        } else {
             record->done = true;
         }
-
-        record->bsdf_sample_pdf  = bsdf_sample_record.pdf;
-        record->bsdf_sample_type = bsdf_sample_record.sampled_type;
-        record->throughput *= bsdf_sample_record.f * abs(bsdf_sample_record.wi.z) / bsdf_sample_record.pdf;
-
-        record->ray_dir = optix::ToWorld(bsdf_sample_record.wi, geo.normal);
-        record->ray_o   = geo.position;
     }
 }
 
