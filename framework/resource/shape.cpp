@@ -121,6 +121,7 @@ namespace Pupil::resource {
                 auto ref = Register(util::Data<Shape>(std::move(shape)));
 
                 m_impl->map_path_to_id[std::string{path}] = ref->GetId();
+                m_impl->map_mesh_id_to_path[ref->GetId()] = std::string{path};
                 return ref;
             }
         } else if (extension == ".hair") {
@@ -133,6 +134,7 @@ namespace Pupil::resource {
                 auto ref = Register(util::Data<Shape>(std::move(shape)));
 
                 m_impl->map_path_to_id[std::string{path}] = ref->GetId();
+                m_impl->map_mesh_id_to_path[ref->GetId()] = std::string{path};
                 return ref;
             }
         } else {
