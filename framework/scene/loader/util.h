@@ -14,4 +14,6 @@ namespace Pupil::util {
     Float3             LoadFloat3(std::string_view value, Float3 default_value = Float3(0.f)) noexcept;
     std::vector<int>   LoadIntVector(std::string_view value) noexcept;
     std::vector<float> LoadFloatVector(std::string_view value) noexcept;
+
+    static std::vector<std::string> g_supported_scene_format{".xml"};
 }// namespace Pupil::util

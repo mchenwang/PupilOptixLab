@@ -7,8 +7,9 @@ namespace Pupil {
     enum class EPassTag : uint32_t {
         None = 0,
         Pre  = 1 << 0,
-        Post = 1 << 1,
-        Asyn = 1 << 2
+        // Post = 1 << 1,
+        // Asyn = 1 << 2,
+        DisableCustomConsole = 1 << 3,
     };
 
     inline static bool operator&(const EPassTag& target, const EPassTag& tag) noexcept {
@@ -29,7 +30,7 @@ namespace Pupil {
             : name(name), tag(tag) {}
 
         virtual void Run() noexcept;
-        virtual void Inspector() noexcept;
+        virtual void Console() noexcept;
 
         virtual void OnRun() noexcept = 0;
 

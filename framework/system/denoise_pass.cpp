@@ -1,8 +1,9 @@
 #include "denoise_pass.h"
 #include "world.h"
 #include "system.h"
+#include "event.h"
+#include "buffer.h"
 #include "scene/scene.h"
-#include "util/event.h"
 #include "util/timer.h"
 
 #include "optix/denoiser.h"
@@ -10,7 +11,7 @@
 #include "cuda/stream.h"
 
 #include "imgui.h"
-#include "system/gui/gui.h"
+#include "system/gui/pass.h"
 
 #include <atomic>
 #include <memory>
@@ -53,29 +54,32 @@ namespace Pupil {
 
         m_impl->denoiser = std::make_unique<optix::Denoiser>(m_impl->stream, m_impl->denoiser_mode);
 
-        EventBinder<ESystemEvent::SceneLoad>([this](void*) {
-            auto scene = util::Singleton<World>::instance()->GetScene();
-            if (scene->film_w != m_impl->film_w || scene->film_h != m_impl->film_h) {
-                m_impl->film_w     = scene->film_w;
-                m_impl->film_h     = scene->film_h;
-                m_impl->film_dirty = true;
-            }
-            m_impl->denoiser->SetTile(m_impl->tile_w, m_impl->tile_h);
+        auto event_center = util::Singleton<Pupil::Event::Center>::instance();
+        event_center->BindEvent(
+            Event::DispatcherRender, Event::SceneReset,
+            new Event::Handler0A([this]() {
+                auto scene = util::Singleton<World>::instance()->GetScene();
+                if (scene->film_w != m_impl->film_w || scene->film_h != m_impl->film_h) {
+                    m_impl->film_w     = scene->film_w;
+                    m_impl->film_h     = scene->film_h;
+                    m_impl->film_dirty = true;
+                }
+                m_impl->denoiser->SetTile(m_impl->tile_w, m_impl->tile_h);
 
-            auto buf_mngr = util::Singleton<BufferManager>::instance();
+                auto buf_mngr = util::Singleton<BufferManager>::instance();
 
-            m_impl->data.input  = buf_mngr->GetBuffer(m_impl->config.noise_name)->cuda_ptr;
-            m_impl->data.albedo = buf_mngr->GetBuffer(m_impl->config.albedo_name)->cuda_ptr;
-            m_impl->data.normal = buf_mngr->GetBuffer(m_impl->config.normal_name)->cuda_ptr;
-            // m_impl->data.motion_vector = buf_mngr->GetBuffer("motion vector")->cuda_ptr;
-            m_impl->data.prev_output = m_impl->data.input;
-            m_impl->data.output      = buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr;
-        });
+                m_impl->data.input  = buf_mngr->GetBuffer(m_impl->config.noise_name)->cuda_ptr;
+                m_impl->data.albedo = buf_mngr->GetBuffer(m_impl->config.albedo_name)->cuda_ptr;
+                m_impl->data.normal = buf_mngr->GetBuffer(m_impl->config.normal_name)->cuda_ptr;
+                // m_impl->data.motion_vector = buf_mngr->GetBuffer("motion vector")->cuda_ptr;
+                m_impl->data.prev_output = m_impl->data.input;
+                m_impl->data.output      = buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr;
+            }));
 
         s_enabled_flag = config.default_enable;
 
         if (!s_enabled_flag) {
-            EventDispatcher<ECanvasEvent::Display>(std::string_view{config.noise_name});
+            event_center->Send(Gui::Event::CanvasDisplayTargetChange, {config.noise_name});
         }
     }
 
@@ -106,7 +110,7 @@ namespace Pupil {
         m_impl->time_cost = m_impl->timer.ElapsedMilliseconds();
     }
 
-    void DenoisePass::Inspector() noexcept {
+    void DenoisePass::Console() noexcept {
         ImGui::Checkbox("enable", &s_enabled_flag);
         ImGui::Text("cost: %.3lf ms", m_impl->time_cost);
         uint32_t mode = m_impl->denoiser_mode;

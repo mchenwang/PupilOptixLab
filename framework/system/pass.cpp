@@ -12,7 +12,7 @@ namespace Pupil {
         m_last_exec_time = m_timer.ElapsedMilliseconds();
     }
 
-    void Pass::Inspector() noexcept {
+    void Pass::Console() noexcept {
         ImGui::Checkbox("enalbe", &m_enable);
         ImGui::Text("time cost: %.3lf ms", m_last_exec_time);
     }

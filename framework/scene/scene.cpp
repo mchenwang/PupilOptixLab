@@ -20,6 +20,7 @@ namespace Pupil {
 
         Camera camera;
 
+        bool       ias_dirty = true;
         IASManager ias_mngr;
     };
 
@@ -29,6 +30,7 @@ namespace Pupil {
 
     Scene::~Scene() noexcept {
         delete m_impl;
+        m_instances.clear();
     }
 
     void Scene::Reset() noexcept {
@@ -84,6 +86,7 @@ namespace Pupil {
         }
 
         m_instances.emplace_back(instance);
+        m_impl->ias_dirty = true;
     }
 
     void Scene::AddEmitter(std::unique_ptr<Emitter>&& emitter) noexcept {
@@ -125,8 +128,6 @@ namespace Pupil {
             ins.gas = gas_mngr->GetGAS(ins.shape);
         }
 
-        m_impl->ias_mngr.SetInstance(m_instances);
-
         if (m_impl->emitter_dirty) {
             m_impl->optix_emitters.clear();
             for (auto& emitter : m_emitters) {
@@ -149,7 +150,10 @@ namespace Pupil {
             m_impl->emitter_dirty = false;
         }
 
-        m_impl->ias_mngr.SetInstance(m_instances);
+        if (m_impl->ias_dirty) {
+            m_impl->ias_mngr.SetInstance(m_instances);
+            m_impl->ias_dirty = false;
+        }
     }
 
     OptixTraversableHandle Scene::GetIASHandle(unsigned int gas_offset, bool allow_update) noexcept {

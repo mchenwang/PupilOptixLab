@@ -171,8 +171,8 @@ namespace Pupil {
     }
 
     void Camera::Rotate(float delta_x, float delta_y) noexcept {
-        Quaternion pitch(X, Angle::MakeFromDegree(delta_x));
-        Quaternion yaw(Y, Angle::MakeFromDegree(delta_x));
+        Quaternion pitch(X, Angle::MakeFromDegree(delta_y * sensitivity * sensitivity_scale));
+        Quaternion yaw(Y, Angle::MakeFromDegree(delta_x * sensitivity * sensitivity_scale));
 
         m_impl->rotate =
             Pupil::FillDiagonal4x4(pitch.GetRotation(), 1.f) *
@@ -184,7 +184,7 @@ namespace Pupil {
     }
 
     void Camera::Move(Float3 delta) noexcept {
-        delta = Vector3f(m_impl->rotate_inv * Vector4f(delta, 0.f));
+        delta = Vector3f(m_impl->rotate_inv * Vector4f(delta * sensitivity * sensitivity_scale, 0.f));
 
         auto translation       = Pupil::MakeTranslation(delta.x, delta.y, delta.z);
         m_impl->position       = Vector3f(translation * Vector4f(m_impl->position, 1.f));

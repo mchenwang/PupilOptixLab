@@ -25,6 +25,7 @@ add_dependencies(${pupil_framework_name} file-copy)
 target_link_libraries(${pupil_framework_name} PUBLIC ${3rdparty_target})
 target_link_libraries(${pupil_framework_name} PUBLIC CUDA::cudart CUDA::cuda_driver)
 target_link_libraries(${pupil_framework_name} PUBLIC OptiX)
+target_link_libraries(${pupil_framework_name} PUBLIC winmm.lib)
 
 target_compile_definitions(${pupil_framework_name} PUBLIC _UNICODE UNICODE NOMINMAX)
 
