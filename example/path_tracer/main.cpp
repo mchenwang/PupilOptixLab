@@ -1,4 +1,5 @@
 #include "system/system.h"
+#include "system/event.h"
 #include "pt_pass.h"
 #include "static.h"
 
@@ -7,11 +8,13 @@ int main() {
     system->Init(true);
 
     {
-        auto pt_pass = std::make_unique<Pupil::pt::PTPass>("Path Tracing");
-        system->AddPass(pt_pass.get());
-        std::filesystem::path scene_file_path{ Pupil::DATA_DIR };
+        system->AddPass(new Pupil::pt::PTPass());
+
+        std::filesystem::path scene_file_path{Pupil::DATA_DIR};
         scene_file_path /= "static/default.xml";
-        system->SetScene(scene_file_path);
+        // scene_file_path = "D:/work/PupilRay/data/static/default.xml";
+        Pupil::util::Singleton<Pupil::Event::Center>::instance()
+            ->Send(Pupil::Event::RequestSceneLoad, {scene_file_path.string()});
 
         system->Run();
     }

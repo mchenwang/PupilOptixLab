@@ -1,269 +1,221 @@
 #include "pt_pass.h"
+#include "type.h"
 #include "imgui.h"
 
 #include "cuda/context.h"
+#include "cuda/check.h"
 #include "optix/context.h"
-#include "optix/module.h"
+#include "optix/pipeline.h"
 
-#include "util/event.h"
 #include "system/system.h"
-#include "system/gui/gui.h"
-#include "world/world.h"
-#include "world/render_object.h"
+#include "system/event.h"
+#include "system/buffer.h"
+#include "system/world.h"
+#include "system/gui/pass.h"
+
+#include "render/camera.h"
+
+#include <memory>
+#include <mutex>
 
 extern "C" char embedded_ptx_code[];
 
 namespace Pupil {
-extern uint32_t g_window_w;
-extern uint32_t g_window_h;
+    extern uint32_t g_window_w;
+    extern uint32_t g_window_h;
 }// namespace Pupil
 
-namespace {
-int m_max_depth;
-bool m_accumulated_flag;
+struct Pupil::pt::PTPass::Impl {
+    int  max_depth;
+    bool accumulated_flag;
 
-Pupil::world::World *m_world = nullptr;
-}// namespace
+    Pupil::Scene*        scene = nullptr;
+    Pupil::optix::Camera camera;
+
+    util::CountableRef<cuda::Stream> stream;
+
+    OptixLaunchParams optix_launch_params;
+    CUdeviceptr       optix_launch_params_cuda_memory = 0;
+
+    size_t output_pixel_num = 0;
+
+    std::atomic_bool dirty = true;
+};
 
 namespace Pupil::pt {
-PTPass::PTPass(std::string_view name) noexcept
-    : Pass(name) {
-    auto optix_ctx = util::Singleton<optix::Context>::instance();
-    auto cuda_ctx = util::Singleton<cuda::Context>::instance();
-    m_stream = std::make_unique<cuda::Stream>();
-    m_optix_pass = std::make_unique<optix::Pass<SBTTypes, OptixLaunchParams>>(optix_ctx->context, m_stream->GetStream());
-    InitOptixPipeline();
-    BindingEventCallback();
-}
+    PTPass::PTPass(std::string_view name) noexcept
+        : Pupil::Pass(name), optix::Pass(sizeof(OptixLaunchParams)) {
+        m_impl = new Impl();
 
-void PTPass::OnRun() noexcept {
-    if (m_dirty) {
-        m_optix_launch_params.camera.SetData(m_world_camera->GetCudaMemory());
-        m_optix_launch_params.config.max_depth = m_max_depth;
-        m_optix_launch_params.config.accumulated_flag = m_accumulated_flag;
-        m_optix_launch_params.sample_cnt = 0;
-        m_optix_launch_params.random_seed = 0;
-        m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
-        m_optix_launch_params.emitters = m_world->emitters->GetEmitterGroup();
-        m_dirty = false;
+        CUDA_CHECK(cudaMallocAsync(
+            reinterpret_cast<void**>(&m_impl->optix_launch_params_cuda_memory),
+            sizeof(OptixLaunchParams),
+            *GetStream()));
+
+        InitPipeline();
+        BindingEventCallback();
     }
 
-    m_optix_pass->Run(m_optix_launch_params, m_optix_launch_params.config.frame.width,
-                      m_optix_launch_params.config.frame.height);
-    m_optix_pass->Synchronize();
-
-    m_optix_launch_params.sample_cnt += m_optix_launch_params.config.accumulated_flag;
-    ++m_optix_launch_params.random_seed;
-}
-
-void PTPass::InitOptixPipeline() noexcept {
-    auto module_mngr = util::Singleton<optix::ModuleManager>::instance();
-
-    auto sphere_module = module_mngr->GetModule(optix::EModuleBuiltinType::SpherePrimitive);
-    // auto curve_linear_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundLinearPrimitive);
-    // auto curve_quadratic_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundQuadraticBsplinePrimitive);
-    auto curve_cubic_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundCubicBsplinePrimitive);
-    // auto curve_catmullrom_module = module_mngr->GetModule(optix::EModuleBuiltinType::RoundCatmullromPrimitive);
-    auto pt_module = module_mngr->GetModule(embedded_ptx_code);
-
-    optix::PipelineDesc pipeline_desc;
-    {
-        // for mesh(triangle) geo
-        optix::RayTraceProgramDesc forward_ray_desc{
-            .module_ptr = pt_module,
-            .ray_gen_entry = "__raygen__main",
-            .miss_entry = "__miss__default",
-            .hit_group = { .ch_entry = "__closesthit__default" },
-        };
-        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
-        optix::RayTraceProgramDesc shadow_ray_desc{
-            .module_ptr = pt_module,
-            .miss_entry = "__miss__shadow",
-            .hit_group = { .ch_entry = "__closesthit__shadow" },
-        };
-        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    PTPass::~PTPass() noexcept {
+        CUDA_FREE(m_impl->optix_launch_params_cuda_memory);
+        delete m_impl;
     }
 
-    {
-        optix::RayTraceProgramDesc forward_ray_desc{
-            .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__default_sphere",
-                           .intersect_module = sphere_module },
-        };
-        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
-        optix::RayTraceProgramDesc shadow_ray_desc{
-            .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__shadow_sphere",
-                           .intersect_module = sphere_module },
-        };
-        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    void PTPass::OnRun() noexcept {
+        if (m_impl->dirty) {
+            m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetToWorldMatrix());
+            m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetSampleToCameraMatrix());
+
+            m_impl->optix_launch_params.camera                  = m_impl->camera;
+            m_impl->optix_launch_params.config.max_depth        = m_impl->max_depth;
+            m_impl->optix_launch_params.config.accumulated_flag = m_impl->accumulated_flag;
+            m_impl->optix_launch_params.sample_cnt              = 0;
+            m_impl->optix_launch_params.random_seed             = 0;
+            m_impl->optix_launch_params.handle                  = m_impl->scene->GetIASHandle(2, true);
+            m_impl->optix_launch_params.emitters                = m_impl->scene->GetOptixEmitters();
+            m_impl->dirty                                       = false;
+        }
+
+        CUDA_CHECK(cudaMemcpyAsync(
+            reinterpret_cast<void*>(m_impl->optix_launch_params_cuda_memory),
+            &m_impl->optix_launch_params, sizeof(OptixLaunchParams),
+            cudaMemcpyHostToDevice, *GetStream()));
+
+        optix::Pass::Run(m_impl->optix_launch_params_cuda_memory,
+                         m_impl->optix_launch_params.config.frame.width,
+                         m_impl->optix_launch_params.config.frame.height);
+        Synchronize();
+
+        m_impl->optix_launch_params.sample_cnt += m_impl->optix_launch_params.config.accumulated_flag;
+        ++m_impl->optix_launch_params.random_seed;
     }
 
-    auto curve_module = curve_cubic_module;
-    {
-        optix::RayTraceProgramDesc forward_ray_desc{
-            .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__default_curve",
-                           .intersect_module = curve_module },
-        };
-        pipeline_desc.ray_trace_programs.push_back(forward_ray_desc);
-        optix::RayTraceProgramDesc shadow_ray_desc{
-            .module_ptr = pt_module,
-            .hit_group = { .ch_entry = "__closesthit__shadow_curve",
-                           .intersect_module = curve_module },
-        };
-        pipeline_desc.ray_trace_programs.push_back(shadow_ray_desc);
+    void PTPass::Console() noexcept {
+        Pupil::Pass::Console();
+        ImGui::InputInt("max trace depth", &m_impl->max_depth);
+        m_impl->max_depth = clamp(m_impl->max_depth, 1, 128);
+        if (m_impl->optix_launch_params.config.max_depth != m_impl->max_depth) {
+            m_impl->dirty = true;
+        }
+
+        if (ImGui::Checkbox("accumulate radiance", &m_impl->accumulated_flag)) {
+            m_impl->dirty = true;
+        }
     }
 
-    // {
-    //     auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
-    //     pipeline_desc.callable_programs.insert(
-    //         pipeline_desc.callable_programs.end(),
-    //         mat_programs.begin(), mat_programs.end());
-    // }
-    m_optix_pass->InitPipeline(pipeline_desc);
-}
+    void PTPass::BindingEventCallback() noexcept {
+        auto event_center = util::Singleton<Event::Center>::instance();
+        event_center->BindEvent(
+            Event::DispatcherRender, Event::CameraChange,
+            new Event::Handler0A([this]() {
+                m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetToWorldMatrix());
+                m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetSampleToCameraMatrix());
 
-void PTPass::SetScene(world::World *world) noexcept {
-    m_world_camera = world->camera.get();
+                m_impl->dirty = true;
+            }));
 
-    m_optix_launch_params.config.frame.width = world->scene->sensor.film.w;
-    m_optix_launch_params.config.frame.height = world->scene->sensor.film.h;
-    m_optix_launch_params.config.max_depth = world->scene->integrator.max_depth;
-    m_optix_launch_params.config.accumulated_flag = true;
+        event_center->BindEvent(Event::DispatcherRender, Event::InstanceChange, new Event::Handler0A([this]() { m_impl->dirty = true; }));
+        event_center->BindEvent(
+            Event::DispatcherRender, Event::SceneReset,
+            new Event::Handler0A([this]() {
+                m_impl->scene = util::Singleton<World>::instance()->GetScene();
 
-    m_max_depth = m_optix_launch_params.config.max_depth;
-    m_accumulated_flag = m_optix_launch_params.config.accumulated_flag;
+                m_impl->optix_launch_params.config.frame.width      = m_impl->scene->film_w;
+                m_impl->optix_launch_params.config.frame.height     = m_impl->scene->film_h;
+                m_impl->optix_launch_params.config.max_depth        = m_impl->scene->max_depth;
+                m_impl->optix_launch_params.config.accumulated_flag = true;
 
-    m_optix_launch_params.random_seed = 0;
-    m_optix_launch_params.sample_cnt = 0;
+                m_impl->max_depth        = m_impl->optix_launch_params.config.max_depth;
+                m_impl->accumulated_flag = m_impl->optix_launch_params.config.accumulated_flag;
 
-    m_output_pixel_num = m_optix_launch_params.config.frame.width *
-                         m_optix_launch_params.config.frame.height;
-    auto buf_mngr = util::Singleton<BufferManager>::instance();
-    {
-        m_optix_launch_params.frame_buffer.SetData(buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr, m_output_pixel_num);
+                m_impl->optix_launch_params.random_seed = 0;
+                m_impl->optix_launch_params.sample_cnt  = 0;
 
-        BufferDesc desc{
-            .name = "pt accum buffer",
-            .flag = EBufferFlag::None,
-            .width = static_cast<uint32_t>(world->scene->sensor.film.w),
-            .height = static_cast<uint32_t>(world->scene->sensor.film.h),
-            .stride_in_byte = sizeof(float) * 4
-        };
-        m_optix_launch_params.accum_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+                m_impl->output_pixel_num = m_impl->optix_launch_params.config.frame.width *
+                                           m_impl->optix_launch_params.config.frame.height;
+                auto buf_mngr = util::Singleton<BufferManager>::instance();
+                {
+                    m_impl->optix_launch_params.frame_buffer.SetData(buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr, m_impl->output_pixel_num);
 
-        desc.name = "albedo";
-        desc.flag = EBufferFlag::AllowDisplay;
-        desc.stride_in_byte = sizeof(float3);
-        m_optix_launch_params.albedo_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+                    BufferDesc desc{
+                        .name           = "pt accum buffer",
+                        .flag           = EBufferFlag::None,
+                        .width          = static_cast<uint32_t>(m_impl->scene->film_w),
+                        .height         = static_cast<uint32_t>(m_impl->scene->film_h),
+                        .stride_in_byte = sizeof(float) * 4};
+                    m_impl->optix_launch_params.accum_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_impl->output_pixel_num);
 
-        desc.name = "normal";
-        m_optix_launch_params.normal_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
+                    desc.name           = "albedo";
+                    desc.flag           = EBufferFlag::AllowDisplay;
+                    desc.stride_in_byte = sizeof(float) * 4;
+                    m_impl->optix_launch_params.albedo_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_impl->output_pixel_num);
 
-        desc.name = "test";
-        desc.stride_in_byte = sizeof(float);
-        m_optix_launch_params.test.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_output_pixel_num);
-    }
-
-    m_world = world;
-    m_optix_launch_params.handle = m_world->GetIASHandle(2, true);
-
-    {
-        optix::SBTDesc<SBTTypes> desc{};
-        desc.ray_gen_data = {
-            .program = "__raygen__main"
-        };
-        {
-            int emitter_index_offset = 0;
-            using HitGroupDataRecord = optix::ProgDataDescPair<SBTTypes::HitGroupDataType>;
-            for (auto &&ro : world->GetRenderobjects()) {
-                HitGroupDataRecord hit_default_data{};
-                if (ro->geo.type == optix::Geometry::EType::TriMesh)
-                    hit_default_data.program = "__closesthit__default";
-                else if (ro->geo.type == optix::Geometry::EType::Sphere)
-                    hit_default_data.program = "__closesthit__default_sphere";
-                else
-                    hit_default_data.program = "__closesthit__default_curve";
-                hit_default_data.data.mat = ro->mat;
-                hit_default_data.data.geo = ro->geo;
-                if (ro->is_emitter) {
-                    hit_default_data.data.emitter_index_offset = emitter_index_offset;
-                    emitter_index_offset += ro->sub_emitters_num;
+                    desc.name = "normal";
+                    m_impl->optix_launch_params.normal_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_impl->output_pixel_num);
                 }
 
-                desc.hit_datas.push_back(hit_default_data);
+                m_impl->optix_launch_params.handle = m_impl->scene->GetIASHandle(2, true);
 
-                HitGroupDataRecord hit_shadow_data{};
-                if (ro->geo.type == optix::Geometry::EType::TriMesh)
-                    hit_shadow_data.program = "__closesthit__shadow";
-                else if (ro->geo.type == optix::Geometry::EType::Sphere)
-                    hit_shadow_data.program = "__closesthit__shadow_sphere";
-                else
-                    hit_shadow_data.program = "__closesthit__shadow_curve";
+                {
+                    auto instances    = m_impl->scene->GetInstances();
+                    auto instance_num = static_cast<unsigned int>(instances.size());
+                    m_sbt->SetRayGenRecord<void>();
+                    m_sbt->SetHitgroupRecord<HitGroupData>(instance_num * 2);
+                    m_sbt->SetMissRecord<void>(2);
 
-                hit_shadow_data.data.mat.type = ro->mat.type;
-                desc.hit_datas.push_back(hit_shadow_data);
-            }
-        }
-        {
-            optix::ProgDataDescPair<SBTTypes::MissDataType> miss_data = {
-                .program = "__miss__default"
-            };
-            desc.miss_datas.push_back(miss_data);
-            optix::ProgDataDescPair<SBTTypes::MissDataType> miss_shadow_data = {
-                .program = "__miss__shadow"
-            };
-            desc.miss_datas.push_back(miss_shadow_data);
-        }
-        // {
-        //     auto mat_programs = Pupil::resource::GetMaterialProgramDesc();
-        //     for (auto &mat_prog : mat_programs) {
-        //         if (mat_prog.cc_entry) {
-        //             optix::ProgDataDescPair<SBTTypes::CallablesDataType> cc_data = {
-        //                 .program = mat_prog.cc_entry
-        //             };
-        //             desc.callables_datas.push_back(cc_data);
-        //         }
-        //         if (mat_prog.dc_entry) {
-        //             optix::ProgDataDescPair<SBTTypes::CallablesDataType> dc_data = {
-        //                 .program = mat_prog.dc_entry
-        //             };
-        //             desc.callables_datas.push_back(dc_data);
-        //         }
-        //     }
-        // }
-        m_optix_pass->InitSBT(desc);
+                    m_sbt->BindData("ray gen", nullptr);
+                    m_sbt->BindData("miss", nullptr, 0);
+                    m_sbt->BindData("miss shadow", nullptr, 1);
+
+                    for (auto i = 0u; i < instance_num; i++) {
+                        HitGroupData hit;
+                        hit.geo = instances[i].shape->GetOptixGeometry();
+                        hit.mat = instances[i].material->GetOptixMaterial();
+
+                        if (instances[i].emitter != nullptr) {
+                            hit.emitter_index = m_impl->scene->GetEmitterIndex(instances[i].emitter);
+                        } else
+                            hit.emitter_index = -1;
+
+                        if (hit.geo.type == optix::Geometry::EType::TriMesh) {
+                            m_sbt->BindData("hit", &hit, i * 2);
+                            m_sbt->BindData("hit shadow", &hit, i * 2 + 1);
+                        } else if (hit.geo.type == optix::Geometry::EType::Sphere) {
+                            m_sbt->BindData("hit sphere", &hit, i * 2);
+                            m_sbt->BindData("hit shadow sphere", &hit, i * 2 + 1);
+                        } else {
+                            m_sbt->BindData("hit curve", &hit, i * 2);
+                            m_sbt->BindData("hit shadow curve", &hit, i * 2 + 1);
+                        }
+                    }
+
+                    m_sbt->Finish();
+                }
+
+                m_impl->dirty = true;
+            }));
     }
 
-    m_dirty = true;
-}
+    void PTPass::InitPipeline() noexcept {
+        m_pipeline->SetPipelineLaunchParamsVariableName("optix_launch_params");
+        m_pipeline->EnalbePrimitiveType(optix::Pipeline::EPrimitiveType::Sphere);
+        m_pipeline->EnalbePrimitiveType(optix::Pipeline::EPrimitiveType::Curve);
 
-void PTPass::BindingEventCallback() noexcept {
-    EventBinder<EWorldEvent::CameraChange>([this](void *) {
-        m_dirty = true;
-    });
+        auto pt_module     = m_pipeline->CreateModule(optix::EModuleType::UserDefined, embedded_ptx_code);
+        auto sphere_module = m_pipeline->CreateModule(optix::EModuleType::BuiltinSphereIS);
+        auto curve_module  = m_pipeline->CreateModule(optix::EModuleType::BuiltinCurveIS);
 
-    EventBinder<EWorldEvent::RenderInstanceUpdate>([this](void *) {
-        m_dirty = true;
-    });
+        m_pipeline->CreateRayGen("ray gen").SetModule(pt_module).SetEntry("__raygen__main");
+        m_pipeline->CreateMiss("miss").SetModule(pt_module).SetEntry("__miss__default");
+        m_pipeline->CreateHitgroup("hit").SetCHModule(pt_module).SetCHEntry("__closesthit__default");
+        m_pipeline->CreateHitgroup("hit sphere").SetCHModule(pt_module).SetCHEntry("__closesthit__default").SetISModule(sphere_module);
+        m_pipeline->CreateHitgroup("hit curve").SetCHModule(pt_module).SetCHEntry("__closesthit__default").SetISModule(curve_module);
+        m_pipeline->CreateMiss("miss shadow").SetModule(pt_module).SetEntry("__miss__shadow");
+        m_pipeline->CreateHitgroup("hit shadow").SetCHModule(pt_module).SetCHEntry("__closesthit__shadow");
+        m_pipeline->CreateHitgroup("hit shadow sphere").SetCHModule(pt_module).SetCHEntry("__closesthit__shadow").SetISModule(sphere_module);
+        m_pipeline->CreateHitgroup("hit shadow curve").SetCHModule(pt_module).SetCHEntry("__closesthit__shadow").SetISModule(curve_module);
 
-    EventBinder<ESystemEvent::SceneLoad>([this](void *p) {
-        SetScene((world::World *)p);
-    });
-}
-
-void PTPass::Inspector() noexcept {
-    Pass::Inspector();
-    ImGui::Text("sample count: %d", m_optix_launch_params.sample_cnt + 1);
-    ImGui::InputInt("max trace depth", &m_max_depth);
-    m_max_depth = clamp(m_max_depth, 1, 128);
-    if (m_optix_launch_params.config.max_depth != m_max_depth) {
-        m_dirty = true;
+        m_pipeline->Finish();
     }
 
-    if (ImGui::Checkbox("accumulate radiance", &m_accumulated_flag)) {
-        m_dirty = true;
-    }
-}
 }// namespace Pupil::pt
