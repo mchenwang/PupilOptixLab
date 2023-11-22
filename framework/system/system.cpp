@@ -125,6 +125,12 @@ namespace Pupil {
             new Event::Handler0A([system, event_center]() {
                 event_center->Send(Event::RenderPause);
             }));
+
+        event_center->BindEvent(
+            Event::DispatcherRender, Gui::Event::WindowRestored,
+            new Event::Handler0A([system, event_center]() {
+                event_center->Send(Event::RenderContinue);
+            }));
     }
 
     void System::Init(bool has_window) noexcept {
@@ -156,6 +162,9 @@ namespace Pupil {
             auto time_point2 = std::chrono::system_clock::now();
 
             size_t frame_cnt = 0;
+
+            event_center->BindEvent(Event::DispatcherRender, Event::CameraChange,
+                                    new Event::Handler0A([&frame_cnt]() { frame_cnt = 0; }));
 
             while (!st.stop_requested()) {
                 // {
@@ -198,6 +207,7 @@ namespace Pupil {
                     for (auto& pass : m_impl->pre_passes)
                         if (pass->IsEnabled())
                             pass->Run();
+                    m_impl->render_restart_flag = false;
                 }
 
                 for (auto& pass : m_impl->passes)
@@ -214,9 +224,7 @@ namespace Pupil {
             event_center->Dispatch(Event::DispatcherMain);
 
             if (m_impl->gui_pass) {
-
                 m_impl->gui_pass->Run();
-                // Log::Info("{}", i++);
             }
         }
     }

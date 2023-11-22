@@ -8,6 +8,7 @@
 namespace Pupil::Gui {
     namespace Event {
         constexpr const char* WindowMinimized           = "Window Minimized";
+        constexpr const char* WindowRestored            = "Window Restored";
         constexpr const char* WindowResized             = "Window Resized";
         constexpr const char* CanvasDisplayTargetChange = "Canvas Display Target Change";
     }// namespace Event

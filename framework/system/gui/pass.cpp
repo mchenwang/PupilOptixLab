@@ -324,11 +324,6 @@ namespace Pupil::Gui {
         ID3D12DescriptorHeap* heaps[] = {dx_ctx->srv_heap.get()};
         cmd_list->SetDescriptorHeaps(1, heaps);
         // render buffer to texture
-        // if (auto buffer = GetReadyOutputBuffer();
-        //     buffer.res && m_render_flip_buffer_to_texture_flag) {
-        //     RenderFlipBufferToTexture(cmd_list);
-        //     m_render_flip_buffer_to_texture_flag = false;
-        // }
         if (frame_cnt > 0 && !scene_loading)
             RenderToCanvas(cmd_list);
         // show on canvas
@@ -1034,6 +1029,8 @@ namespace Pupil::Gui {
             case WM_SIZE:
                 if (wParam == SIZE_MINIMIZED) {
                     Pupil::util::Singleton<Pupil::Event::Center>::instance()->Send(Pupil::Gui::Event::WindowMinimized);
+                } else if (wParam == SIZE_RESTORED) {
+                    Pupil::util::Singleton<Pupil::Event::Center>::instance()->Send(Pupil::Gui::Event::WindowRestored);
                 } else {
                     Pupil::util::Singleton<Pupil::Event::Center>::instance()
                         ->Send(Pupil::Gui::Event::WindowResized,
