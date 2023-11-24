@@ -46,6 +46,7 @@ namespace Pupil {
 
     DenoisePass::DenoisePass(const Config& config, std::string_view name) noexcept
         : Pass(name) {
+        m_impl         = new Impl();
         m_impl->config = config;
         m_impl->stream = util::Singleton<cuda::StreamManager>::instance()->Alloc(cuda::EStreamTaskType::Render);
 
@@ -81,6 +82,11 @@ namespace Pupil {
         if (!s_enabled_flag) {
             event_center->Send(Gui::Event::CanvasDisplayTargetChange, {config.noise_name});
         }
+    }
+
+    DenoisePass::~DenoisePass() noexcept {
+        delete m_impl;
+        m_impl = nullptr;
     }
 
     void DenoisePass::OnRun() noexcept {

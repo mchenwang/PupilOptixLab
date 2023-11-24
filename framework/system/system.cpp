@@ -122,14 +122,18 @@ namespace Pupil {
 
         event_center->BindEvent(
             Event::DispatcherRender, Gui::Event::WindowMinimized,
-            new Event::Handler0A([system, event_center]() {
-                event_center->Send(Event::RenderPause);
-            }));
+            new Event::Handler0A([system, event_center]() { event_center->Send(Event::RenderPause); }));
 
         event_center->BindEvent(
             Event::DispatcherRender, Gui::Event::WindowRestored,
-            new Event::Handler0A([system, event_center]() {
-                event_center->Send(Event::RenderContinue);
+            new Event::Handler0A([system, event_center]() { event_center->Send(Event::RenderContinue); }));
+
+        event_center->BindEvent(
+            Event::DispatcherRender, Event::LimitRenderRate,
+            new Event::Handler1A<int>([system](int limited_frame_rate) {
+                system->m_impl->limit_render_frame_rate = limited_frame_rate > 0;
+                if (system->m_impl->limit_render_frame_rate)
+                    system->m_impl->max_render_frame_rate = limited_frame_rate;
             }));
     }
 
@@ -172,26 +176,26 @@ namespace Pupil {
                 //     m_impl->render_cv.wait(lock, [&]() { return m_impl->render_flag; });
                 // }
 
-                // if (m_impl->limit_render_frame_rate) {
-                //     timeBeginPeriod(1);
-                //     time_point1    = std::chrono::system_clock::now();
-                //     auto work_time = std::chrono::duration<double, std::milli>(time_point1 - time_point2);
+                if (m_impl->limit_render_frame_rate) {
+                    timeBeginPeriod(1);
+                    time_point1    = std::chrono::system_clock::now();
+                    auto work_time = std::chrono::duration<double, std::milli>(time_point1 - time_point2);
 
-                //     const auto limit = 1000.0 / m_impl->max_render_frame_rate;
-                //     if (work_time.count() < limit) {
-                //         std::chrono::duration<double, std::milli> delta_ms(limit - work_time.count());
+                    const auto limit = 1000.0 / m_impl->max_render_frame_rate;
+                    if (work_time.count() < limit) {
+                        std::chrono::duration<double, std::milli> delta_ms(limit - work_time.count());
 
-                //         auto delta_ms_duration = std::chrono::duration_cast<std::chrono::milliseconds>(delta_ms);
-                //         std::this_thread::sleep_for(std::chrono::milliseconds(delta_ms_duration.count()));
-                //     }
+                        auto delta_ms_duration = std::chrono::duration_cast<std::chrono::milliseconds>(delta_ms);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(delta_ms_duration.count()));
+                    }
 
-                //     time_point2 = std::chrono::system_clock::now();
-                //     // auto sleep_time = std::chrono::duration<double, std::milli>(time_point2 - time_point1);
-                //     // auto time_cost = (work_time + sleep_time).count();
-                //     // printf("Sleep Time: %.3lf; Work Time: %.3lf; FPS: %.1f\n", sleep_time.count(), work_time.count(), (float)(1000.f / time_cost));
+                    time_point2 = std::chrono::system_clock::now();
+                    // auto sleep_time = std::chrono::duration<double, std::milli>(time_point2 - time_point1);
+                    // auto time_cost = (work_time + sleep_time).count();
+                    // printf("Sleep Time: %.3lf; Work Time: %.3lf; FPS: %.1f\n", sleep_time.count(), work_time.count(), (float)(1000.f / time_cost));
 
-                //     timeEndPeriod(1);
-                // }
+                    timeEndPeriod(1);
+                }
 
                 event_center->Dispatch(Event::DispatcherRender);
 

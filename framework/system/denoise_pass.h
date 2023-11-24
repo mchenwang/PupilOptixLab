@@ -17,6 +17,8 @@ namespace Pupil {
         };
 
         DenoisePass(const Config& config, std::string_view name = "Denoise") noexcept;
+        ~DenoisePass() noexcept;
+
         virtual void OnRun() noexcept override;
         virtual void Console() noexcept override;
 

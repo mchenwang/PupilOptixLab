@@ -39,10 +39,11 @@ namespace Pupil::resource::mixml {
                     return false;
                 }
 
-                auto& camera = scene->GetCamera();
+                scene->SetCamera(CameraDesc());
+                auto camera = scene->GetCamera();
 
-                camera.SetNearClip(LoadFloat(xml_obj, "near_clip", 0.01f));
-                camera.SetFarClip(LoadFloat(xml_obj, "far_clip", 100.f));
+                camera->SetNearClip(LoadFloat(xml_obj, "near_clip", 0.01f));
+                camera->SetFarClip(LoadFloat(xml_obj, "far_clip", 100.f));
 
                 scene->film_w = 1024;
                 scene->film_h = 1024;
@@ -52,7 +53,7 @@ namespace Pupil::resource::mixml {
                     scene->film_h = static_cast<unsigned int>(LoadInt(film_obj, "height", 576));
                 }
 
-                camera.SetAspectRatio(static_cast<float>(scene->film_w) / scene->film_h);
+                camera->SetAspectRatio(static_cast<float>(scene->film_w) / scene->film_h);
 
                 char fov_axis = 'x';
                 if (auto value = xml_obj->GetProperty("fov_axis"); !value.empty()) {
@@ -73,7 +74,7 @@ namespace Pupil::resource::mixml {
                     float t      = std::tan(radian) * aspect;
                     fov.SetRadian(2.f * std::atan(t));
                 }
-                camera.SetFov(fov);
+                camera->SetFov(fov);
 
                 auto to_world = LoadTransform(xml_obj->GetUniqueSubObject("transform"));
 
@@ -86,7 +87,7 @@ namespace Pupil::resource::mixml {
                 to_world.matrix.re[1][2] *= -1;
                 to_world.matrix.re[2][2] *= -1;
 
-                camera.SetWorldTransform(to_world);
+                camera->SetWorldTransform(to_world);
             } break;
             case mixml::ETag::Shape: {
                 auto shape = LoadShape(xml_obj);

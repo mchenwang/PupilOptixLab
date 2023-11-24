@@ -39,7 +39,7 @@ namespace Pupil {
         void Reset() noexcept;
 
         void    SetCamera(const CameraDesc&) noexcept;
-        Camera& GetCamera() const noexcept;
+        Camera* GetCamera() const noexcept;
 
         void AddInstance(std::string_view                              name,
                          const util::CountableRef<resource::Shape>&    shape,

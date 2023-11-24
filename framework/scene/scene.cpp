@@ -18,7 +18,7 @@ namespace Pupil {
         std::vector<optix::Emitter>                optix_emitters;
         std::unordered_map<const Emitter*, size_t> emitter_index;
 
-        Camera camera;
+        std::unique_ptr<Camera> camera = nullptr;
 
         bool       ias_dirty = true;
         IASManager ias_mngr;
@@ -34,6 +34,7 @@ namespace Pupil {
     }
 
     void Scene::Reset() noexcept {
+        m_impl->camera.reset();
         m_impl->ias_mngr.Clear();
         m_impl->object_id     = 0;
         m_impl->emitter_dirty = true;
@@ -43,12 +44,14 @@ namespace Pupil {
     }
 
     void Scene::SetCamera(const CameraDesc& desc) noexcept {
-        m_impl->camera.SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
-        m_impl->camera.SetWorldTransform(desc.to_world);
+        if (m_impl->camera == nullptr)
+            m_impl->camera = std::make_unique<Camera>();
+        m_impl->camera->SetProjectionFactor(desc.fov_y, desc.aspect_ratio, desc.near_clip, desc.far_clip);
+        m_impl->camera->SetWorldTransform(desc.to_world);
     }
 
-    Camera& Scene::GetCamera() const noexcept {
-        return m_impl->camera;
+    Camera* Scene::GetCamera() const noexcept {
+        return m_impl->camera.get();
     }
 
     void Scene::AddInstance(std::string_view                              name,

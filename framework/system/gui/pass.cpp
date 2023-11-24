@@ -57,6 +57,8 @@ namespace Pupil::Gui {
         Timer  frame_rate_timer;
         double last_frame_time_cost = 0.;
 
+        int selected_object_index = -1;
+
         // std::atomic_bool waiting_scene_load = false;
         // bool             render_flag        = false;
         // double           flip_rate          = 1.;
@@ -78,9 +80,10 @@ namespace Pupil::Gui {
             uint32_t tone_mapping  = 0;
             uint32_t gamma_correct = 1;
         } canvas_desc;
+        std::mutex                     canvas_mtx;
         winrt::com_ptr<ID3D12Resource> canvas_cb;
-        void*                          canvas_cb_mapped_ptr       = nullptr;
-        std::string_view               canvas_display_buffer_name = Pupil::BufferManager::DEFAULT_FINAL_RESULT_BUFFER_NAME;
+        void*                          canvas_cb_mapped_ptr = nullptr;
+        std::string                    canvas_display_buffer_name{Pupil::BufferManager::DEFAULT_FINAL_RESULT_BUFFER_NAME};
 
         struct FlipModel {
             // index for displaying
@@ -106,7 +109,7 @@ namespace Pupil::Gui {
 
         void InitCanvasPipeline() noexcept;
         void ResizeCanvas(uint32_t w, uint32_t h) noexcept;
-        void CopyFromOutput(int index) noexcept;
+        bool CopyFromOutput(int index) noexcept;
         void RenderToCanvas(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept;
         void OnDraw() noexcept;
         void Docking() noexcept;
@@ -190,8 +193,6 @@ namespace Pupil::Gui {
             event_center->BindEvent(
                 Pupil::Event::DispatcherRender, Pupil::Event::FrameDone,
                 new Pupil::Event::Handler1A<size_t>([this](size_t frame_cnt) {
-                    if (!m_impl->init_flag) return;
-
                     int next_index;
                     {
                         std::scoped_lock lock(m_impl->flip_model.flip_mtx);
@@ -199,12 +200,13 @@ namespace Pupil::Gui {
                         m_impl->flip_model.mtx[next_index].lock();
                     }
 
-                    m_impl->CopyFromOutput(next_index);
+                    if (m_impl->CopyFromOutput(next_index)) {
+                        m_impl->flip_model.ready_flip.store(true);
+                        m_impl->frame_cnt = frame_cnt;
+                    }
 
-                    m_impl->flip_model.ready_flip.store(true);
                     m_impl->flip_model.mtx[next_index].unlock();
 
-                    m_impl->frame_cnt            = frame_cnt;
                     m_impl->last_frame_time_cost = m_impl->frame_rate_timer.ElapsedMilliseconds();
                     m_impl->frame_rate_timer.Start();
                 }));
@@ -212,22 +214,49 @@ namespace Pupil::Gui {
             event_center->BindEvent(
                 Pupil::Event::DispatcherRender, Pupil::Event::SceneReset,
                 new Pupil::Event::Handler0A([this]() {
-                    if (!m_impl->init_flag) return;
-
-                    m_impl->scene_loading = false;
+                    m_impl->frame_cnt = 0;
                     m_impl->frame_rate_timer.Start();
                 }));
 
             event_center->BindEvent(
-                Pupil::Event::DispatcherRender, Pupil::Event::SceneLoading,
+                Pupil::Event::DispatcherMain, Pupil::Event::SceneReset,
+                new Pupil::Event::Handler0A([this]() {
+                    m_impl->scene_loading = false;
+                    auto buf_mngr         = util::Singleton<BufferManager>::instance();
+                    auto output           = buf_mngr->GetBuffer(m_impl->canvas_display_buffer_name);
+                    if (output) {
+                        if (output->desc.height != m_impl->canvas_desc.h ||
+                            output->desc.width != m_impl->canvas_desc.w) {
+                            m_impl->ResizeCanvas(output->desc.width, output->desc.height);
+                        }
+                    }
+                }));
+
+            event_center->BindEvent(
+                Pupil::Event::DispatcherMain, Pupil::Event::SceneLoading,
                 new Pupil::Event::Handler0A([this]() {
                     m_impl->scene_loading = true;
                 }));
 
             event_center->BindEvent(
+                Pupil::Event::DispatcherMain, Pupil::Event::RenderContinue,
+                new Pupil::Event::Handler0A([this]() {
+                    m_impl->scene_loading = false;
+                }));
+
+            event_center->BindEvent(
                 Pupil::Event::DispatcherMain, Pupil::Gui::Event::CanvasDisplayTargetChange,
                 new Pupil::Event::Handler1A<std::string>([this](const std::string name) {
-                    m_impl->canvas_display_buffer_name = name;
+                    auto buf_mngr = util::Singleton<BufferManager>::instance();
+                    auto output   = buf_mngr->GetBuffer(m_impl->canvas_display_buffer_name);
+                    if (output) {
+                        m_impl->canvas_display_buffer_name = name;
+
+                        if (output->desc.height != m_impl->canvas_desc.h ||
+                            output->desc.width != m_impl->canvas_desc.w) {
+                            m_impl->ResizeCanvas(output->desc.width, output->desc.height);
+                        }
+                    }
                 }));
         }
 
@@ -346,6 +375,8 @@ namespace Pupil::Gui {
 
     void Pass::Impl::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
         if (w == canvas_desc.w && h == canvas_desc.h) return;
+        canvas_mtx.lock();
+
         canvas_desc.h = h;
         canvas_desc.w = w;
 
@@ -422,34 +453,34 @@ namespace Pupil::Gui {
         }
 
         Pupil::Log::Info("Canvas resize to {}x{}", canvas_desc.w, canvas_desc.h);
+        canvas_mtx.unlock();
     }
 
-    void Pass::Impl::CopyFromOutput(int dst_index) noexcept {
+    bool Pass::Impl::CopyFromOutput(int dst_index) noexcept {
+        if (!canvas_mtx.try_lock()) return false;
         auto buf_mngr = util::Singleton<BufferManager>::instance();
         auto output   = buf_mngr->GetBuffer(canvas_display_buffer_name);
 
-        if (output->desc.height != canvas_desc.h ||
-            output->desc.width != canvas_desc.w) {
-            ResizeCanvas(output->desc.width, output->desc.height);
-        }
-
         auto dst_buf = flip_model.system_buffer[dst_index];
-
-        if (output->desc.stride_in_byte == sizeof(float4)) {
-            cudaMemcpyAsync(reinterpret_cast<void*>(dst_buf->cuda_ptr),
-                            reinterpret_cast<void*>(output->cuda_ptr),
-                            static_cast<size_t>(dst_buf->desc.width * dst_buf->desc.height * dst_buf->desc.stride_in_byte),
-                            cudaMemcpyKind::cudaMemcpyDeviceToDevice, *copy_stream.Get());
-        } else if (output->desc.stride_in_byte == sizeof(float3)) {
-            Pupil::CopyFromFloat3(dst_buf->cuda_ptr, output->cuda_ptr,
-                                  dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
-        } else if (output->desc.stride_in_byte == sizeof(float2)) {
-            Pupil::CopyFromFloat2(dst_buf->cuda_ptr, output->cuda_ptr,
-                                  dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
-        } else if (output->desc.stride_in_byte == sizeof(float)) {
-            Pupil::CopyFromFloat1(dst_buf->cuda_ptr, output->cuda_ptr,
-                                  dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
+        if (dst_buf) {
+            if (output->desc.stride_in_byte == sizeof(float4)) {
+                cudaMemcpyAsync(reinterpret_cast<void*>(dst_buf->cuda_ptr),
+                                reinterpret_cast<void*>(output->cuda_ptr),
+                                static_cast<size_t>(dst_buf->desc.width * dst_buf->desc.height * dst_buf->desc.stride_in_byte),
+                                cudaMemcpyKind::cudaMemcpyDeviceToDevice, *copy_stream.Get());
+            } else if (output->desc.stride_in_byte == sizeof(float3)) {
+                Pupil::CopyFromFloat3(dst_buf->cuda_ptr, output->cuda_ptr,
+                                      dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
+            } else if (output->desc.stride_in_byte == sizeof(float2)) {
+                Pupil::CopyFromFloat2(dst_buf->cuda_ptr, output->cuda_ptr,
+                                      dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
+            } else if (output->desc.stride_in_byte == sizeof(float)) {
+                Pupil::CopyFromFloat1(dst_buf->cuda_ptr, output->cuda_ptr,
+                                      dst_buf->desc.width * dst_buf->desc.height, copy_stream.Get());
+            }
         }
+        canvas_mtx.unlock();
+        return true;
     }
 
     void Pass::Impl::Docking() noexcept {
@@ -521,6 +552,27 @@ namespace Pupil::Gui {
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Setting")) {
+                if (ImGui::BeginMenu("Limit Frame Rate")) {
+                    static bool enable         = false;
+                    static int  max_frame_rate = 60;
+                    ImGui::PushItemWidth(100);
+                    if (ImGui::MenuItem("Enable", NULL, &enable)) {
+                        util::Singleton<Pupil::Event::Center>::instance()
+                            ->Send(Pupil::Event::LimitRenderRate, {enable ? max_frame_rate : -1});
+                    }
+                    if (ImGui::SliderInt("max frame rate", &max_frame_rate, 10, 240)) {
+                        if (enable) {
+                            util::Singleton<Pupil::Event::Center>::instance()
+                                ->Send(Pupil::Event::LimitRenderRate, {max_frame_rate});
+                        }
+                    }
+                    ImGui::PopItemWidth();
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenu();
+            }
+
             if (ImGui::BeginMenu("Window")) {
                 if (ImGui::MenuItem("Console", NULL, show_console)) {
                     show_console ^= true;
@@ -565,14 +617,6 @@ namespace Pupil::Gui {
             ImGui::PushTextWrapPos(0.f);
 
             if (ImGui::CollapsingHeader("Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
-                // if (auto& flag = util::Singleton<System>::instance()->render_flag;
-                //     ImGui::Button(flag ? "Stop" : "Continue")) {
-                //     if (flag ^= 1) {
-                //         EventDispatcher<ESystemEvent::StartRendering>();
-                //     } else {
-                //         EventDispatcher<ESystemEvent::StopRendering>();
-                //     }
-                // }
                 ImGui::Text("Rendering average %.3lf ms/frame (%d FPS)", last_frame_time_cost, (int)(1000.0f / last_frame_time_cost));
                 ImGui::Text("Frame size: %d x %d", canvas_desc.w, canvas_desc.h);
                 ImGui::Text("sample count: %d", frame_cnt);
@@ -603,20 +647,22 @@ namespace Pupil::Gui {
                         }
                     }
 
-                    ImGui::BeginChild("Console", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min(displayable_buffer_num, 10)), false);
-                    for (int i = 0; auto&& buffer_name : buffer_list) {
-                        auto buffer = buffer_mngr->GetBuffer(buffer_name);
-                        if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
-                            if (ImGui::Selectable(buffer_name.data(), selected == i)) {
-                                if (canvas_display_buffer_name != buffer_name) {
-                                    selected                   = i;
-                                    canvas_display_buffer_name = buffer_name;
+                    if (buffer_list.size() > 0) {
+                        ImGui::BeginChild("Console", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min(displayable_buffer_num, 10)), false);
+                        for (int i = 0; auto&& buffer_name : buffer_list) {
+                            auto buffer = buffer_mngr->GetBuffer(buffer_name);
+                            if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
+                                if (ImGui::Selectable(buffer_name.data(), selected == i)) {
+                                    if (canvas_display_buffer_name != buffer_name) {
+                                        selected                   = i;
+                                        canvas_display_buffer_name = buffer_name;
+                                    }
                                 }
+                                ++i;
                             }
-                            ++i;
                         }
+                        ImGui::EndChild();
                     }
-                    ImGui::EndChild();
 
                     ImGui::TreePop();
                 }
@@ -732,7 +778,137 @@ namespace Pupil::Gui {
 
             ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
 
-            ImGui::Text("TODO");
+            auto world = util::Singleton<World>::instance();
+            if (auto camera = world->GetScene()->GetCamera(); camera) {
+                if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Camera")) {
+
+                    if (float fov = camera->GetFovY().GetDegree();
+                        ImGui::InputFloat("fov y", &fov, 0.f, 0.f, "%.1f")) {
+                        world->SetCameraFov(fov);
+                    }
+
+                    if (float near_clip = camera->GetNearClip();
+                        ImGui::InputFloat("near clip", &near_clip, 0.f, 0.f, "%.2f")) {
+                        near_clip = clamp(near_clip, 0.01f, camera->GetFarClip() - 0.01f);
+                        world->SetCameraNearClip(near_clip);
+                    }
+
+                    if (float far_clip = camera->GetFarClip();
+                        ImGui::InputFloat("far clip", &far_clip, 0.f, 0.f, "%.2f")) {
+                        far_clip = clamp(far_clip, camera->GetNearClip() + 0.01f, 10000.f);
+                        world->SetCameraFarClip(far_clip);
+                    }
+
+                    auto to_world                           = Pupil::Transform(camera->GetToWorldMatrix());
+                    auto [translation, scaling, quaternion] = to_world.AffineDecomposition();
+                    bool flag                               = false;
+                    ImGui::Text("position:");
+                    {
+                        static float trans_x = translation.x;
+                        static float trans_y = translation.y;
+                        static float trans_z = translation.z;
+                        static bool  changed = false;
+                        ImGui::InputFloat("x##position", &trans_x, 0.f, 0.f, "%.2f");
+                        bool xb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool xb2 = ImGui::IsItemActive();
+                        ImGui::InputFloat("y##position", &trans_y, 0.f, 0.f, "%.2f");
+                        bool yb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool yb2 = ImGui::IsItemActive();
+                        ImGui::InputFloat("z##position", &trans_z, 0.f, 0.f, "%.2f");
+                        bool zb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool zb2 = ImGui::IsItemActive();
+
+                        if ((xb1 && !yb2 && !zb2) || (!xb2 && yb1 && !zb2) || (!xb2 && !yb2 && zb1) ||
+                            (changed && !xb2 && !yb2 && !zb2)) {
+                            flag        = true;
+                            changed     = false;
+                            translation = Vector3f(trans_x, trans_y, trans_z);
+                        } else {
+                            changed |= xb1 || yb1 || zb1;
+                        }
+                    }
+
+                    bool        rotate_flag         = false;
+                    const char* rotate_modes[]      = {"Quaternion", "Axis angle"};
+                    static int  current_rotate_mode = 0;
+                    ImGui::Combo("Rotate mode", &current_rotate_mode, rotate_modes, 2);
+                    if (current_rotate_mode == 0) {
+                        ImGui::Text("quaternion:");
+                        static float quat_w = quaternion.vec.w;
+                        static float quat_x = quaternion.vec.x;
+                        static float quat_y = quaternion.vec.y;
+                        static float quat_z = quaternion.vec.z;
+                        ImGui::InputFloat("w##quaternion", &quat_w, 0.f, 0.f, "%.2f");
+                        bool wb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool wb2 = ImGui::IsItemActivated();
+                        ImGui::InputFloat("x##quaternion", &quat_x, 0.f, 0.f, "%.2f");
+                        bool xb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool xb2 = ImGui::IsItemActivated();
+                        ImGui::InputFloat("y##quaternion", &quat_y, 0.f, 0.f, "%.2f");
+                        bool yb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool yb2 = ImGui::IsItemActivated();
+                        ImGui::InputFloat("z##quaternion", &quat_z, 0.f, 0.f, "%.2f");
+                        bool zb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool zb2 = ImGui::IsItemActivated();
+
+                        if ((xb1 && !yb2 && !zb2 && !wb2) || (!xb2 && yb1 && !zb2 && !wb2) ||
+                            (!xb2 && !yb2 && zb1 && !wb2) || (!xb2 && !yb2 && !zb2 && wb1)) {
+                            rotate_flag = true;
+                            quaternion  = Quaternion(quat_w, quat_x, quat_y, quat_z);
+                        }
+
+                    } else if (current_rotate_mode == 1) {
+                        ImGui::Text("axis angle:");
+                        static auto [axis, angle] = quaternion.GetAxisAngle();
+                        static float axis_x       = axis.x;
+                        static float axis_y       = axis.y;
+                        static float axis_z       = axis.z;
+                        static float angle_rad    = angle.radian;
+
+                        ImGui::InputFloat("axis x", &axis_x, 0.f, 0.f, "%.2f");
+                        bool xb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool xb2 = ImGui::IsItemActivated();
+                        ImGui::InputFloat("axis y", &axis_y, 0.f, 0.f, "%.2f");
+                        bool yb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool yb2 = ImGui::IsItemActivated();
+                        ImGui::InputFloat("axis z", &axis_z, 0.f, 0.f, "%.2f");
+                        bool zb1 = ImGui::IsItemDeactivatedAfterEdit();
+                        bool zb2 = ImGui::IsItemActivated();
+                        ImGui::SliderAngle("angle", &angle_rad);
+                        bool angle_changed = ImGui::IsItemEdited();
+
+                        if ((xb1 && !yb2 && !zb2) || (!xb2 && yb1 && !zb2) || (!xb2 && !yb2 && zb1) ||
+                            angle_changed) {
+                            rotate_flag = true;
+                            quaternion  = Quaternion(Vector3f(axis_x, axis_y, axis_z), Angle(angle_rad));
+                        }
+                    }
+                    flag |= rotate_flag;
+
+                    if (flag)
+                        world->SetCameraWorldTransform(Transform(translation, scaling, quaternion));
+
+                    ImGui::TreePop();
+                }
+            }
+
+            // if (auto& instances = world->GetScene()->GetInstances();
+            //     !scene_loading && instances.size() > 0) {
+            //     if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Render Objects")) {
+            //         if (ImGui::Button("Unselect")) m_selected_ro = nullptr;
+            //         ImGui::BeginChild("Scene", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min((int)m_render_objects.size(), 10)), false);
+            //         for (int selectable_index = 0; auto&& ro : m_render_objects) {
+            //             if (!ro) continue;
+            //             std::string ro_name = ro->name;
+            //             if (ro_name.empty()) ro_name = "(anonymous)" + std::to_string(selectable_index++);
+            //             if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
+            //                 m_selected_ro = ro;
+            //         }
+            //         ImGui::EndChild();
+
+            //         ImGui::TreePop();
+            //     }
+            // }
 
             ImGui::PopItemWidth();
 
@@ -1029,9 +1205,10 @@ namespace Pupil::Gui {
             case WM_SIZE:
                 if (wParam == SIZE_MINIMIZED) {
                     Pupil::util::Singleton<Pupil::Event::Center>::instance()->Send(Pupil::Gui::Event::WindowMinimized);
-                } else if (wParam == SIZE_RESTORED) {
-                    Pupil::util::Singleton<Pupil::Event::Center>::instance()->Send(Pupil::Gui::Event::WindowRestored);
                 } else {
+                    if (wParam == SIZE_RESTORED) {
+                        Pupil::util::Singleton<Pupil::Event::Center>::instance()->Send(Pupil::Gui::Event::WindowRestored);
+                    }
                     Pupil::util::Singleton<Pupil::Event::Center>::instance()
                         ->Send(Pupil::Gui::Event::WindowResized,
                                {static_cast<uint32_t>(LOWORD(lParam)), static_cast<uint32_t>(HIWORD(lParam))});

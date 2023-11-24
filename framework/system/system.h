@@ -20,6 +20,8 @@ namespace Pupil {
         constexpr const char* RequestSceneLoad = "Request Scene Load";
         constexpr const char* SceneLoading     = "Scene Loading";
         constexpr const char* RequestQuit      = "Request Quit";
+        constexpr const char* LimitRenderRate  = "Limit Render Rate";
+
     }// namespace Event
 
     class System : public util::Singleton<System> {

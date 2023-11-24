@@ -84,57 +84,57 @@ namespace Pupil {
     }
 
     void World::SetCameraFov(float fov) noexcept {
-        m_impl->scene->GetCamera().SetFov(fov);
+        m_impl->scene->GetCamera()->SetFov(fov);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraFovDelta(float fov_delta) noexcept {
-        m_impl->scene->GetCamera().SetFovDelta(fov_delta);
+        m_impl->scene->GetCamera()->SetFovDelta(fov_delta);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraFov(Angle fov) noexcept {
-        m_impl->scene->GetCamera().SetFov(fov);
+        m_impl->scene->GetCamera()->SetFov(fov);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraFovDelta(Angle fov_delta) noexcept {
-        m_impl->scene->GetCamera().SetFovDelta(fov_delta);
+        m_impl->scene->GetCamera()->SetFovDelta(fov_delta);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraAspectRatio(float aspect_ratio) noexcept {
-        m_impl->scene->GetCamera().SetAspectRatio(aspect_ratio);
+        m_impl->scene->GetCamera()->SetAspectRatio(aspect_ratio);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraNearClip(float near_clip) noexcept {
-        m_impl->scene->GetCamera().SetNearClip(near_clip);
+        m_impl->scene->GetCamera()->SetNearClip(near_clip);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraFarClip(float far_clip) noexcept {
-        m_impl->scene->GetCamera().SetFarClip(far_clip);
+        m_impl->scene->GetCamera()->SetFarClip(far_clip);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraProjectionFactor(Angle fov_y, float aspect_ratio, float near_clip, float far_clip) noexcept {
-        m_impl->scene->GetCamera().SetProjectionFactor(fov_y, aspect_ratio, near_clip, far_clip);
+        m_impl->scene->GetCamera()->SetProjectionFactor(fov_y, aspect_ratio, near_clip, far_clip);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::SetCameraWorldTransform(Transform to_world) noexcept {
-        m_impl->scene->GetCamera().SetWorldTransform(to_world);
+        m_impl->scene->GetCamera()->SetWorldTransform(to_world);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::CameraRotate(float delta_x, float delta_y) noexcept {
-        m_impl->scene->GetCamera().Rotate(delta_x, delta_y);
+        m_impl->scene->GetCamera()->Rotate(delta_x, delta_y);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
     void World::CameraMove(Float3 delta) noexcept {
-        m_impl->scene->GetCamera().Move(delta);
+        m_impl->scene->GetCamera()->Move(delta);
         util::Singleton<Event::Center>::instance()->Send(Event::CameraChange);
     }
 
