@@ -97,7 +97,7 @@ namespace Pupil::resource {
 
     util::CountableRef<Shape> ShapeManager::LoadShapeFromFile(std::string_view path, EShapeLoadFlag flags, std::string_view name) noexcept {
         if (auto it = m_impl->map_path_to_id.find(path); it != m_impl->map_path_to_id.end()) {
-            Log::Info("shape reuse [{}].", path);
+            // Log::Info("shape reuse [{}].", path);
             return m_impl->map_shape.at(it->second).GetRef();
         }
 

@@ -1,7 +1,6 @@
 #include "system/system.h"
+#include "system/event.h"
 #include "pass.h"
-#include "system/gui/gui.h"
-#include "util/event.h"
 
 using namespace Pupil;
 
@@ -9,9 +8,12 @@ int main() {
     auto system = Pupil::util::Singleton<Pupil::System>::instance();
     system->Init(true);
     {
-        auto pass = std::make_unique<CudaPass>();
-        system->AddPass(pass.get());
-        EventDispatcher<ESystemEvent::StartRendering>();
+        system->AddPass(new CudaPass());
+
+        util::Singleton<Pupil::Event::Center>::instance()
+            ->Send(Pupil::Event::LimitRenderRate, {60});
+        Pupil::util::Singleton<Pupil::Event::Center>::instance()
+            ->Send(Pupil::Event::RenderRestart);
         system->Run();
     }
 

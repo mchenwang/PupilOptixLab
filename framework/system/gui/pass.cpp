@@ -57,7 +57,8 @@ namespace Pupil::Gui {
         Timer  frame_rate_timer;
         double last_frame_time_cost = 0.;
 
-        int selected_object_index = -1;
+        // int selected_object_index = -1;
+        Instance* selected_instance = nullptr;
 
         // std::atomic_bool waiting_scene_load = false;
         // bool             render_flag        = false;
@@ -221,14 +222,13 @@ namespace Pupil::Gui {
             event_center->BindEvent(
                 Pupil::Event::DispatcherMain, Pupil::Event::SceneReset,
                 new Pupil::Event::Handler0A([this]() {
-                    m_impl->scene_loading = false;
-                    auto buf_mngr         = util::Singleton<BufferManager>::instance();
-                    auto output           = buf_mngr->GetBuffer(m_impl->canvas_display_buffer_name);
-                    if (output) {
-                        if (output->desc.height != m_impl->canvas_desc.h ||
-                            output->desc.width != m_impl->canvas_desc.w) {
-                            m_impl->ResizeCanvas(output->desc.width, output->desc.height);
-                        }
+                    m_impl->selected_instance = nullptr;
+                    m_impl->scene_loading     = false;
+                    auto buf_mngr             = util::Singleton<BufferManager>::instance();
+                    auto output               = buf_mngr->GetBuffer(m_impl->canvas_display_buffer_name);
+                    if (output && output->desc.height != m_impl->canvas_desc.h ||
+                        output->desc.width != m_impl->canvas_desc.w) {
+                        m_impl->ResizeCanvas(output->desc.width, output->desc.height);
                     }
                 }));
 
@@ -248,7 +248,8 @@ namespace Pupil::Gui {
                 Pupil::Event::DispatcherMain, Pupil::Gui::Event::CanvasDisplayTargetChange,
                 new Pupil::Event::Handler1A<std::string>([this](const std::string name) {
                     auto buf_mngr = util::Singleton<BufferManager>::instance();
-                    auto output   = buf_mngr->GetBuffer(m_impl->canvas_display_buffer_name);
+                    auto output   = buf_mngr->GetBuffer(name);
+
                     if (output) {
                         m_impl->canvas_display_buffer_name = name;
 
@@ -382,7 +383,8 @@ namespace Pupil::Gui {
 
         auto dx_ctx = util::Singleton<DirectX::Context>::instance();
         dx_ctx->Flush();
-        copy_stream->Synchronize();
+        if (copy_stream.Get() != nullptr)
+            copy_stream->Synchronize();
         // init render output buffers
         {
             auto     buffer_mngr = util::Singleton<BufferManager>::instance();
@@ -654,8 +656,9 @@ namespace Pupil::Gui {
                             if (buffer && buffer->desc.flag & EBufferFlag::AllowDisplay) {
                                 if (ImGui::Selectable(buffer_name.data(), selected == i)) {
                                     if (canvas_display_buffer_name != buffer_name) {
-                                        selected                   = i;
-                                        canvas_display_buffer_name = buffer_name;
+                                        selected = i;
+                                        Pupil::util::Singleton<Pupil::Event::Center>::instance()
+                                            ->Send(Gui::Event::CanvasDisplayTargetChange, {buffer_name});
                                     }
                                 }
                                 ++i;
@@ -892,23 +895,29 @@ namespace Pupil::Gui {
                 }
             }
 
-            // if (auto& instances = world->GetScene()->GetInstances();
-            //     !scene_loading && instances.size() > 0) {
-            //     if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Render Objects")) {
-            //         if (ImGui::Button("Unselect")) m_selected_ro = nullptr;
-            //         ImGui::BeginChild("Scene", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min((int)m_render_objects.size(), 10)), false);
-            //         for (int selectable_index = 0; auto&& ro : m_render_objects) {
-            //             if (!ro) continue;
-            //             std::string ro_name = ro->name;
-            //             if (ro_name.empty()) ro_name = "(anonymous)" + std::to_string(selectable_index++);
-            //             if (ImGui::Selectable(ro_name.data(), m_selected_ro == ro))
-            //                 m_selected_ro = ro;
-            //         }
-            //         ImGui::EndChild();
+            if (auto& instances = world->GetScene()->GetInstances();
+                !scene_loading && instances.size() > 0) {
+                if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode("Render Instances")) {
+                    if (ImGui::Button("Unselect")) selected_instance = nullptr;
+                    ImGui::BeginChild("Scene", ImVec2(0.f, ImGui::GetTextLineHeightWithSpacing() * min((int)instances.size(), 10)), false);
+                    for (auto&& instance : instances) {
+                        if (ImGui::Selectable(instance.name.data(), selected_instance == &instance))
+                            selected_instance = &instance;
+                    }
+                    ImGui::EndChild();
 
-            //         ImGui::TreePop();
-            //     }
-            // }
+                    if (selected_instance) {
+                        ImGui::SeparatorText("Properties");
+
+                        if (bool visibility = selected_instance->visibility_mask;
+                            ImGui::Checkbox("visibility", &visibility)) {
+                            selected_instance->visibility_mask = visibility;
+                        }
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
 
             ImGui::PopItemWidth();
 
@@ -928,6 +937,8 @@ namespace Pupil::Gui {
     }
 
     void Pass::Impl::RenderToCanvas(winrt::com_ptr<ID3D12GraphicsCommandList> cmd_list) noexcept {
+        if (flip_model.system_buffer_srv[flip_model.index].ptr == 0) return;
+
         auto dx_ctx = util::Singleton<DirectX::Context>::instance();
 
         cmd_list->SetGraphicsRootSignature(canvas_root_signature.get());

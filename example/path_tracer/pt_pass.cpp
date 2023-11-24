@@ -40,6 +40,40 @@ struct Pupil::pt::PTPass::Impl {
     size_t output_pixel_num = 0;
 
     std::atomic_bool dirty = true;
+
+    int frame_cnt = 0;
+    struct CameraAnimation {
+        int    frame_i;
+        Float3 pos;
+        Float3 ori;
+    };
+
+    // CameraAnimation ca[3] = {
+    //     CameraAnimation{1, Float3(2, 2, 2), Float3(0.57, 0.57, 0.57)},
+    //     CameraAnimation{300, Float3(17, 10, 8), Float3(0.75, 0.61, 0.21)},
+    //     CameraAnimation{600, Float3(16, 11, -11), Float3(0.7, 0.6, -0.3)}};
+    int ca_i = 1;
+
+    std::vector<CameraAnimation> ca = {
+        CameraAnimation(1, Float3(0.0324209, 1.52673, 4.88197), Float3(0.0076460172, -0.045055054, 0.9989554)),
+        CameraAnimation(300, Float3(-0.062105987, 3.0363982, -0.09290689), Float3(-0.062105987, 3.0363982, -0.09290689) - Float3(0.018104862, -0.3029082, 0.9528476)),
+        CameraAnimation(600, Float3(2.0159879, 3.036398, -0.15541534), Float3(2.0159879, 3.036398, -0.15541534) - Float3(0.36964566, -0.35970998, 0.85672057)),
+        CameraAnimation(900, Float3(0.7926329, 4.578863, -3.5562882), Float3(0.7926329, 4.578863, -3.5562882) - Float3(0.7827882, -0.43416744, 0.44579676)),
+        CameraAnimation(1200, Float3(-3.6460304, 6.6223083, -3.6487114), Float3(-3.6460304, 6.6223083, -3.6487114) - Float3(0.8263058, -0.4016645, -0.3948104)),
+        CameraAnimation(1500, Float3(-2.7842517, 6.416301, -3.3986428), Float3(-2.7842517, 6.416301, -3.3986428) - Float3(-0.63194793, 0.4827861, -0.6062584)),
+        CameraAnimation(1800, Float3(-2.3958085, 6.169997, -3.2289455), Float3(-2.3958085, 6.169997, -3.2289455) - Float3(-0.7551325, 0.5659387, -0.33087364))
+        //    CameraAnimation(300, Float3(0.0071890475, 1.6754079, 1.585419), Float3(0.0076460172, -0.045055054, 0.9989554)),
+        //    CameraAnimation(600, Float3(1.9829837, 1.7476434, 0.6422636), Float3(0.5549296, 0.041311685, 0.83087075)),
+        //    CameraAnimation(900, Float3(1.982984, 1.7476435, 0.6422637), Float3(0.57397306, -0.4691987, 0.67112094)),
+        //    CameraAnimation(1200, Float3(2.227737, 1.7938076, -0.3352181), Float3(0.95523596, -0.022378912, 0.2949903)),
+        //    CameraAnimation(1500, Float3(2.3082454, 2.084975, -1.3941063), Float3(0.563943, -0.3425501, 0.75141335)),
+        //    CameraAnimation(1800, Float3(2.4772153, 3.9605315, -3.3920057), Float3(0.9033614, -0.22635104, 0.3642742)),
+        //    CameraAnimation(2100, Float3(-0.29726255, 4.582663, -3.905832), Float3(0.9733628, -0.20419423, 0.1042187)),
+        //    CameraAnimation(2400, Float3(-0.29726246, 4.5826616, -3.905832), Float3(0.8366384, -0.10335392, -0.5379082)),
+        //    CameraAnimation(2700, Float3(-0.29726273, 4.582662, -3.9058313), Float3(0.2379814, 0.16449077, -0.9572359)),
+        //    CameraAnimation(3000, Float3(-0.2972626, 4.582661, -3.9058318), Float3(-0.5564907, 0.5463597, -0.6259412)),
+        //    CameraAnimation(3300, Float3(-1.7502965, 5.525393, -4.384671), Float3(-0.65444994, 0.437079, -0.6169688))
+    };
 };
 
 namespace Pupil::pt {
@@ -63,17 +97,25 @@ namespace Pupil::pt {
 
     void PTPass::OnRun() noexcept {
         if (m_impl->dirty) {
-            m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetToWorldMatrix());
-            m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetSampleToCameraMatrix());
-
             m_impl->optix_launch_params.camera                  = m_impl->camera;
             m_impl->optix_launch_params.config.max_depth        = m_impl->max_depth;
             m_impl->optix_launch_params.config.accumulated_flag = m_impl->accumulated_flag;
             m_impl->optix_launch_params.sample_cnt              = 0;
             m_impl->optix_launch_params.random_seed             = 0;
+            m_impl->frame_cnt                                   = 0;
+            m_impl->ca_i                                        = 1;
             m_impl->optix_launch_params.handle                  = m_impl->scene->GetIASHandle(2, true);
             m_impl->optix_launch_params.emitters                = m_impl->scene->GetOptixEmitters();
             m_impl->dirty                                       = false;
+
+            // auto m = m_impl->camera.camera_to_world;
+            // Log::Info(" CameraAnimation(1, Float3({}, {}, {}), Float3({}, {}, {}))",
+            //           m.r0.w, m.r1.w, m.r2.w, m.r0.z, m.r1.z, m.r2.z);
+            // Log::Info(" Camera:\n {} {} {} {}\n {} {} {} {}\n {} {} {} {}",
+            //           m.r0.x, m.r0.y, m.r0.z, m.r0.w,
+            //           m.r1.x, m.r1.y, m.r1.z, m.r1.w,
+            //           m.r2.x, m.r2.y, m.r2.z, m.r2.w,
+            //           m.r0.x, m.r0.y, m.r0.z, m.r0.w);
         }
 
         CUDA_CHECK(cudaMemcpyAsync(
@@ -84,7 +126,35 @@ namespace Pupil::pt {
         optix::Pass::Run(m_impl->optix_launch_params_cuda_memory,
                          m_impl->optix_launch_params.config.frame.width,
                          m_impl->optix_launch_params.config.frame.height);
-        Synchronize();
+
+        m_impl->frame_cnt++;
+        // if (m_impl->frame_cnt <= m_impl->ca[m_impl->ca_i].frame_i) {
+        //     float t   = ((float)(m_impl->frame_cnt - m_impl->ca[m_impl->ca_i - 1].frame_i) / (m_impl->ca[m_impl->ca_i].frame_i - m_impl->ca[m_impl->ca_i - 1].frame_i));
+        //     auto  ori = Lerp(m_impl->ca[m_impl->ca_i - 1].ori, m_impl->ca[m_impl->ca_i].ori, Float3(t));
+        //     auto  pos = Lerp(m_impl->ca[m_impl->ca_i - 1].pos, m_impl->ca[m_impl->ca_i].pos, Float3(t));
+
+        //     auto to_world                                      = Pupil::MakeLookatToWorldMatrixRH(pos, ori, Float3(0, 1, 0));
+        //     m_impl->optix_launch_params.camera.camera_to_world = Pupil::cuda::MakeMat4x4(to_world);
+        //     m_impl->optix_launch_params.sample_cnt             = 0;
+        //     m_impl->optix_launch_params.random_seed            = 0;
+
+        //     // if (m_impl->frame_cnt % 30 == 0) {
+
+        //     //     auto m = to_world;
+        //     //     // Log::Info(" CameraAnimation(1, Float3({}, {}, {}), Float3({}, {}, {}))",
+        //     //     //           m.r0.w, m.r1.w, m.r2.w, m.r0.z, m.r1.z, m.r2.z);
+        //     //     // Log::Info(" Camera:\n {} {} {} {}\n {} {} {} {}\n {} {} {} {}",
+        //     //     //           m.r0.x, m.r0.y, m.r0.z, m.r0.w,
+        //     //     //           m.r1.x, m.r1.y, m.r1.z, m.r1.w,
+        //     //     //           m.r2.x, m.r2.y, m.r2.z, m.r2.w,
+        //     //     //           m.r0.x, m.r0.y, m.r0.z, m.r0.w);
+        //     // }
+        // } else {
+        //     if (m_impl->ca_i < m_impl->ca.size() - 1) {
+        //         m_impl->ca_i++;
+        //     }
+        // }
+        // Synchronize();
 
         m_impl->optix_launch_params.sample_cnt += m_impl->optix_launch_params.config.accumulated_flag;
         ++m_impl->optix_launch_params.random_seed;
@@ -101,6 +171,10 @@ namespace Pupil::pt {
         if (ImGui::Checkbox("accumulate radiance", &m_impl->accumulated_flag)) {
             m_impl->dirty = true;
         }
+
+        if (ImGui::Button("reset")) {
+            m_impl->dirty = true;
+        }
     }
 
     void PTPass::BindingEventCallback() noexcept {
@@ -108,8 +182,8 @@ namespace Pupil::pt {
         event_center->BindEvent(
             Event::DispatcherRender, Event::CameraChange,
             new Event::Handler0A([this]() {
-                m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetToWorldMatrix());
-                m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera().GetSampleToCameraMatrix());
+                m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera()->GetToWorldMatrix());
+                m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera()->GetSampleToCameraMatrix());
 
                 m_impl->dirty = true;
             }));
@@ -119,6 +193,9 @@ namespace Pupil::pt {
             Event::DispatcherRender, Event::SceneReset,
             new Event::Handler0A([this]() {
                 m_impl->scene = util::Singleton<World>::instance()->GetScene();
+
+                m_impl->camera.camera_to_world  = cuda::MakeMat4x4(m_impl->scene->GetCamera()->GetToWorldMatrix());
+                m_impl->camera.sample_to_camera = cuda::MakeMat4x4(m_impl->scene->GetCamera()->GetSampleToCameraMatrix());
 
                 m_impl->optix_launch_params.config.frame.width      = m_impl->scene->film_w;
                 m_impl->optix_launch_params.config.frame.height     = m_impl->scene->film_h;
@@ -135,7 +212,7 @@ namespace Pupil::pt {
                                            m_impl->optix_launch_params.config.frame.height;
                 auto buf_mngr = util::Singleton<BufferManager>::instance();
                 {
-                    m_impl->optix_launch_params.frame_buffer.SetData(buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr, m_impl->output_pixel_num);
+                    // m_impl->optix_launch_params.frame_buffer.SetData(buf_mngr->GetBuffer(buf_mngr->DEFAULT_FINAL_RESULT_BUFFER_NAME)->cuda_ptr, m_impl->output_pixel_num);
 
                     BufferDesc desc{
                         .name           = "pt accum buffer",
@@ -144,6 +221,10 @@ namespace Pupil::pt {
                         .height         = static_cast<uint32_t>(m_impl->scene->film_h),
                         .stride_in_byte = sizeof(float) * 4};
                     m_impl->optix_launch_params.accum_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_impl->output_pixel_num);
+
+                    desc.name = "pt result";
+                    desc.flag = EBufferFlag::AllowDisplay;
+                    m_impl->optix_launch_params.frame_buffer.SetData(buf_mngr->AllocBuffer(desc)->cuda_ptr, m_impl->output_pixel_num);
 
                     desc.name           = "albedo";
                     desc.flag           = EBufferFlag::AllowDisplay;

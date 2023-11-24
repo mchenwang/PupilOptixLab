@@ -218,6 +218,7 @@ namespace Pupil {
                     if (pass->IsEnabled())
                         pass->Run();
 
+                util::Singleton<cuda::StreamManager>::instance()->Synchronize(cuda::EStreamTaskType::Render);
                 util::Singleton<Event::Center>::instance()->Send(Event::FrameDone, {++frame_cnt});
             }
 

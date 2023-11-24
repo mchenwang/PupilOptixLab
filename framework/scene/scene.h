@@ -50,8 +50,8 @@ namespace Pupil {
 
         void UploadToCuda() noexcept;
 
-        auto& GetInstances() const noexcept { return m_instances; }
-        auto& GetEmitters() const noexcept { return m_emitters; }
+        auto& GetInstances() noexcept { return m_instances; }
+        auto& GetEmitters() noexcept { return m_emitters; }
         int   GetEmitterIndex(const Emitter*) const noexcept;
 
         optix::EmitterGroup GetOptixEmitters() noexcept;

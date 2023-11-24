@@ -12,5 +12,7 @@ public:
     virtual void OnRun() noexcept override;
 
 private:
-    std::unique_ptr<Pupil::cuda::Stream> m_stream = nullptr;
+    Pupil::util::CountableRef<Pupil::cuda::Stream> m_stream    = nullptr;
+    unsigned int                                   m_frame_cnt = 0;
+    Pupil::cuda::RWArrayView<float4>               m_output;
 };
