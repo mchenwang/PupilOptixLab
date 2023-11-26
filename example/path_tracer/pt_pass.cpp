@@ -11,6 +11,7 @@
 #include "system/event.h"
 #include "system/buffer.h"
 #include "system/world.h"
+#include "system/profiler.h"
 #include "system/gui/pass.h"
 
 #include "render/camera.h"
@@ -40,6 +41,8 @@ struct Pupil::pt::PTPass::Impl {
     size_t output_pixel_num = 0;
 
     std::atomic_bool dirty = true;
+
+    Timer* timer;
 
     int frame_cnt = 0;
     struct CameraAnimation {
@@ -81,6 +84,9 @@ namespace Pupil::pt {
         : Pupil::Pass(name), optix::Pass(sizeof(OptixLaunchParams)) {
         m_impl = new Impl();
 
+        m_impl->timer = util::Singleton<Profiler>::instance()
+                            ->AllocTimer(name, GetStream(), 60);
+
         CUDA_CHECK(cudaMallocAsync(
             reinterpret_cast<void**>(&m_impl->optix_launch_params_cuda_memory),
             sizeof(OptixLaunchParams),
@@ -117,7 +123,10 @@ namespace Pupil::pt {
             //           m.r2.x, m.r2.y, m.r2.z, m.r2.w,
             //           m.r0.x, m.r0.y, m.r0.z, m.r0.w);
         }
+        m_impl->optix_launch_params.sample_cnt  = 0;
+        m_impl->optix_launch_params.random_seed = 0;
 
+        m_impl->timer->Start();
         CUDA_CHECK(cudaMemcpyAsync(
             reinterpret_cast<void*>(m_impl->optix_launch_params_cuda_memory),
             &m_impl->optix_launch_params, sizeof(OptixLaunchParams),
@@ -126,6 +135,7 @@ namespace Pupil::pt {
         optix::Pass::Run(m_impl->optix_launch_params_cuda_memory,
                          m_impl->optix_launch_params.config.frame.width,
                          m_impl->optix_launch_params.config.frame.height);
+        m_impl->timer->Stop();
 
         m_impl->frame_cnt++;
         // if (m_impl->frame_cnt <= m_impl->ca[m_impl->ca_i].frame_i) {
@@ -162,6 +172,9 @@ namespace Pupil::pt {
 
     void PTPass::Console() noexcept {
         Pupil::Pass::Console();
+
+        util::Singleton<Profiler>::instance()->ShowPlot(name);
+
         ImGui::InputInt("max trace depth", &m_impl->max_depth);
         m_impl->max_depth = clamp(m_impl->max_depth, 1, 128);
         if (m_impl->optix_launch_params.config.max_depth != m_impl->max_depth) {
