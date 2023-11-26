@@ -29,7 +29,6 @@ namespace Pupil {
 
     struct System::Impl {
         std::unique_ptr<std::jthread> render_thread;
-        std::unique_ptr<std::jthread> profiler_thread;
 
         Gui::Pass*                         gui_pass = nullptr;
         std::vector<std::unique_ptr<Pass>> passes;
@@ -266,7 +265,6 @@ namespace Pupil {
 
     void System::Destroy() noexcept {
         m_impl->render_thread.reset();
-        m_impl->profiler_thread.reset();
 
         m_impl->passes.clear();
         m_impl->pre_passes.clear();

@@ -123,8 +123,6 @@ namespace Pupil::pt {
             //           m.r2.x, m.r2.y, m.r2.z, m.r2.w,
             //           m.r0.x, m.r0.y, m.r0.z, m.r0.w);
         }
-        m_impl->optix_launch_params.sample_cnt  = 0;
-        m_impl->optix_launch_params.random_seed = 0;
 
         m_impl->timer->Start();
         CUDA_CHECK(cudaMemcpyAsync(

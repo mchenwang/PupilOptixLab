@@ -108,7 +108,7 @@ namespace Pupil {
         auto profiler_entry = GetEntry(name);
         if (profiler_entry.datas == nullptr) return;
 
-        ImGui::Text("speed(ms):");
+        ImGui::Text("speed:");
         ImGui::PlotLines("##plot", profiler_entry.datas, profiler_entry.count, profiler_entry.offset, NULL, FLT_MAX, FLT_MAX, ImVec2{0.f, 20.f});
         ImGui::SameLine();
         float max_speed = *std::max_element(profiler_entry.datas, profiler_entry.datas + profiler_entry.count);
