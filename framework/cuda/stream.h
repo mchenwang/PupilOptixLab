@@ -7,16 +7,14 @@
 #include <cuda_runtime.h>
 
 namespace Pupil::cuda {
-    // one task corresponds to one stream, so the event is not necessary
     class Stream {
     public:
-        Stream(std::string_view name = "") noexcept;
+        Stream(std::string_view name = "", bool non_blocking = true) noexcept;
         ~Stream() noexcept;
 
         operator cudaStream_t() const noexcept { return m_stream; }
 
-        [[nodiscard]] cudaStream_t GetStream() const noexcept { return m_stream; }
-        // [[nodiscard]] cudaStream_t& GetStream() noexcept { return m_stream; }
+        cudaStream_t GetStream() const noexcept { return m_stream; }
 
         void Synchronize() noexcept;
 
@@ -26,7 +24,6 @@ namespace Pupil::cuda {
     private:
         std::string  m_name;
         cudaStream_t m_stream;
-        //cudaEvent_t m_event;
     };
 
     class Event {
@@ -36,13 +33,15 @@ namespace Pupil::cuda {
 
         operator cudaEvent_t() const noexcept { return m_event; }
 
-        void Reset(Stream* stream) noexcept;
+        void Record(Stream* stream = nullptr) noexcept;
 
         void Synchronize() noexcept;
+        bool IsCompleted() noexcept;
+        bool IsRecorded() noexcept { return m_record_flag; }
 
     private:
-        Stream*     m_stream;
         cudaEvent_t m_event;
+        bool        m_record_flag;
     };
 
     /**
@@ -105,7 +104,7 @@ namespace Pupil::cuda {
          * @param task_type specific type of task
          * @note task only has one type
         */
-        util::CountableRef<Stream> Alloc(EStreamTaskType task_type) noexcept;
+        util::CountableRef<Stream> Alloc(EStreamTaskType task_type, std::string_view name = "", bool non_blocking = true) noexcept;
         /**
          * @param task_type specific types of tasks
          * @note multi-types can be synchronized at the same time

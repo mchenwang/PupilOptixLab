@@ -11,6 +11,7 @@
 #include "cuda/stream.h"
 
 #include "imgui.h"
+#include "system/profiler.h"
 #include "system/gui/pass.h"
 
 #include <atomic>
@@ -26,7 +27,7 @@ namespace Pupil {
 
         Config config;
 
-        Timer timer;
+        Timer* timer;
 
         uint32_t denoiser_mode = Pupil::optix::Denoiser::EMode::None;
         bool     mode_dirty    = false;
@@ -34,8 +35,6 @@ namespace Pupil {
         uint32_t film_w     = 0;
         uint32_t film_h     = 0;
         bool     film_dirty = false;
-
-        double time_cost = 0.;
 
         uint32_t tile_w     = 500;
         uint32_t tile_h     = 500;
@@ -49,6 +48,9 @@ namespace Pupil {
         m_impl         = new Impl();
         m_impl->config = config;
         m_impl->stream = util::Singleton<cuda::StreamManager>::instance()->Alloc(cuda::EStreamTaskType::Render);
+
+        m_impl->timer = util::Singleton<Profiler>::instance()
+                            ->AllocTimer(name, m_impl->stream, 60);
 
         m_impl->denoiser_mode = (config.use_albedo ? optix::Denoiser::EMode::UseAlbedo : 0) |
                                 (config.use_normal ? optix::Denoiser::EMode::UseNormal : 0);
@@ -92,8 +94,6 @@ namespace Pupil {
     void DenoisePass::OnRun() noexcept {
         if (!s_enabled_flag) return;
 
-        m_impl->timer.Start();
-
         if (m_impl->mode_dirty) {
             m_impl->denoiser->SetMode(m_impl->denoiser_mode);
             m_impl->film_dirty = true;
@@ -108,19 +108,16 @@ namespace Pupil {
             m_impl->denoiser->Setup(m_impl->film_w, m_impl->film_h);
             m_impl->film_dirty = false;
         }
-
+        m_impl->timer->Start();
         m_impl->denoiser->Execute(m_impl->data);
-        m_impl->stream->Synchronize();
-
-        m_impl->timer.Stop();
-        m_impl->time_cost = m_impl->timer.ElapsedMilliseconds();
+        m_impl->timer->Stop();
     }
 
     void DenoisePass::Console() noexcept {
         ImGui::Checkbox("enable", &s_enabled_flag);
-        ImGui::Text("cost: %.3lf ms", m_impl->time_cost);
-        uint32_t mode = m_impl->denoiser_mode;
+        util::Singleton<Profiler>::instance()->ShowPlot(name);
 
+        uint32_t mode = m_impl->denoiser_mode;
         if (bool albedo = mode & optix::Denoiser::EMode::UseAlbedo;
             ImGui::Checkbox("use albedo", &albedo)) {
             mode ^= optix::Denoiser::EMode::UseAlbedo;

@@ -4,6 +4,7 @@
 #include "system/system.h"
 #include "system/buffer.h"
 #include "system/world.h"
+#include "system/profiler.h"
 
 #include "util/log.h"
 #include "util/timer.h"
@@ -53,9 +54,9 @@ namespace Pupil::Gui {
         bool show_scene   = true;
         bool show_bottom  = false;
 
-        int    frame_cnt = 0;
-        Timer  frame_rate_timer;
-        double last_frame_time_cost = 0.;
+        int    frame_cnt            = 0;
+        Timer* frame_rate_timer     = nullptr;
+        float  last_frame_time_cost = 0.f;
 
         // int selected_object_index = -1;
         Instance* selected_instance = nullptr;
@@ -133,6 +134,7 @@ namespace Pupil::Gui {
     void Pass::Init() noexcept {
         if (m_impl->init_flag) return;
 
+        m_impl->frame_rate_timer = util::Singleton<Profiler>::instance()->AllocTimer("gui");
         // create window
         {
             WNDCLASSEXW wc{};
@@ -205,18 +207,19 @@ namespace Pupil::Gui {
                         m_impl->flip_model.ready_flip.store(true);
                         m_impl->frame_cnt = frame_cnt;
                     }
+                    m_impl->frame_rate_timer->Stop();
 
                     m_impl->flip_model.mtx[next_index].unlock();
+                    m_impl->last_frame_time_cost = m_impl->frame_rate_timer->GetElapsedMilliseconds();
 
-                    m_impl->last_frame_time_cost = m_impl->frame_rate_timer.ElapsedMilliseconds();
-                    m_impl->frame_rate_timer.Start();
+                    m_impl->frame_rate_timer->Start();
                 }));
 
             event_center->BindEvent(
                 Pupil::Event::DispatcherRender, Pupil::Event::SceneReset,
                 new Pupil::Event::Handler0A([this]() {
                     m_impl->frame_cnt = 0;
-                    m_impl->frame_rate_timer.Start();
+                    m_impl->frame_rate_timer->Start();
                 }));
 
             event_center->BindEvent(
@@ -356,6 +359,7 @@ namespace Pupil::Gui {
         // render buffer to texture
         if (frame_cnt > 0 && !scene_loading)
             RenderToCanvas(cmd_list);
+
         // show on canvas
         Canvas();
 
@@ -500,7 +504,7 @@ namespace Pupil::Gui {
             ImGui::DockBuilderSetNodePos(main_node_id, ImGui::GetMainViewport()->WorkPos);
 
             ImGuiID dock_main_id   = main_node_id;
-            ImGuiID dock_left_id   = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+            ImGuiID dock_left_id   = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.22f, nullptr, &dock_main_id);
             ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.3f, nullptr, &dock_main_id);
             ImGuiID dock_right_id  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.26f, nullptr, &dock_main_id);
 
@@ -619,7 +623,30 @@ namespace Pupil::Gui {
             ImGui::PushTextWrapPos(0.f);
 
             if (ImGui::CollapsingHeader("Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Rendering average %.3lf ms/frame (%d FPS)", last_frame_time_cost, (int)(1000.0f / last_frame_time_cost));
+                // ImGui::Text("Rendering time cost: %.3lf ms/frame (%d FPS)", last_frame_time_cost, (last_frame_time_cost > 0. ? (int)(1000.0f / last_frame_time_cost) : 0));
+                auto profiler_entry = util::Singleton<Profiler>::instance()->GetEntry("gui");
+                if (profiler_entry.datas != nullptr) {
+                    std::vector<float> fps(profiler_entry.count, 0);
+                    std::transform(profiler_entry.datas, profiler_entry.datas + profiler_entry.count, fps.begin(),
+                                   [](float data) { return data > 0.f ? 1000.0f / data : 0.f; });
+                    int   min_fps = 0x7fffffff;
+                    int   max_fps = 0;
+                    float avg_fps = 0.f;
+                    int   cnt     = 0;
+                    std::for_each(fps.begin(), fps.end(), [&](float fps) {
+                        if (fps > 0.f) {
+                            min_fps = std::min<int>(min_fps, (int)fps);
+                            max_fps = std::max<int>(max_fps, (int)fps);
+                            avg_fps += fps;
+                            cnt++;
+                        }
+                    });
+                    ImGui::Text("Frame rate plot:");
+                    ImGui::PlotLines("##plot", fps.data(), fps.size(), profiler_entry.offset, NULL, FLT_MAX, FLT_MAX, ImVec2{0.f, 40.f});
+                    ImGui::SameLine();
+                    ImGui::Text("min: %d\navg: %d\nmax: %d", min_fps, (int)(avg_fps / cnt), max_fps);
+                }
+
                 ImGui::Text("Frame size: %d x %d", canvas_desc.w, canvas_desc.h);
                 ImGui::Text("sample count: %d", frame_cnt);
                 ImGui::Text("Render output flip buffer index: %d", flip_model.index);
@@ -694,7 +721,7 @@ namespace Pupil::Gui {
             ImGui::Begin("Canvas", &open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
             if (!scene_loading) {
                 if (auto buffer = flip_model.canvas_buffer[flip_model.index];
-                    buffer) {
+                    frame_cnt > 0 && buffer) {
                     float screen_w = ImGui::GetContentRegionAvail().x;
                     float screen_h = ImGui::GetContentRegionAvail().y;
                     float ratio_x  = screen_w / canvas_desc.w;

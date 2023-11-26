@@ -59,7 +59,7 @@ namespace Pupil {
 
         auto scene = std::make_unique<Scene>();
 
-        Pupil::Timer timer;
+        Pupil::CpuTimer timer;
         timer.Start();
         if (!loader->Load(scene_file_path, scene.get())) {
             timer.Stop();
@@ -67,7 +67,7 @@ namespace Pupil {
             return false;
         }
         timer.Stop();
-        Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.ElapsedSeconds());
+        Pupil::Log::Info("Time consumed for scene loading: {:.3f}s", timer.GetElapsedMilliseconds() / 1000.f);
 
         m_impl->scene.reset(scene.release());
 

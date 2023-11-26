@@ -3,6 +3,7 @@
 #include "event.h"
 #include "pass.h"
 #include "buffer.h"
+#include "profiler.h"
 
 #include "gui/pass.h"
 
@@ -28,7 +29,7 @@ namespace Pupil {
 
     struct System::Impl {
         std::unique_ptr<std::jthread> render_thread;
-        std::unique_ptr<std::jthread> main_thread;
+        std::unique_ptr<std::jthread> profiler_thread;
 
         Gui::Pass*                         gui_pass = nullptr;
         std::vector<std::unique_ptr<Pass>> passes;
@@ -171,11 +172,6 @@ namespace Pupil {
                                     new Event::Handler0A([&frame_cnt]() { frame_cnt = 0; }));
 
             while (!st.stop_requested()) {
-                // {
-                //     std::unique_lock lock(m_impl->render_mutex);
-                //     m_impl->render_cv.wait(lock, [&]() { return m_impl->render_flag; });
-                // }
-
                 if (m_impl->limit_render_frame_rate) {
                     timeBeginPeriod(1);
                     time_point1    = std::chrono::system_clock::now();
@@ -225,8 +221,21 @@ namespace Pupil {
             event_center->Dispatch(Event::DispatcherRender);
         });
 
+        auto time_point1 = std::chrono::system_clock::now();
+        auto time_point2 = std::chrono::system_clock::now();
+        auto profiler    = util::Singleton<Profiler>::instance();
+
         while (!m_impl->system_quit_flag) {
             event_center->Dispatch(Event::DispatcherMain);
+
+            time_point1    = std::chrono::system_clock::now();
+            auto work_time = std::chrono::duration<double, std::milli>(time_point1 - time_point2);
+
+            constexpr auto limit = 1000.0 / 30;
+            if (work_time.count() > limit) {
+                time_point2 = std::chrono::system_clock::now();
+                profiler->Run();
+            }
 
             if (m_impl->gui_pass) {
                 m_impl->gui_pass->Run();
@@ -256,10 +265,8 @@ namespace Pupil {
     }
 
     void System::Destroy() noexcept {
-        // m_impl->main_thread->join();
-
         m_impl->render_thread.reset();
-        // m_impl->main_thread.reset();
+        m_impl->profiler_thread.reset();
 
         m_impl->passes.clear();
         m_impl->pre_passes.clear();

@@ -39,7 +39,6 @@ namespace Pupil {
         bool IsEnabled() const noexcept { return m_enable; }
 
     protected:
-        Timer  m_timer;
         bool   m_enable         = true;
         double m_last_exec_time = 0.;
     };

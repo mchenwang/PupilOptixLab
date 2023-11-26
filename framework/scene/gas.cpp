@@ -37,7 +37,7 @@ namespace Pupil {
         accel_options.operation = OPTIX_BUILD_OPERATION_BUILD;
 
         m_shape->WaitForDataUploading();
-        util::Singleton<cuda::StreamManager>::instance()->Synchronize(cuda::EStreamTaskType::ShapeUploading);
+        // util::Singleton<cuda::StreamManager>::instance()->Synchronize(cuda::EStreamTaskType::ShapeUploading);
 
         OptixAccelBufferSizes gas_buffer_sizes{};
         OPTIX_CHECK(optixAccelComputeMemoryUsage(*context, &accel_options, &input, 1u, &gas_buffer_sizes));

@@ -8,10 +8,11 @@
 #include <mutex>
 
 namespace Pupil::cuda {
-    Stream::Stream(std::string_view name) noexcept : m_name(name) {
-        // CUDA_CHECK(cudaStreamCreateWithFlags(&m_stream, cudaStreamNonBlocking));
-        CUDA_CHECK(cudaStreamCreate(&m_stream));
-        //CUDA_CHECK(cudaEventCreateWithFlags(&m_event, cudaEventDisableTiming));
+    Stream::Stream(std::string_view name, bool non_blocking) noexcept : m_name(name) {
+        if (non_blocking)
+            CUDA_CHECK(cudaStreamCreateWithFlags(&m_stream, cudaStreamNonBlocking));
+        else
+            CUDA_CHECK(cudaStreamCreate(&m_stream));
     }
     Stream::~Stream() noexcept {
         if (m_stream) {
@@ -19,13 +20,11 @@ namespace Pupil::cuda {
             CUDA_CHECK(cudaStreamDestroy(m_stream));
         }
         m_stream = nullptr;
-        //CUDA_CHECK(cudaEventDestroy(m_event));
     }
 
     void Stream::Synchronize() noexcept { CUDA_CHECK(cudaStreamSynchronize(m_stream)); }
 
-    Event::Event(bool use_timer) noexcept
-        : m_stream(nullptr) {
+    Event::Event(bool use_timer) noexcept {
         if (use_timer)
             CUDA_CHECK(cudaEventCreate(&m_event));
         else
@@ -36,16 +35,21 @@ namespace Pupil::cuda {
         CUDA_CHECK(cudaEventDestroy(m_event));
     }
 
-    void Event::Reset(Stream* stream) noexcept {
-        CUDA_CHECK(cudaEventRecord(m_event, *stream));
-        m_stream = stream;
+    void Event::Record(Stream* stream) noexcept {
+        if (stream)
+            CUDA_CHECK(cudaEventRecord(m_event, *stream));
+        else
+            CUDA_CHECK(cudaEventRecord(m_event));
+
+        m_record_flag = true;
     }
 
     void Event::Synchronize() noexcept {
-        if (m_stream) {
-            CUDA_CHECK(cudaStreamWaitEvent(*m_stream, m_event));
-            m_stream = nullptr;
-        }
+        CUDA_CHECK(cudaEventSynchronize(m_event));
+    }
+
+    bool Event::IsCompleted() noexcept {
+        return cudaEventQuery(m_event) == cudaSuccess;
     }
 
     static inline unsigned int GenericFfs(unsigned int x) {
@@ -76,12 +80,12 @@ namespace Pupil::cuda {
     StreamManager::~StreamManager() noexcept {
     }
 
-    util::CountableRef<Stream> StreamManager::Alloc(EStreamTaskType task_type) noexcept {
+    util::CountableRef<Stream> StreamManager::Alloc(EStreamTaskType task_type, std::string_view name, bool non_blocking) noexcept {
         std::unique_lock lock(m_impl->mtx);
         auto             group_idx = GenericFfs(static_cast<unsigned int>(task_type));
 
         if (m_impl->stream_pool.empty())
-            m_impl->stream_groups[group_idx].emplace_back(std::make_unique<Stream>());
+            m_impl->stream_groups[group_idx].emplace_back(std::make_unique<Stream>(name, non_blocking));
         else {
             m_impl->stream_groups[group_idx]
                 .emplace_back(std::move(m_impl->stream_pool.front()));

@@ -70,7 +70,7 @@ namespace Pupil::resource {
             CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&m_device_memory_segment_ctrl_vertex_index), size_index, *stream));
             CUDA_CHECK(cudaMemcpyAsync(reinterpret_cast<void**>(m_device_memory_segment_ctrl_vertex_index), m_segment_ctrl_vertex_index.get(), size_index, cudaMemcpyHostToDevice, *stream));
 
-            m_upload_event->Reset(stream.Get());
+            m_upload_event->Record(stream.Get());
             m_data_dirty = false;
         }
     }
