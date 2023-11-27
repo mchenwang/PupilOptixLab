@@ -177,6 +177,8 @@ namespace Pupil::pt {
 
         util::Singleton<Profiler>::instance()->ShowPlot(name);
 
+        ImGui::Text("sample cnt: %d", m_impl->frame_cnt);
+
         ImGui::InputInt("max trace depth", &m_impl->max_depth);
         m_impl->max_depth = clamp(m_impl->max_depth, 1, 128);
         if (m_impl->optix_launch_params.config.max_depth != m_impl->max_depth) {
@@ -204,6 +206,8 @@ namespace Pupil::pt {
             }));
 
         event_center->BindEvent(Event::DispatcherRender, Event::InstanceChange, new Event::Handler0A([this]() { m_impl->dirty = true; }));
+        event_center->BindEvent(Event::DispatcherRender, Event::CameraChange, new Event::Handler0A([this]() { m_impl->frame_cnt = 0; }));
+
         event_center->BindEvent(
             Event::DispatcherRender, Event::SceneReset,
             new Event::Handler0A([this]() {

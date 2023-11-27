@@ -195,7 +195,7 @@ namespace Pupil::Gui {
 
             event_center->BindEvent(
                 Pupil::Event::DispatcherRender, Pupil::Event::FrameDone,
-                new Pupil::Event::Handler1A<size_t>([this](size_t frame_cnt) {
+                new Pupil::Event::Handler0A([this]() {
                     int next_index;
                     {
                         std::scoped_lock lock(m_impl->flip_model.flip_mtx);
@@ -205,7 +205,7 @@ namespace Pupil::Gui {
 
                     if (m_impl->CopyFromOutput(next_index)) {
                         m_impl->flip_model.ready_flip.store(true);
-                        m_impl->frame_cnt = frame_cnt;
+                        m_impl->frame_cnt++;
                     }
                     m_impl->frame_rate_timer->Stop();
 

@@ -169,11 +169,6 @@ namespace Pupil {
             auto time_point1 = std::chrono::system_clock::now();
             auto time_point2 = std::chrono::system_clock::now();
 
-            size_t frame_cnt = 0;
-
-            event_center->BindEvent(Event::DispatcherRender, Event::CameraChange,
-                                    new Event::Handler0A([&frame_cnt]() { frame_cnt = 0; }));
-
             while (!st.stop_requested()) {
                 if (m_impl->limit_render_frame_rate) {
                     timeBeginPeriod(1);
@@ -206,7 +201,6 @@ namespace Pupil {
                 util::Singleton<World>::instance()->Upload();
 
                 if (m_impl->render_restart_flag) {
-                    frame_cnt = 0;
                     for (auto& pass : m_impl->pre_passes)
                         if (pass->IsEnabled())
                             pass->Run();
@@ -218,7 +212,7 @@ namespace Pupil {
                         pass->Run();
 
                 util::Singleton<cuda::StreamManager>::instance()->Synchronize(cuda::EStreamTaskType::Render);
-                util::Singleton<Event::Center>::instance()->Send(Event::FrameDone, {++frame_cnt});
+                util::Singleton<Event::Center>::instance()->Send(Event::FrameDone);
             }
 
             event_center->Dispatch(Event::DispatcherRender);
