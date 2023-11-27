@@ -14,10 +14,12 @@
 #include "cuda/stream.h"
 
 #include "util/log.h"
+#include "util/hash.h"
 #include "util/thread_pool.h"
 
 #include <mutex>
 #include <condition_variable>
+#include <unordered_map>
 #include <Windows.h>
 
 namespace Pupil {
@@ -33,6 +35,8 @@ namespace Pupil {
         Gui::Pass*                         gui_pass = nullptr;
         std::vector<std::unique_ptr<Pass>> passes;
         std::vector<std::unique_ptr<Pass>> pre_passes;
+
+        std::unordered_map<std::string, Pass*, util::StringHash, std::equal_to<>> pass_map;
 
         bool         limit_render_frame_rate = false;
         unsigned int max_render_frame_rate   = 60;
@@ -251,7 +255,9 @@ namespace Pupil {
         }
     }
 
-    void System::AddPass(Pass* pass) noexcept {
+    Pass* System::AddPass(Pass* pass) noexcept {
+        m_impl->pass_map[pass->name] = pass;
+
         if (!(pass->tag & EPassTag::DisableCustomConsole) && m_impl->gui_pass) {
             m_impl->gui_pass->RegisterConsole(pass->name, [pass]() { pass->Console(); });
         }
@@ -261,6 +267,8 @@ namespace Pupil {
         } else {
             m_impl->passes.emplace_back(pass);
         }
+
+        return pass;
     }
 
     void System::Destroy() noexcept {

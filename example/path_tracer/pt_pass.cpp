@@ -168,6 +168,10 @@ namespace Pupil::pt {
         ++m_impl->optix_launch_params.random_seed;
     }
 
+    void PTPass::Synchronize() noexcept {
+        m_stream->Synchronize();
+    }
+
     void PTPass::Console() noexcept {
         Pupil::Pass::Console();
 

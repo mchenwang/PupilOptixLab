@@ -22,6 +22,7 @@ namespace Pupil::Gui {
         void Destroy() noexcept;
 
         virtual void OnRun() noexcept override;
+        virtual void Synchronize() noexcept override;
 
         using CustomConsole = std::function<void()>;
         void RegisterConsole(std::string_view, CustomConsole&&) noexcept;

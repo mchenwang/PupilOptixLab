@@ -108,9 +108,13 @@ namespace Pupil {
             m_impl->denoiser->Setup(m_impl->film_w, m_impl->film_h);
             m_impl->film_dirty = false;
         }
-        m_impl->timer->Start();
-        m_impl->denoiser->Execute(m_impl->data);
-        m_impl->timer->Stop();
+
+        std::for_each(m_dep_pass.begin(), m_dep_pass.end(), [](Pass* dep_pass) { dep_pass->Synchronize(); });
+        m_impl->denoiser->Execute(m_impl->data, m_impl->timer);
+    }
+
+    void DenoisePass::Synchronize() noexcept {
+        m_impl->stream->Synchronize();
     }
 
     void DenoisePass::Console() noexcept {

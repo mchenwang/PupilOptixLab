@@ -35,7 +35,7 @@ namespace Pupil {
 
         void SetFrameRateLimit(int limit) noexcept;
 
-        void AddPass(Pass*) noexcept;
+        Pass* AddPass(Pass*) noexcept;
 
     private:
         struct Impl;

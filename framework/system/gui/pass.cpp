@@ -378,6 +378,13 @@ namespace Pupil::Gui {
             flip_model.mtx[flip_model.index].unlock();
     }
 
+    void Pass::Synchronize() noexcept {
+        auto dx_ctx = util::Singleton<DirectX::Context>::instance();
+        dx_ctx->Flush();
+        if (m_impl->copy_stream.Get() != nullptr)
+            m_impl->copy_stream->Synchronize();
+    }
+
     void Pass::Impl::ResizeCanvas(uint32_t w, uint32_t h) noexcept {
         if (w == canvas_desc.w && h == canvas_desc.h) return;
         canvas_mtx.lock();
@@ -623,7 +630,7 @@ namespace Pupil::Gui {
             ImGui::PushTextWrapPos(0.f);
 
             if (ImGui::CollapsingHeader("Frame", ImGuiTreeNodeFlags_DefaultOpen)) {
-                // ImGui::Text("Rendering time cost: %.3lf ms/frame (%d FPS)", last_frame_time_cost, (last_frame_time_cost > 0. ? (int)(1000.0f / last_frame_time_cost) : 0));
+                ImGui::Text("Rendering time cost: %.3lf ms/frame (%d FPS)", last_frame_time_cost, (last_frame_time_cost > 0. ? (int)(1000.0f / last_frame_time_cost) : 0));
                 auto profiler_entry = util::Singleton<Profiler>::instance()->GetEntry("gui");
                 if (profiler_entry.datas != nullptr) {
                     std::vector<float> fps(profiler_entry.count, 0);
@@ -702,9 +709,11 @@ namespace Pupil::Gui {
                 if (ImGui::CollapsingHeader("Custom Control", ImGuiTreeNodeFlags_DefaultOpen)) {
                     for (auto&& [title, console] : custom_consoles) {
                         if (ImGui::SetNextItemOpen(true, ImGuiCond_Once); ImGui::TreeNode(title.c_str())) {
+                            ImGui::PushID(title.data());
                             ImGui::PushItemWidth(ImGui::GetWindowSize().x * 0.4f);
                             console();
                             ImGui::PopItemWidth();
+                            ImGui::PopID();
                             ImGui::TreePop();
                         }
                     }

@@ -9,7 +9,7 @@ int main() {
     system->Init(true);
 
     {
-        system->AddPass(new Pupil::pt::PTPass());
+        auto pt_pass = system->AddPass(new Pupil::pt::PTPass());
 
         Pupil::DenoisePass::Config denoise_config{
             .default_enable = true,
@@ -18,7 +18,8 @@ int main() {
             .albedo_name    = "albedo",
             .use_normal     = true,
             .normal_name    = "normal"};
-        system->AddPass(new Pupil::DenoisePass(denoise_config));
+        auto denoise_pass = system->AddPass(new Pupil::DenoisePass(denoise_config));
+        denoise_pass->AddDependentPass(pt_pass);
 
         std::filesystem::path scene_file_path{Pupil::DATA_DIR};
         scene_file_path /= "static/default.xml";

@@ -10,6 +10,7 @@ namespace Pupil::pt {
         ~PTPass() noexcept;
         virtual void OnRun() noexcept override;
         virtual void Console() noexcept override;
+        virtual void Synchronize() noexcept override;
 
     private:
         void InitPipeline() noexcept;

@@ -32,14 +32,18 @@ namespace Pupil {
         virtual void Run() noexcept;
         virtual void Console() noexcept;
 
-        virtual void OnRun() noexcept = 0;
+        virtual void OnRun() noexcept       = 0;
+        virtual void Synchronize() noexcept = 0;
 
         void Toggle() noexcept { m_enable ^= true; }
         void SetEnablility(bool enable) noexcept { m_enable = enable; }
         bool IsEnabled() const noexcept { return m_enable; }
 
+        void AddDependentPass(Pass* pass) noexcept { m_dep_pass.push_back(pass); }
+
     protected:
-        bool   m_enable         = true;
-        double m_last_exec_time = 0.;
+        bool               m_enable         = true;
+        double             m_last_exec_time = 0.;
+        std::vector<Pass*> m_dep_pass;
     };
 }// namespace Pupil

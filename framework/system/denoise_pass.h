@@ -21,6 +21,7 @@ namespace Pupil {
 
         virtual void OnRun() noexcept override;
         virtual void Console() noexcept override;
+        virtual void Synchronize() noexcept override;
 
     private:
         struct Impl;

@@ -2,7 +2,9 @@
 #include "context.h"
 #include "check.h"
 #include "cuda/check.h"
+
 #include "util/log.h"
+#include "util/timer.h"
 
 #include <optix_stubs.h>
 #include <optix_denoiser_tiling.h>
@@ -198,7 +200,7 @@ namespace Pupil::optix {
         }
     }
 
-    void Denoiser::Execute(const ExecutionData& data) noexcept {
+    void Denoiser::Execute(const ExecutionData& data, Timer* timer) noexcept {
         if (m_impl->input_h == 0 || m_impl->input_w == 0) [[unlikely]] {
             Log::Warn("Optix Denoiser: does not setup.");
             return;
@@ -240,6 +242,7 @@ namespace Pupil::optix {
             }
         }
 
+        if (timer) timer->Start();
         if (m_impl->hdr_intensity) {
             OPTIX_CHECK(optixDenoiserComputeIntensity(
                 m_impl->denoiser,
@@ -289,6 +292,7 @@ namespace Pupil::optix {
                 m_impl->scratch,
                 m_impl->scratch_size));
         }
+        if (timer) timer->Stop();
 
         if (m_impl->mode & EMode::UseTemporal) {
             std::swap(m_impl->guide_layer.outputInternalGuideLayer, m_impl->guide_layer.previousOutputInternalGuideLayer);

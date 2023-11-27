@@ -3,6 +3,10 @@
 #include <optix.h>
 #include "cuda/stream.h"
 
+namespace Pupil {
+    class Timer;
+}
+
 namespace Pupil::optix {
     class Denoiser {
     public:
@@ -35,7 +39,7 @@ namespace Pupil::optix {
             CUdeviceptr normal        = 0;
             CUdeviceptr motion_vector = 0;
         };
-        void Execute(const ExecutionData&) noexcept;
+        void Execute(const ExecutionData&, Timer* timer = nullptr) noexcept;
 
         operator OptixDenoiser() const noexcept;
 
