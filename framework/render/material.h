@@ -25,7 +25,7 @@ namespace Pupil::optix {
 #undef PUPIL_MATERIAL_TYPE_ATTR_DEFINE
             };
 
-#ifdef PUPIL_OPTIX
+#ifndef PUPIL_CPP
             CUDA_DEVICE void Sample(BsdfSamplingRecord& record) const noexcept {
                 switch (type) {
 #define PUPIL_MATERIAL_TYPE_ATTR_DEFINE(enum_type, attr) \
@@ -62,7 +62,7 @@ namespace Pupil::optix {
 #endif
         };
 
-#ifdef PUPIL_OPTIX
+#ifndef PUPIL_CPP
         CUDA_DEVICE LocalBsdf GetLocalBsdf(float2 sampled_tex) const noexcept {
             LocalBsdf local_bsdf;
             local_bsdf.type = type;

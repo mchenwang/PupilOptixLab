@@ -18,6 +18,8 @@ namespace Pupil::optix {
         void Synchronize() noexcept;
 
         auto GetStream() const noexcept { return m_stream; }
+        auto GetPipeline() noexcept { return m_pipeline.get(); }
+        auto GetSBT() noexcept { return m_sbt.get(); }
 
     protected:
         util::CountableRef<cuda::Stream> m_stream;
