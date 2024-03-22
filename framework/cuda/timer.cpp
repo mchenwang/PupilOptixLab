@@ -97,8 +97,10 @@ namespace Pupil::cuda {
 
     bool TracedGpuTimer::TryGetElapsedMilliseconds(float& milliseconds) noexcept {
         if (m_impl->first_flag) {
-            m_impl->first_flag = false;
-            m_impl->flip_flag  = true;
+            if (m_impl->flip[m_impl->flip_index].stop_flag) {
+                m_impl->first_flag = false;
+                m_impl->flip_flag  = true;
+            }
             return false;
         }
 
