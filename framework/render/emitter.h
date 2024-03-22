@@ -75,6 +75,14 @@ namespace Pupil::optix {
                     break;
             }
         }
+
+        CUDA_DEVICE void Sample(EmitterSample& ret, float2 xi) const noexcept {
+            switch (type) {
+                case EEmitterType::TriMesh:
+                    tri_mesh.Sample(ret, xi);
+                    break;
+            }
+        }
 #endif
 #ifdef PUPIL_OPTIX
         CUDA_DEVICE static bool TraceShadowRay(OptixTraversableHandle ias,

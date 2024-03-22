@@ -121,7 +121,7 @@ namespace Pupil::cuda {
     public:
         CUDA_HOSTDEVICE RWArrayView() noexcept {}
 
-        CUDA_HOST void SetData(CUdeviceptr cuda_data, size_t num) noexcept {
+        CUDA_HOSTDEVICE void SetData(CUdeviceptr cuda_data, size_t num) noexcept {
             m_data = cuda_data;
             m_num  = num;
         }

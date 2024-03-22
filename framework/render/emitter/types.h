@@ -24,6 +24,14 @@ namespace Pupil::optix {
         float pdf = 0.f;
         bool  is_delta;
     };
+
+    struct EmitterSample {
+        float3 pos;
+        float3 normal;
+        float3 emission;
+        float  pdf = 0.f;
+    };
+
     struct EmitEvalRecord {
         unsigned int primitive_index;
         float3       radiance;
